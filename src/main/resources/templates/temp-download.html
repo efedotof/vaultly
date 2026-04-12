@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Скачать файл</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f5f7fa;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            padding: 36px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        .info {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin: 20px 0;
+            border: 1px solid #e2e8f0;
+        }
+
+        .info p {
+            margin: 8px 0;
+        }
+
+        .auth-section,
+        .download-section {
+            margin-top: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #334155;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: border 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            font-size: 16px;
+            font-weight: 500;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #2563eb;
+        }
+
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .error {
+            color: #dc2626;
+            margin-top: 12px;
+            font-size: 14px;
+        }
+
+        .progress {
+            margin-top: 16px;
+            font-size: 14px;
+            color: #64748b;
+            text-align: center;
+        }
+
+        .footer {
+            margin-top: 24px;
+            font-size: 13px;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: #f1f5f9;
+            color: #475569;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>Скачивание защищённого файла</h2>
+        <div class="info">
+            <p><strong>📄 Файл:</strong> <span th:text="${fileName}">filename</span></p>
+            <p><strong>⏳ Действительна до:</strong> <span
+                    th:text="${#temporals.format(expiresAt, 'dd.MM.yyyy HH:mm')}">01.01.2026 12:00</span></p>
+        </div>
+
+        <div id="authSection" class="auth-section" th:classappend="${isAuthenticated} ? 'hidden' : ''">
+            <p style="color:#475569;">Для скачивания необходимо войти или зарегистрироваться.</p>
+            <div class="tab-buttons">
+                <button id="loginTabBtn" class="tab-btn active">Вход</button>
+                <button id="registerTabBtn" class="tab-btn">Регистрация</button>
+            </div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Имя пользователя</label>
+                    <input type="text" id="loginUsername" placeholder="username" required>
+                </div>
+                <div class="form-group">
+                    <label>Пароль</label>
+                    <input type="password" id="loginPassword" placeholder="••••••••" required>
+                </div>
+                <button type="submit" id="loginBtn">Войти</button>
+                <div id="loginError" class="error"></div>
+            </form>
+
+            <form id="registerForm" class="hidden">
+                <div class="form-group">
+                    <label>Имя пользователя</label>
+                    <input type="text" id="regUsername" placeholder="username" required>
+                </div>
+                <div class="form-group">
+                    <label>Пароль</label>
+                    <input type="password" id="regPassword" placeholder="минимум 6 символов" required>
+                </div>
+                <div class="form-group">
+                    <label>Имя (необязательно)</label>
+                    <input type="text" id="regFirstName" placeholder="Иван">
+                </div>
+                <div class="form-group">
+                    <label>Фамилия (необязательно)</label>
+                    <input type="text" id="regLastName" placeholder="Иванов">
+                </div>
+                <button type="submit" id="registerBtn">Зарегистрироваться</button>
+                <div id="registerError" class="error"></div>
+            </form>
+            <p class="footer" style="margin-top:16px;">После входа форма обновится автоматически</p>
+        </div>
+
+        <div id="downloadSection" class="download-section" th:classappend="${isAuthenticated} ? '' : 'hidden'">
+            <div th:if="${hasPassword}">
+                <div class="form-group">
+                    <label>Пароль для доступа к файлу:</label>
+                    <input type="password" id="filePassword" placeholder="Введите пароль" autocomplete="off">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Мастер-пароль (от вашей учётной записи):</label>
+                <input type="password" id="masterPassword" placeholder="Введите пароль от аккаунта" autocomplete="off">
+            </div>
+            <button id="decryptDownloadBtn">🔓 Скачать и расшифровать</button>
+            <div id="progressMessage" class="progress"></div>
+            <div id="downloadError" class="error"></div>
+            <p class="footer" style="margin-top:20px;">
+                Файл будет расшифрован прямо в браузере.<br>Ваш приватный ключ не покидает устройство.
+            </p>
+        </div>
+        <div class="footer">🛡️ Powered by Vaultly</div>
+    </div>
+
+    <script th:inline="javascript">
+        const token = /*[[${token}]]*/ '';
+        const hasPassword = /*[[${hasPassword}]]*/ false;
+        let isAuthenticated = /*[[${isAuthenticated}]]*/ false;
+
+        const authSection = document.getElementById('authSection');
+        const downloadSection = document.getElementById('downloadSection');
+
+        function showError(elementId, message) {
+            const el = document.getElementById(elementId);
+            if (el) { el.textContent = message; el.style.display = 'block'; }
+        }
+        function clearError(elementId) {
+            const el = document.getElementById(elementId);
+            if (el) el.textContent = '';
+        }
+        function setProgress(message) {
+            const el = document.getElementById('progressMessage');
+            if (el) el.textContent = message;
+        }
+
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = Math.random() * 16 | 0;
+                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            });
+        }
+
+        async function authFetch(url, options = {}) {
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) throw new Error('Нет токена доступа');
+            options.headers = { ...options.headers, 'Authorization': `Bearer ${token}` };
+            return fetch(url, options);
+        }
+
+        function cleanBase64(str) {
+            let cleaned = String(str).replace(/\s/g, '').replace(/[^A-Za-z0-9+/=]/g, '');
+            cleaned = cleaned.replace(/=+(?=.*=)/g, '');
+            while (cleaned.length % 4 !== 0) {
+                cleaned += '=';
+            }
+            return cleaned;
+        }
+
+        function arrayBufferToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+            return btoa(binary);
+        }
+
+        function base64ToArrayBuffer(base64) {
+            const cleanBase64Str = cleanBase64(base64);
+            console.log('Base64 to decode:', cleanBase64Str);
+            try {
+                const binary = atob(cleanBase64Str);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                return bytes.buffer;
+            } catch (e) {
+                console.error('Failed to decode Base64:', cleanBase64Str, e);
+                throw e;
+            }
+        }
+
+        function formatPublicKeyPem(base64Key) {
+            const pemHeader = '-----BEGIN PUBLIC KEY-----';
+            const pemFooter = '-----END PUBLIC KEY-----';
+            const lines = base64Key.match(/.{1,64}/g) || [base64Key];
+            return pemHeader + '\n' + lines.join('\n') + '\n' + pemFooter;
+        }
+
+        async function generateRSAKeyPair() {
+            return crypto.subtle.generateKey(
+                { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+                true,
+                ["encrypt", "decrypt"]
+            );
+        }
+
+        async function exportPublicKey(publicKey) {
+            const exported = await crypto.subtle.exportKey("spki", publicKey);
+            return arrayBufferToBase64(exported);
+        }
+
+        async function encryptPrivateKeyToJson(privateKey, password, salt) {
+            const pkcs8Der = await crypto.subtle.exportKey("pkcs8", privateKey);
+            const pemHeader = '-----BEGIN PRIVATE KEY-----';
+            const pemFooter = '-----END PRIVATE KEY-----';
+            const base64Body = arrayBufferToBase64(pkcs8Der);
+            const lines = base64Body.match(/.{1,64}/g) || [base64Body];
+            const pemString = pemHeader + '\n' + lines.join('\n') + '\n' + pemFooter;
+
+            const enc = new TextEncoder();
+            const pemBytes = enc.encode(pemString);
+
+            const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
+            const aesKey = await crypto.subtle.deriveKey(
+                { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" },
+                keyMaterial,
+                { name: "AES-GCM", length: 256 },
+                false,
+                ["encrypt"]
+            );
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, pemBytes);
+
+            const encryptedBytes = new Uint8Array(encrypted);
+            const tagLength = 16;
+            const ciphertext = encryptedBytes.slice(0, encryptedBytes.length - tagLength);
+            const mac = encryptedBytes.slice(encryptedBytes.length - tagLength);
+
+            return {
+                cipherText: arrayBufferToBase64(ciphertext.buffer),
+                nonce: arrayBufferToBase64(iv.buffer),
+                mac: arrayBufferToBase64(mac.buffer)
+            };
+        }
+
+        async function decryptPrivateKey(encryptedData, password, saltBase64) {
+            console.log('=== decryptPrivateKey ===');
+            console.log('Password length:', password.length);
+            console.log('Salt base64 (original):', saltBase64);
+
+            let cleaned = encryptedData.trim();
+            cleaned = cleaned.replace(/^\uFEFF/, '');
+            while ((cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+                (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+                cleaned = cleaned.slice(1, -1).trim();
+            }
+            cleaned = cleaned.replace(/\\"/g, '"');
+            cleaned = cleaned.replace(/[\x00-\x1F\x7F]/g, '');
+
+            console.log('Cleaned JSON string (first 100 chars):', cleaned.substring(0, 100));
+
+            let json;
+            try {
+                json = JSON.parse(cleaned);
+            } catch (e) {
+                console.error('Failed to parse JSON:', e);
+                throw new Error('Неверный формат зашифрованного ключа');
+            }
+
+            if (!json.cipherText || !json.nonce) {
+                throw new Error('JSON missing required fields cipherText or nonce');
+            }
+
+            const ciphertext = base64ToArrayBuffer(cleanBase64(String(json.cipherText).trim()));
+            const nonce = base64ToArrayBuffer(cleanBase64(String(json.nonce).trim()));
+            const salt = base64ToArrayBuffer(cleanBase64(String(saltBase64).trim()));
+
+            const enc = new TextEncoder();
+            const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
+
+            const iterations = 100000;
+            const hash = "SHA-256";
+
+            console.log(`Deriving key with ${iterations} iterations and ${hash}`);
+            const aesKey = await crypto.subtle.deriveKey(
+                { name: "PBKDF2", salt, iterations, hash },
+                keyMaterial,
+                { name: "AES-GCM", length: 256 },
+                false,
+                ["decrypt"]
+            );
+
+            let combined = ciphertext;
+            if (json.mac) {
+                const mac = base64ToArrayBuffer(cleanBase64(String(json.mac).trim()));
+                const tmp = new Uint8Array(ciphertext.byteLength + mac.byteLength);
+                tmp.set(new Uint8Array(ciphertext), 0);
+                tmp.set(new Uint8Array(mac), ciphertext.byteLength);
+                combined = tmp.buffer;
+                console.log('Combined ciphertext+mac, total size:', combined.byteLength);
+            } else {
+                console.warn('No mac field, assuming tag already appended');
+            }
+
+            let plaintextBuffer;
+            try {
+                plaintextBuffer = await crypto.subtle.decrypt(
+                    { name: "AES-GCM", iv: nonce },
+                    aesKey,
+                    combined
+                );
+                console.log('✅ Private key decrypted successfully!');
+            } catch (e) {
+                console.error('❌ Decryption failed:', e);
+                throw new Error('Не удалось расшифровать приватный ключ. Возможно, неверный мастер-пароль.');
+            }
+
+            const plaintextStr = new TextDecoder().decode(plaintextBuffer);
+            console.log('Decrypted text starts with (first 50 chars):', plaintextStr.substring(0, 50));
+            console.log('Decrypted text contains BEGIN PRIVATE KEY?', plaintextStr.includes('BEGIN PRIVATE KEY'));
+            console.log('Decrypted text contains END PRIVATE KEY?', plaintextStr.includes('END PRIVATE KEY'));
+
+            if (!plaintextStr.includes('BEGIN PRIVATE KEY') && !plaintextStr.includes('BEGIN RSA PRIVATE KEY')) {
+                console.error('Decrypted data does not look like a private key PEM. Raw (first 200):', plaintextStr.substring(0, 200));
+                throw new Error('Расшифрованные данные не являются приватным ключом в формате PEM.');
+            }
+
+            const pemBody = plaintextStr
+                .replace(/-----BEGIN [^-]+-----/, '')
+                .replace(/-----END [^-]+-----/, '')
+                .replace(/\s/g, '');
+            console.log('PEM body length:', pemBody.length);
+
+            const pkcs8Der = base64ToArrayBuffer(cleanBase64(pemBody));
+            console.log('PKCS8 DER size:', pkcs8Der.byteLength);
+            if (pkcs8Der.byteLength === 0) {
+                throw new Error('Пустой DER после декодирования PEM.');
+            }
+
+            try {
+                const privateKey = await crypto.subtle.importKey(
+                    "pkcs8",
+                    pkcs8Der,
+                    { name: "RSA-OAEP", hash: "SHA-256" },
+                    false,
+                    ["decrypt"]
+                );
+                console.log('✅ Private key imported successfully.');
+                return privateKey;
+            } catch (e) {
+                console.error('❌ Failed to import private key:', e);
+                try {
+                    return await crypto.subtle.importKey(
+                        "pkcs8",
+                        pkcs8Der,
+                        { name: "RSA-OAEP", hash: "SHA-1" },
+                        false,
+                        ["decrypt"]
+                    );
+                } catch (e2) {
+                    throw new Error('Не удалось импортировать приватный ключ. Возможно, он повреждён или не соответствует алгоритму RSA-OAEP.');
+                }
+            }
+        }
+
+        async function decryptShpsFile(buffer, metadata, privateKey) {
+            const view = new DataView(buffer);
+            const headerLength = view.getInt32(0, false);
+            const encryptedAesKey = base64ToArrayBuffer(cleanBase64(metadata.encryptedKey));
+            const aesKeyRaw = await crypto.subtle.decrypt({ name: "RSA-OAEP" }, privateKey, encryptedAesKey);
+            const aesKey = await crypto.subtle.importKey("raw", aesKeyRaw, "AES-GCM", false, ["decrypt"]);
+            const iv = base64ToArrayBuffer(cleanBase64(metadata.iv));
+            const encryptedData = buffer.slice(4 + headerLength);
+            const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, encryptedData);
+            return new Blob([decrypted], { type: metadata.mimeType });
+        }
+
+        async function getOrCreateTempDevice() {
+            const devicesResp = await authFetch('/api/device/me-device');
+            if (!devicesResp.ok) throw new Error('Ошибка получения устройств');
+            const devices = await devicesResp.json();
+            let tempDevice = devices.find(d => d.deviceType === 'TEMP_DOWNLOAD');
+
+            if (tempDevice) {
+                try {
+                    const keyResp = await authFetch(`/api/device/${tempDevice.id}/key`);
+                    if (keyResp.ok) {
+                        const key = await keyResp.text();
+                        if (key === 'dummy' || key.length < 20) {
+                            await authFetch(`/api/device/${tempDevice.id}`, { method: 'DELETE' });
+                            tempDevice = null;
+                        }
+                    } else {
+                        tempDevice = null;
+                    }
+                } catch (e) {
+                    tempDevice = null;
+                }
+            }
+
+            if (tempDevice) return tempDevice.id;
+
+            const profileResp = await authFetch('/api/users/me');
+            if (!profileResp.ok) throw new Error('Не удалось получить профиль');
+            const profile = await profileResp.json();
+
+            const privateKeyResp = await authFetch('/api/users/me/private-key-encrypted');
+            if (!privateKeyResp.ok) throw new Error('Не удалось получить зашифрованный ключ');
+            const encryptedPrivateKey = await privateKeyResp.text();
+
+            const createResp = await authFetch('/api/device/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    deviceName: 'Скачивание файлов',
+                    deviceType: 'TEMP_DOWNLOAD',
+                    uniqueId: 'temp-' + generateUUID(),
+                    publicKey: profile.publicKey,
+                    encryptedPrivateKey
+                })
+            });
+            if (!createResp.ok) {
+                const err = await createResp.text();
+                throw new Error('Не удалось создать устройство: ' + err);
+            }
+            const newDevice = await createResp.json();
+            return newDevice.id;
+        }
+
+        function switchToAuthenticatedUI() {
+            authSection.classList.add('hidden');
+            downloadSection.classList.remove('hidden');
+            isAuthenticated = true;
+            initDownloadButton();
+        }
+
+        function initDownloadButton() {
+            const btn = document.getElementById('decryptDownloadBtn');
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.addEventListener('click', async () => {
+                const filePassword = document.getElementById('filePassword')?.value || '';
+                const masterPassword = document.getElementById('masterPassword').value;
+                if (!masterPassword) {
+                    showError('downloadError', 'Введите мастер-пароль');
+                    return;
+                }
+                clearError('downloadError');
+                setProgress('Подготовка...');
+                newBtn.disabled = true;
+
+                try {
+                    setProgress('Получение устройства...');
+                    const deviceId = await getOrCreateTempDevice();
+
+                    setProgress('Получение метаданных...');
+                    let metaUrl = `/tempacces/version132/temp-access/${token}/decryption-metadata`;
+                    if (hasPassword && filePassword) metaUrl += `?password=${encodeURIComponent(filePassword)}`;
+                    const metaResp = await authFetch(metaUrl, { method: 'POST' });
+                    if (!metaResp.ok) throw new Error(await metaResp.text() || 'Ошибка метаданных');
+                    const metadata = await metaResp.json();
+
+                    setProgress('Получение ключа устройства...');
+                    const keyResp = await authFetch(`/api/device/${deviceId}/key`);
+                    if (!keyResp.ok) throw new Error('Не удалось получить ключ устройства');
+                    const encryptedKey = await keyResp.text();
+
+                    setProgress('Получение соли...');
+                    const saltResp = await authFetch('/api/users/me/salt');
+                    if (!saltResp.ok) throw new Error('Не удалось получить соль');
+                    const salt = await saltResp.text();
+
+                    setProgress('Расшифровка приватного ключа...');
+                    const privateKey = await decryptPrivateKey(encryptedKey, masterPassword, salt);
+
+                    setProgress('Загрузка файла...');
+                    const fileResp = await fetch(metadata.presignedUrl);
+                    if (!fileResp.ok) throw new Error('Ошибка загрузки файла');
+                    const encryptedBuffer = await fileResp.arrayBuffer();
+
+                    setProgress('Расшифровка содержимого...');
+                    const decryptedBlob = await decryptShpsFile(encryptedBuffer, metadata, privateKey);
+
+                    setProgress('Сохранение...');
+                    const url = URL.createObjectURL(decryptedBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = metadata.fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    setProgress('✅ Готово!');
+                } catch (err) {
+                    showError('downloadError', err.message);
+                    setProgress('');
+                } finally {
+                    newBtn.disabled = false;
+                }
+            });
+        }
+
+        (function init() {
+            if (isAuthenticated) {
+                authSection.classList.add('hidden');
+                downloadSection.classList.remove('hidden');
+                initDownloadButton();
+            } else {
+                authSection.classList.remove('hidden');
+                downloadSection.classList.add('hidden');
+
+                const loginForm = document.getElementById('loginForm');
+                const registerForm = document.getElementById('registerForm');
+                const loginTab = document.getElementById('loginTabBtn');
+                const registerTab = document.getElementById('registerTabBtn');
+
+                loginTab.onclick = () => {
+                    loginForm.classList.remove('hidden');
+                    registerForm.classList.add('hidden');
+                    loginTab.classList.add('active');
+                    registerTab.classList.remove('active');
+                };
+                registerTab.onclick = () => {
+                    registerForm.classList.remove('hidden');
+                    loginForm.classList.add('hidden');
+                    registerTab.classList.add('active');
+                    loginTab.classList.remove('active');
+                };
+
+                loginForm.addEventListener('submit', async e => {
+                    e.preventDefault();
+                    const username = document.getElementById('loginUsername').value;
+                    const password = document.getElementById('loginPassword').value;
+                    const btn = document.getElementById('loginBtn');
+                    btn.disabled = true;
+                    clearError('loginError');
+                    try {
+                        const resp = await fetch('/api/auth/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username, password })
+                        });
+                        if (!resp.ok) throw new Error(await resp.text() || 'Ошибка входа');
+                        const data = await resp.json();
+                        sessionStorage.setItem('accessToken', data.accessToken);
+                        sessionStorage.setItem('masterPassword', password);
+                        switchToAuthenticatedUI();
+                    } catch (err) {
+                        showError('loginError', err.message);
+                        btn.disabled = false;
+                    }
+                });
+
+                registerForm.addEventListener('submit', async e => {
+                    e.preventDefault();
+                    const username = document.getElementById('regUsername').value;
+                    const password = document.getElementById('regPassword').value;
+                    const firstName = document.getElementById('regFirstName').value;
+                    const lastName = document.getElementById('regLastName').value;
+                    const btn = document.getElementById('registerBtn');
+                    btn.disabled = true;
+                    clearError('registerError');
+                    try {
+                        const keyPair = await generateRSAKeyPair();
+                        const publicKeyBase64 = await exportPublicKey(keyPair.publicKey);
+                        const publicKeyPem = formatPublicKeyPem(publicKeyBase64);
+
+                        const salt = crypto.getRandomValues(new Uint8Array(16));
+                        const saltBase64 = arrayBufferToBase64(salt.buffer);
+
+                        const encryptedPrivateJson = await encryptPrivateKeyToJson(keyPair.privateKey, password, salt);
+                        const privateKeyEncrypted = JSON.stringify(encryptedPrivateJson);
+
+                        const resp = await fetch('/api/auth/register', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                username,
+                                password,
+                                firstName,
+                                lastName,
+                                publicKey: publicKeyPem,
+                                privateKeyEncrypted: privateKeyEncrypted,
+                                salt: saltBase64
+                            })
+                        });
+                        if (!resp.ok) throw new Error(await resp.text() || 'Ошибка регистрации');
+                        const data = await resp.json();
+                        sessionStorage.setItem('accessToken', data.accessToken);
+                        sessionStorage.setItem('masterPassword', password);
+                        switchToAuthenticatedUI();
+                    } catch (err) {
+                        showError('registerError', err.message);
+                        btn.disabled = false;
+                    }
+                });
+            }
+        })();
+    </script>
+</body>
+
+</html>
