@@ -1,0 +1,111 @@
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:webcrypto/webcrypto.dart' as web;
+import 'package:pointycastle/asymmetric/api.dart';
+import 'package:pointycastle/asymmetric/oaep.dart';
+import 'package:pointycastle/asymmetric/rsa.dart';
+import 'package:pointycastle/block/aes.dart';
+import 'package:pointycastle/block/modes/gcm.dart';
+import 'package:pointycastle/api.dart'
+    show AEADParameters, KeyParameter, PrivateKeyParameter;
+
+class PublicFileDecryptionService {
+  static Future<Uint8List> decryptPublicFile({
+    required Uint8List shpsData,
+    required String reEncryptedKeyBase64,
+    required String ivBase64,
+    required dynamic clientPrivateKey,
+  }) async {
+    final encryptedAesKey = base64Decode(reEncryptedKeyBase64);
+    final iv = base64Decode(ivBase64);
+
+    Uint8List aesKey;
+    if (kIsWeb) {
+      final privateKey = await _importPrivateKeyFromPem(
+        clientPrivateKey as String,
+      );
+      aesKey = await privateKey.decryptBytes(encryptedAesKey);
+    } else {
+      aesKey = _rsaOaepDecrypt(
+        encryptedAesKey,
+        clientPrivateKey as RSAPrivateKey,
+      );
+    }
+
+    final encryptedData = _extractEncryptedDataFromShps(shpsData);
+
+    return kIsWeb
+        ? await _aesGcmDecryptWeb(encryptedData, aesKey, iv)
+        : _aesGcmDecryptNative(encryptedData, aesKey, iv);
+  }
+
+  static Uint8List _extractEncryptedDataFromShps(Uint8List shpsData) {
+    if (shpsData.length < 4) {
+      throw Exception('SHPS file too short');
+    }
+    final byteData = shpsData.buffer.asByteData(
+      shpsData.offsetInBytes,
+      shpsData.length,
+    );
+    final headerLength = byteData.getInt32(0, Endian.big);
+    if (headerLength < 0 || headerLength > shpsData.length - 4) {
+      throw Exception('Invalid SHPS header length: $headerLength');
+    }
+    return shpsData.sublist(4 + headerLength);
+  }
+
+  static Uint8List _rsaOaepDecrypt(
+    Uint8List encrypted,
+    RSAPrivateKey privateKey,
+  ) {
+    final oaep = OAEPEncoding.withSHA256(RSAEngine());
+    oaep.init(false, PrivateKeyParameter<RSAPrivateKey>(privateKey));
+    return oaep.process(encrypted);
+  }
+
+  static Uint8List _aesGcmDecryptNative(
+    Uint8List ciphertext,
+    Uint8List key,
+    Uint8List iv,
+  ) {
+    final keyParam = KeyParameter(key);
+    final gcm = GCMBlockCipher(AESEngine());
+    const macSizeBits = 128;
+    final params = AEADParameters(keyParam, macSizeBits, iv, Uint8List(0));
+    gcm.init(false, params);
+
+    final plaintext = Uint8List(gcm.getOutputSize(ciphertext.length));
+    final len = gcm.processBytes(
+      ciphertext,
+      0,
+      ciphertext.length,
+      plaintext,
+      0,
+    );
+    gcm.doFinal(plaintext, len);
+    return plaintext;
+  }
+
+  static Future<web.RsaOaepPrivateKey> _importPrivateKeyFromPem(
+    String pem,
+  ) async {
+    final b64 = pem
+        .replaceFirst('-----BEGIN PRIVATE KEY-----', '')
+        .replaceFirst('-----END PRIVATE KEY-----', '')
+        .replaceAll(RegExp(r'\s'), '');
+    return await web.RsaOaepPrivateKey.importPkcs8Key(
+      base64Decode(b64),
+      web.Hash.sha256,
+    );
+  }
+
+  static Future<Uint8List> _aesGcmDecryptWeb(
+    Uint8List ciphertext,
+    Uint8List key,
+    Uint8List iv,
+  ) async {
+    final secretKey = await web.AesGcmSecretKey.importRawKey(key);
+    return await secretKey.decryptBytes(ciphertext, iv);
+  }
+}
