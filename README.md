@@ -1,17 +1,16 @@
-# vaulth_app
+# Vaultly. Конфиденциальность как стандарт.
 
-A new Flutter project.
+Vaultly — облачное хранилище нового поколения, созданное для тех, кто понимает разницу между простым паролем и сквозным шифрованием.
 
-## Getting Started
+### 🔐 End-to-End Encryption (E2EE)
+Ваши файлы шифруются на устройстве до отправки в сеть. Сервер видит только зашифрованные блоки данных, не имея ключей для их расшифровки. Это не функция, это фундамент архитектуры Vaultly.
 
-This project is a starting point for a Flutter application.
+### 📱 Бесшовный доступ
+Flutter-основа обеспечивает плавный и нативный опыт на всех платформах. Получите доступ к своему хранилищу так же легко, как к локальной папке, но с уровнем защиты банковского хранилища.
 
-A few resources to get you started if this is your first Flutter project:
+### 🛡 Целостность данных
+Никакой слежки, никакого анализа содержимого для рекламы. Только вы решаете, что, где и как хранить.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+---
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-# vaultly
+Vaultly — это ответ тем, кто устал читать новости об утечках. **Доверяйте математике, а не обещаниям.**
