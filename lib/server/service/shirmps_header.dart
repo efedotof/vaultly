@@ -34,16 +34,10 @@ class ShirmpsHeader {
       'userId': userId,
     };
     if (signature != null) map['signature'] = signature;
-    if (kDebugMode) {
-      debugPrint('[ShirmpsHeader] toJson called');
-    }
     return map;
   }
 
   static ShirmpsHeader fromJson(Map<String, dynamic> json) {
-    if (kDebugMode) {
-      debugPrint('[ShirmpsHeader] fromJson called');
-    }
     final header = ShirmpsHeader(
       creationDate: DateTime.parse(json['creationDate'] as String),
     );
@@ -60,16 +54,10 @@ class ShirmpsHeader {
 
   Uint8List toJsonBytes() {
     final bytes = utf8.encode(jsonEncode(toJson()));
-    if (kDebugMode) {
-      debugPrint('[ShirmpsHeader] toJsonBytes size: ${bytes.length} bytes');
-    }
     return Uint8List.fromList(bytes);
   }
 
   static ShirmpsHeader fromJsonBytes(Uint8List bytes) {
-    if (kDebugMode) {
-      debugPrint('[ShirmpsHeader] fromJsonBytes size: ${bytes.length} bytes');
-    }
     final json = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
     return fromJson(json);
   }

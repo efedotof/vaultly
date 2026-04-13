@@ -19,22 +19,39 @@ class FileDecryptionService {
     required this.fileRepository,
     required this.keyManagerService,
     required this.localFileCache,
-  });
+  }) {
+    _logger.debug('[FileDecryptionService] Создан экземпляр сервиса');
+  }
 
   Future<Uint8List> decryptAndCache({
     required FileDto file,
     required String password,
   }) async {
-    final cached = await localFileCache.getFile(file.id!);
-    if (cached != null) {
-      _logger.debug('[FileDecryptionService] Файл ${file.id} уже в кэше');
-      return cached;
-    }
+    _logger.debug(
+      '[FileDecryptionService] decryptAndCache START для файла ${file.id}',
+    );
+    try {
+      final cached = await localFileCache.getFile(file.id!);
+      if (cached != null) {
+        _logger.debug('[FileDecryptionService] Файл ${file.id} уже в кэше');
+        return cached;
+      }
 
-    if (file.isPublic == true) {
-      return await _decryptPublicFile(file, password);
-    } else {
-      return await _decryptPrivateFile(file, password);
+      _logger.debug(
+        '[FileDecryptionService] Файл ${file.id} не найден в кэше, начинаем расшифровку',
+      );
+      if (file.isPublic == true) {
+        return await _decryptPublicFile(file, password);
+      } else {
+        return await _decryptPrivateFile(file, password);
+      }
+    } catch (e, stackTrace) {
+      _logger.error(
+        '[FileDecryptionService] Ошибка в decryptAndCache для файла ${file.id}',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      rethrow;
     }
   }
 
@@ -44,9 +61,13 @@ class FileDecryptionService {
     );
 
     final metadata = await fileRepository.getDecryptionMetadata(file.id!);
+    _logger.debug('[FileDecryptionService] Получены метаданные для ${file.id}');
 
     final shpsData = await fileRepository.downloadShpsFromUrl(
       metadata.presignedUrl,
+    );
+    _logger.debug(
+      '[FileDecryptionService] SHPS данные загружены, размер: ${shpsData.length} байт',
     );
 
     dynamic clientPrivateKey;
@@ -56,14 +77,23 @@ class FileDecryptionService {
       clientPrivateKey = await keyManagerService.getPrivateKey(password);
     }
     if (clientPrivateKey == null) {
+      _logger.error(
+        '[FileDecryptionService] Не удалось получить приватный ключ для публичного файла ${file.id}',
+      );
       throw Exception('Не удалось получить приватный ключ. Неверный пароль?');
     }
 
+    _logger.debug(
+      '[FileDecryptionService] Начало расшифровки публичного файла ${file.id}',
+    );
     final decryptedBytes = await PublicFileDecryptionService.decryptPublicFile(
       shpsData: shpsData,
       reEncryptedKeyBase64: metadata.encryptedKey,
       ivBase64: metadata.iv,
       clientPrivateKey: clientPrivateKey,
+    );
+    _logger.debug(
+      '[FileDecryptionService] Публичный файл ${file.id} успешно расшифрован, размер: ${decryptedBytes.length} байт',
     );
 
     await localFileCache.saveFile(
@@ -71,6 +101,7 @@ class FileDecryptionService {
       decryptedBytes,
       originalName: metadata.fileName,
     );
+    _logger.debug('[FileDecryptionService] Файл ${file.id} сохранён в кэш');
 
     return decryptedBytes;
   }
@@ -81,6 +112,9 @@ class FileDecryptionService {
     );
 
     final encryptedBytes = await fileRepository.downloadShps(file.id!);
+    _logger.debug(
+      '[FileDecryptionService] Загружены зашифрованные данные для ${file.id}, размер: ${encryptedBytes.length} байт',
+    );
 
     String originalFileName = file.originalName;
     try {
@@ -89,9 +123,12 @@ class FileDecryptionService {
           header.originalFileName!.isNotEmpty) {
         originalFileName = header.originalFileName!;
       }
+      _logger.debug(
+        '[FileDecryptionService] Извлечено имя файла из заголовка: $originalFileName',
+      );
     } catch (e) {
       _logger.error(
-        '[FileDecryptionService] Ошибка извлечения заголовка',
+        '[FileDecryptionService] Ошибка извлечения заголовка для ${file.id}',
         error: e,
       );
     }
@@ -102,15 +139,24 @@ class FileDecryptionService {
     } else {
       final privateKey = await keyManagerService.getPrivateKey(password);
       if (privateKey == null) {
+        _logger.error(
+          '[FileDecryptionService] Приватный ключ не получен для ${file.id}',
+        );
         throw Exception('Не удалось получить приватный ключ. Неверный пароль?');
       }
       privateKeyPem = CryptoUtils.encodeRSAPrivateKeyToPem(privateKey);
     }
 
     if (privateKeyPem == null || privateKeyPem.isEmpty) {
+      _logger.error(
+        '[FileDecryptionService] Приватный ключ пуст для ${file.id}',
+      );
       throw Exception('Приватный ключ не получен');
     }
 
+    _logger.debug(
+      '[FileDecryptionService] Начало расшифровки приватного файла ${file.id}',
+    );
     Uint8List decryptedBytes;
     if (kIsWeb) {
       decryptedBytes = await ShirmDecryptionServiceWeb.decryptShps(
@@ -123,12 +169,16 @@ class FileDecryptionService {
         privateKey: CryptoUtils.rsaPrivateKeyFromPem(privateKeyPem),
       );
     }
+    _logger.debug(
+      '[FileDecryptionService] Приватный файл ${file.id} успешно расшифрован, размер: ${decryptedBytes.length} байт',
+    );
 
     await localFileCache.saveFile(
       file.id!,
       decryptedBytes,
       originalName: originalFileName,
     );
+    _logger.debug('[FileDecryptionService] Файл ${file.id} сохранён в кэш');
 
     return decryptedBytes;
   }

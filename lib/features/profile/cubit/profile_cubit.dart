@@ -1,5 +1,4 @@
 import 'package:bloc/bloc.dart';
-import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:vaulth_app/server/model/user/update_user_request/update_user_request.dart';
 import 'package:vaulth_app/server/model/user/user_profile_dto/user_profile_dto.dart';
@@ -21,7 +20,6 @@ class ProfileCubit extends Cubit<ProfileState> {
 
       emit(ProfileState.loaded(profile));
     } catch (e) {
-      debugPrint(e.toString());
       emit(ProfileState.error(e.toString()));
     }
   }
@@ -32,7 +30,6 @@ class ProfileCubit extends Cubit<ProfileState> {
       final updatedProfile = await userRepository.updateCurrentUser(request);
       emit(ProfileState.updateSuccess(updatedProfile));
     } catch (e) {
-      debugPrint(e.toString());
       emit(ProfileState.updateError(e.toString()));
     }
   }
@@ -43,7 +40,6 @@ class ProfileCubit extends Cubit<ProfileState> {
       final profile = await userRepository.getUserProfileById(id);
       emit(ProfileState.loaded(profile));
     } catch (e) {
-      debugPrint(e.toString());
       emit(ProfileState.error(e.toString()));
     }
   }

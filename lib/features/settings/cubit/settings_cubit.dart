@@ -1,5 +1,4 @@
 import 'package:bloc/bloc.dart';
-import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:vaulth_app/features/auth/cubit/auth_cubit.dart';
 import 'package:vaulth_app/server/model/device/device_register_request/device_register_request.dart';
@@ -207,7 +206,6 @@ class SettingsCubit extends Cubit<SettingsState> {
   }
 
   Future<void> clearAllKeys() async {
-    debugPrint("Удаляем ключи!!!");
     await keyManager.clearAllKeys();
   }
 

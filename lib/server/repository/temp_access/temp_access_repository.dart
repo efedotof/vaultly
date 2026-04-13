@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:vaulth_app/server/model/tempaccess/create_temp_link_request/create_temp_link_request.dart';
 import 'package:vaulth_app/server/model/tempaccess/temp_link_response/temp_link_response.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
@@ -34,16 +33,13 @@ class TempAccessRepository implements TempAccessInterface {
 
   @override
   Future<TempLinkResponse> createTempLink(CreateTempLinkRequest request) async {
-    debugPrint('[TempAccessRepository] createTempLink called');
     try {
       final response = await _dio.post(
         '/temp-access/create',
         data: request.toJson(),
       );
-      debugPrint('[TempAccessRepository] createTempLink succeeded');
       return TempLinkResponse.fromJson(response.data);
     } on DioException catch (e) {
-      debugPrint('[TempAccessRepository] createTempLink error: ${e.message}');
       throw _handleDioError(e);
     }
   }

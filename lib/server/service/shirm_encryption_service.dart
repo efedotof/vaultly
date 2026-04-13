@@ -12,18 +12,6 @@ import 'package:basic_utils/basic_utils.dart';
 import 'shirmps_header.dart';
 
 class ShirmEncryptionService {
-  static void _logDebug(String message) {
-    if (kDebugMode) {
-      debugPrint('[ShirmEncryptionService] $message');
-    }
-  }
-
-  static void _logError(String message) {
-    if (kDebugMode) {
-      debugPrint('[ShirmEncryptionService] ERROR: $message');
-    }
-  }
-
   static Future<Uint8List> encryptFile(
     File file, {
     required RSAPublicKey publicKey,
@@ -31,23 +19,15 @@ class ShirmEncryptionService {
     required String keyOwner,
     RSAPrivateKey? privateKey,
   }) async {
-    _logDebug('encryptFile started for: ${file.path}');
     final originalBytes = await file.readAsBytes();
-    _logDebug('Original file size: ${originalBytes.length} bytes');
 
     try {
       final secureRandom = _getSecureRandom();
       final aesKey = secureRandom.nextBytes(32);
       final iv = secureRandom.nextBytes(12);
-      _logDebug('AES key and IV generated');
 
       final encryptedData = _aesGcmEncrypt(originalBytes, aesKey, iv);
-      _logDebug(
-        'AES-GCM encryption completed, encrypted size: ${encryptedData.length} bytes',
-      );
-
       final encryptedKey = _rsaOaepEncrypt(aesKey, publicKey);
-      _logDebug('AES key encrypted with RSA-OAEP');
 
       final header = ShirmpsHeader(creationDate: DateTime.now())
         ..originalFileName = file.path.split('/').last
@@ -61,16 +41,10 @@ class ShirmEncryptionService {
       if (privateKey != null) {
         final signatureBytes = _createSignature(originalBytes, privateKey);
         header.signature = base64.encode(signatureBytes);
-        _logDebug(
-          'Digital signature created, size: ${signatureBytes.length} bytes',
-        );
-      } else {
-        _logDebug('No private key provided, skipping signature');
       }
 
       final headerBytes = header.toJsonBytes();
       final headerLength = headerBytes.length;
-      _logDebug('Header size: $headerLength bytes');
 
       final result = Uint8List(4 + headerBytes.length + encryptedData.length);
       final byteData = ByteData.view(result.buffer);
@@ -78,15 +52,8 @@ class ShirmEncryptionService {
       result.setAll(4, headerBytes);
       result.setAll(4 + headerBytes.length, encryptedData);
 
-      _logDebug(
-        'encryptFile completed, total output size: ${result.length} bytes',
-      );
       return result;
-    } catch (e, stack) {
-      _logError('ERROR during encryption: $e');
-      if (kDebugMode) {
-        debugPrint('Stack trace: $stack');
-      }
+    } catch (e) {
       rethrow;
     }
   }
@@ -95,9 +62,6 @@ class ShirmEncryptionService {
     final signer = RSASigner(SHA256Digest(), '0609608648016503040201')
       ..init(true, PrivateKeyParameter<RSAPrivateKey>(privateKey));
     final signature = signer.generateSignature(data);
-    if (kDebugMode) {
-      debugPrint("[_createSignature] Signature: $signature");
-    }
     return signature.bytes;
   }
 
@@ -128,7 +92,6 @@ class ShirmEncryptionService {
       }
       return ciphertext;
     } catch (e) {
-      _logError('ERROR in AES-GCM encryption: $e');
       rethrow;
     }
   }
@@ -139,7 +102,6 @@ class ShirmEncryptionService {
         ..init(true, PublicKeyParameter<RSAPublicKey>(publicKey));
       return cipher.process(data);
     } catch (e) {
-      _logError('ERROR in RSA-OAEP encryption: $e');
       rethrow;
     }
   }

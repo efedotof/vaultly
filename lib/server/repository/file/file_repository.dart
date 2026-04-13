@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
 import 'package:vaulth_app/server/model/page_response.dart';
 import 'package:vaulth_app/server/service/key_manager_service.dart';
@@ -32,14 +31,7 @@ class FileRepository implements FileInterface {
         onRequest: (options, handler) async {
           final token = await authLocalStorage.getAccessToken();
           if (token != null && token.isNotEmpty) {
-            debugPrint(
-              '[FileRepository] ✅ Токен установлен для ${options.uri}',
-            );
             options.headers['Authorization'] = 'Bearer $token';
-          } else {
-            debugPrint(
-              '[FileRepository] ⚠️ Токен отсутствует для ${options.uri}',
-            );
           }
           return handler.next(options);
         },
@@ -57,9 +49,6 @@ class FileRepository implements FileInterface {
     required bool isPublic,
     ProgressCallback? onSendProgress,
   }) async {
-    debugPrint(
-      '[FileRepository] uploadShps called: file=$originalFileName, size=${encryptedData.length} bytes',
-    );
     try {
       final multipartFile = MultipartFile.fromBytes(
         encryptedData,
@@ -91,7 +80,6 @@ class FileRepository implements FileInterface {
     String? folderId,
     ProgressCallback? onSendProgress,
   }) async {
-    debugPrint('[FileRepository] uploadPublicFile called: ${file.path}');
     try {
       final fileName = file.path.split('/').last;
       final multipartFile = await MultipartFile.fromFile(
@@ -122,19 +110,16 @@ class FileRepository implements FileInterface {
     int page = 0,
     int size = 20,
   }) async {
-    debugPrint('[FileRepository] getAllFiles called: page=$page, size=$size');
     try {
       final response = await _dio.get(
         '',
         queryParameters: {'page': page, 'size': size},
       );
-      debugPrint('[FileRepository] getAllFiles succeeded');
       return PageResponse.fromJson(
         response.data as Map<String, dynamic>,
         (json) => FileDto.fromJson(json),
       );
     } on DioException catch (e) {
-      debugPrint('[FileRepository] getAllFiles error: ${e.message}');
       throw _handleDioError(e);
     }
   }
@@ -144,21 +129,16 @@ class FileRepository implements FileInterface {
     int page = 0,
     int size = 10,
   }) async {
-    debugPrint(
-      '[FileRepository] getRecentFiles called: page=$page, size=$size',
-    );
     try {
       final response = await _dio.get(
         '/recent',
         queryParameters: {'page': page, 'size': size},
       );
-      debugPrint('[FileRepository] getRecentFiles succeeded');
       return PageResponse.fromJson(
         response.data as Map<String, dynamic>,
         (json) => FileDto.fromJson(json),
       );
     } on DioException catch (e) {
-      debugPrint('[FileRepository] getRecentFiles error: ${e.message}');
       throw _handleDioError(e);
     }
   }
@@ -216,9 +196,6 @@ class FileRepository implements FileInterface {
   }
 
   Exception _handleDioError(DioException e) {
-    debugPrint(
-      '[FileRepository] Dio error: ${e.message}, status: ${e.response?.statusCode}',
-    );
     return Exception('Network error: ${e.message}');
   }
 }

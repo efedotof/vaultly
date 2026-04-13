@@ -364,44 +364,66 @@ class AuthCubit extends Cubit<AuthState> {
         return;
       }
 
-      final validationRequest = TokenValidationRequest(token: token);
-      final response = await _authinterface.validateToken(validationRequest);
+      try {
+        final validationRequest = TokenValidationRequest(token: token);
+        final response = await _authinterface.validateToken(validationRequest);
 
-      final userPublicKey = await _keyManagerService.getUserPublicKey();
-      if (userPublicKey == null) {
-        LoggerService().warning(
-          'AuthCubit: user public key missing, marking as unauthenticated',
-        );
-        await _authLocalStorage.clearAuthData();
-        emit(const AuthState.unauthenticated());
-        return;
-      }
-
-      // Сохраняем актуальные данные аутентификации
-      await _authLocalStorage.saveAuthData(response);
-
-      // Восстанавливаем сохранённый пароль
-      final savedPassword = await _authLocalStorage.getPassword();
-      if (savedPassword != null) {
-        // Проверяем, что пароль действителен (расшифровывает приватный ключ)
-        final privateKey = await _keyManagerService.getPrivateKey(
-          savedPassword,
-        );
-        if (privateKey != null) {
-          _currentPassword = savedPassword;
-          LoggerService().debug('AuthCubit: password restored from storage');
-        } else {
-          // Пароль не подходит — удаляем его
-          await _authLocalStorage.deletePassword();
-          LoggerService().debug('AuthCubit: stored password invalid, removed');
+        final userPublicKey = await _keyManagerService.getUserPublicKey();
+        if (userPublicKey == null) {
+          LoggerService().warning(
+            'AuthCubit: user public key missing, attempting auto-login',
+          );
+          throw Exception('User public key missing');
         }
-      }
 
-      LoggerService().debug('AuthCubit: token valid, user authenticated');
-      emit(AuthState.authenticated(response));
+        await _authLocalStorage.saveAuthData(response);
+
+        final savedPassword = await _authLocalStorage.getPassword();
+        if (savedPassword != null) {
+          final privateKey = await _keyManagerService.getPrivateKey(
+            savedPassword,
+          );
+          if (privateKey != null) {
+            _currentPassword = savedPassword;
+            LoggerService().debug('AuthCubit: password restored from storage');
+          } else {
+            await _authLocalStorage.deletePassword();
+            LoggerService().debug(
+              'AuthCubit: stored password invalid, removed',
+            );
+          }
+        }
+
+        LoggerService().debug('AuthCubit: token valid, user authenticated');
+        emit(AuthState.authenticated(response));
+      } catch (e) {
+        LoggerService().warning(
+          'AuthCubit: token validation failed, attempting auto-login',
+          error: e,
+        );
+
+        final savedAuth = await _authLocalStorage.loadAuthData();
+        final savedPassword = await _authLocalStorage.getPassword();
+
+        if (savedAuth != null && savedPassword != null) {
+          try {
+            await login(username: savedAuth.username, password: savedPassword);
+            return;
+          } catch (loginError) {
+            LoggerService().error(
+              'AuthCubit: auto-login failed',
+              error: loginError,
+            );
+          }
+        }
+
+        await _authLocalStorage.clearAuthData();
+        _currentPassword = null;
+        emit(const AuthState.unauthenticated());
+      }
     } catch (e) {
-      LoggerService().warning(
-        'AuthCubit: token validation failed, clearing auth data only',
+      LoggerService().error(
+        'AuthCubit: checkAuthStatus unexpected error',
         error: e,
       );
       await _authLocalStorage.clearAuthData();

@@ -206,9 +206,7 @@ class LoggerService {
         stackTrace: stackTrace,
         time: DateTime.now(),
       );
-    } else if (!kReleaseMode) {
-      debugPrint(logEntry);
-    }
+    } else if (!kReleaseMode) {}
   }
 
   void _addToBuffer(String logEntry) {
@@ -237,22 +235,14 @@ class LoggerService {
       if (savedLevel != null) {
         _minLogLevel = LogLevel.values[savedLevel];
       }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Failed to load logger settings: $e');
-      }
-    }
+    } catch (_) {}
   }
 
   Future<void> _saveSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('log_level', _minLogLevel.index);
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Failed to save logger settings: $e');
-      }
-    }
+    } catch (_) {}
   }
 
   log_lib.Level _convertToLoggerLevel(LogLevel level) {
@@ -298,10 +288,6 @@ class _ConsoleOutput extends log_lib.LogOutput {
   @override
   void output(log_lib.OutputEvent event) {
     if (kReleaseMode && !kDebugMode) return;
-
-    for (final line in event.lines) {
-      debugPrint(line);
-    }
   }
 }
 

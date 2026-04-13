@@ -9,6 +9,7 @@ void main() async {
   final LoggerService logger = LoggerService();
   await logger.init();
   MediaKit.ensureInitialized();
+
   runApp(AppInitializer(child: VaultlyApp()));
 }
 
