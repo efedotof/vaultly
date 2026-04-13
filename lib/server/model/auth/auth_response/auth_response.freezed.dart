@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AuthResponse {
 
- String? get accessToken; String? get refreshToken; String get userId; String? get email; String get username; int get storageUsed; int get storageLimit; Set<String> get roles;
+ String? get accessToken; String? get refreshToken; String get userId; String? get email; String get username; int get storageUsed; int get storageLimit; Set<String> get roles; bool? get totpEnabled;
 /// Create a copy of AuthResponse
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $AuthResponseCopyWith<AuthResponse> get copyWith => _$AuthResponseCopyWithImpl<A
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AuthResponse&&(identical(other.accessToken, accessToken) || other.accessToken == accessToken)&&(identical(other.refreshToken, refreshToken) || other.refreshToken == refreshToken)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.email, email) || other.email == email)&&(identical(other.username, username) || other.username == username)&&(identical(other.storageUsed, storageUsed) || other.storageUsed == storageUsed)&&(identical(other.storageLimit, storageLimit) || other.storageLimit == storageLimit)&&const DeepCollectionEquality().equals(other.roles, roles));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AuthResponse&&(identical(other.accessToken, accessToken) || other.accessToken == accessToken)&&(identical(other.refreshToken, refreshToken) || other.refreshToken == refreshToken)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.email, email) || other.email == email)&&(identical(other.username, username) || other.username == username)&&(identical(other.storageUsed, storageUsed) || other.storageUsed == storageUsed)&&(identical(other.storageLimit, storageLimit) || other.storageLimit == storageLimit)&&const DeepCollectionEquality().equals(other.roles, roles)&&(identical(other.totpEnabled, totpEnabled) || other.totpEnabled == totpEnabled));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,accessToken,refreshToken,userId,email,username,storageUsed,storageLimit,const DeepCollectionEquality().hash(roles));
+int get hashCode => Object.hash(runtimeType,accessToken,refreshToken,userId,email,username,storageUsed,storageLimit,const DeepCollectionEquality().hash(roles),totpEnabled);
 
 @override
 String toString() {
-  return 'AuthResponse(accessToken: $accessToken, refreshToken: $refreshToken, userId: $userId, email: $email, username: $username, storageUsed: $storageUsed, storageLimit: $storageLimit, roles: $roles)';
+  return 'AuthResponse(accessToken: $accessToken, refreshToken: $refreshToken, userId: $userId, email: $email, username: $username, storageUsed: $storageUsed, storageLimit: $storageLimit, roles: $roles, totpEnabled: $totpEnabled)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $AuthResponseCopyWith<$Res>  {
   factory $AuthResponseCopyWith(AuthResponse value, $Res Function(AuthResponse) _then) = _$AuthResponseCopyWithImpl;
 @useResult
 $Res call({
- String? accessToken, String? refreshToken, String userId, String? email, String username, int storageUsed, int storageLimit, Set<String> roles
+ String? accessToken, String? refreshToken, String userId, String? email, String username, int storageUsed, int storageLimit, Set<String> roles, bool? totpEnabled
 });
 
 
@@ -65,7 +65,7 @@ class _$AuthResponseCopyWithImpl<$Res>
 
 /// Create a copy of AuthResponse
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? accessToken = freezed,Object? refreshToken = freezed,Object? userId = null,Object? email = freezed,Object? username = null,Object? storageUsed = null,Object? storageLimit = null,Object? roles = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? accessToken = freezed,Object? refreshToken = freezed,Object? userId = null,Object? email = freezed,Object? username = null,Object? storageUsed = null,Object? storageLimit = null,Object? roles = null,Object? totpEnabled = freezed,}) {
   return _then(_self.copyWith(
 accessToken: freezed == accessToken ? _self.accessToken : accessToken // ignore: cast_nullable_to_non_nullable
 as String?,refreshToken: freezed == refreshToken ? _self.refreshToken : refreshToken // ignore: cast_nullable_to_non_nullable
@@ -75,7 +75,8 @@ as String?,username: null == username ? _self.username : username // ignore: cas
 as String,storageUsed: null == storageUsed ? _self.storageUsed : storageUsed // ignore: cast_nullable_to_non_nullable
 as int,storageLimit: null == storageLimit ? _self.storageLimit : storageLimit // ignore: cast_nullable_to_non_nullable
 as int,roles: null == roles ? _self.roles : roles // ignore: cast_nullable_to_non_nullable
-as Set<String>,
+as Set<String>,totpEnabled: freezed == totpEnabled ? _self.totpEnabled : totpEnabled // ignore: cast_nullable_to_non_nullable
+as bool?,
   ));
 }
 
@@ -160,10 +161,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? accessToken,  String? refreshToken,  String userId,  String? email,  String username,  int storageUsed,  int storageLimit,  Set<String> roles)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? accessToken,  String? refreshToken,  String userId,  String? email,  String username,  int storageUsed,  int storageLimit,  Set<String> roles,  bool? totpEnabled)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AuthResponse() when $default != null:
-return $default(_that.accessToken,_that.refreshToken,_that.userId,_that.email,_that.username,_that.storageUsed,_that.storageLimit,_that.roles);case _:
+return $default(_that.accessToken,_that.refreshToken,_that.userId,_that.email,_that.username,_that.storageUsed,_that.storageLimit,_that.roles,_that.totpEnabled);case _:
   return orElse();
 
 }
@@ -181,10 +182,10 @@ return $default(_that.accessToken,_that.refreshToken,_that.userId,_that.email,_t
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? accessToken,  String? refreshToken,  String userId,  String? email,  String username,  int storageUsed,  int storageLimit,  Set<String> roles)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? accessToken,  String? refreshToken,  String userId,  String? email,  String username,  int storageUsed,  int storageLimit,  Set<String> roles,  bool? totpEnabled)  $default,) {final _that = this;
 switch (_that) {
 case _AuthResponse():
-return $default(_that.accessToken,_that.refreshToken,_that.userId,_that.email,_that.username,_that.storageUsed,_that.storageLimit,_that.roles);case _:
+return $default(_that.accessToken,_that.refreshToken,_that.userId,_that.email,_that.username,_that.storageUsed,_that.storageLimit,_that.roles,_that.totpEnabled);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -201,10 +202,10 @@ return $default(_that.accessToken,_that.refreshToken,_that.userId,_that.email,_t
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? accessToken,  String? refreshToken,  String userId,  String? email,  String username,  int storageUsed,  int storageLimit,  Set<String> roles)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? accessToken,  String? refreshToken,  String userId,  String? email,  String username,  int storageUsed,  int storageLimit,  Set<String> roles,  bool? totpEnabled)?  $default,) {final _that = this;
 switch (_that) {
 case _AuthResponse() when $default != null:
-return $default(_that.accessToken,_that.refreshToken,_that.userId,_that.email,_that.username,_that.storageUsed,_that.storageLimit,_that.roles);case _:
+return $default(_that.accessToken,_that.refreshToken,_that.userId,_that.email,_that.username,_that.storageUsed,_that.storageLimit,_that.roles,_that.totpEnabled);case _:
   return null;
 
 }
@@ -216,7 +217,7 @@ return $default(_that.accessToken,_that.refreshToken,_that.userId,_that.email,_t
 @JsonSerializable()
 
 class _AuthResponse implements AuthResponse {
-  const _AuthResponse({this.accessToken, this.refreshToken, required this.userId, this.email, required this.username, required this.storageUsed, required this.storageLimit, required final  Set<String> roles}): _roles = roles;
+  const _AuthResponse({this.accessToken, this.refreshToken, required this.userId, this.email, required this.username, required this.storageUsed, required this.storageLimit, required final  Set<String> roles, this.totpEnabled}): _roles = roles;
   factory _AuthResponse.fromJson(Map<String, dynamic> json) => _$AuthResponseFromJson(json);
 
 @override final  String? accessToken;
@@ -233,6 +234,7 @@ class _AuthResponse implements AuthResponse {
   return EqualUnmodifiableSetView(_roles);
 }
 
+@override final  bool? totpEnabled;
 
 /// Create a copy of AuthResponse
 /// with the given fields replaced by the non-null parameter values.
@@ -247,16 +249,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AuthResponse&&(identical(other.accessToken, accessToken) || other.accessToken == accessToken)&&(identical(other.refreshToken, refreshToken) || other.refreshToken == refreshToken)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.email, email) || other.email == email)&&(identical(other.username, username) || other.username == username)&&(identical(other.storageUsed, storageUsed) || other.storageUsed == storageUsed)&&(identical(other.storageLimit, storageLimit) || other.storageLimit == storageLimit)&&const DeepCollectionEquality().equals(other._roles, _roles));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AuthResponse&&(identical(other.accessToken, accessToken) || other.accessToken == accessToken)&&(identical(other.refreshToken, refreshToken) || other.refreshToken == refreshToken)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.email, email) || other.email == email)&&(identical(other.username, username) || other.username == username)&&(identical(other.storageUsed, storageUsed) || other.storageUsed == storageUsed)&&(identical(other.storageLimit, storageLimit) || other.storageLimit == storageLimit)&&const DeepCollectionEquality().equals(other._roles, _roles)&&(identical(other.totpEnabled, totpEnabled) || other.totpEnabled == totpEnabled));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,accessToken,refreshToken,userId,email,username,storageUsed,storageLimit,const DeepCollectionEquality().hash(_roles));
+int get hashCode => Object.hash(runtimeType,accessToken,refreshToken,userId,email,username,storageUsed,storageLimit,const DeepCollectionEquality().hash(_roles),totpEnabled);
 
 @override
 String toString() {
-  return 'AuthResponse(accessToken: $accessToken, refreshToken: $refreshToken, userId: $userId, email: $email, username: $username, storageUsed: $storageUsed, storageLimit: $storageLimit, roles: $roles)';
+  return 'AuthResponse(accessToken: $accessToken, refreshToken: $refreshToken, userId: $userId, email: $email, username: $username, storageUsed: $storageUsed, storageLimit: $storageLimit, roles: $roles, totpEnabled: $totpEnabled)';
 }
 
 
@@ -267,7 +269,7 @@ abstract mixin class _$AuthResponseCopyWith<$Res> implements $AuthResponseCopyWi
   factory _$AuthResponseCopyWith(_AuthResponse value, $Res Function(_AuthResponse) _then) = __$AuthResponseCopyWithImpl;
 @override @useResult
 $Res call({
- String? accessToken, String? refreshToken, String userId, String? email, String username, int storageUsed, int storageLimit, Set<String> roles
+ String? accessToken, String? refreshToken, String userId, String? email, String username, int storageUsed, int storageLimit, Set<String> roles, bool? totpEnabled
 });
 
 
@@ -284,7 +286,7 @@ class __$AuthResponseCopyWithImpl<$Res>
 
 /// Create a copy of AuthResponse
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? accessToken = freezed,Object? refreshToken = freezed,Object? userId = null,Object? email = freezed,Object? username = null,Object? storageUsed = null,Object? storageLimit = null,Object? roles = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? accessToken = freezed,Object? refreshToken = freezed,Object? userId = null,Object? email = freezed,Object? username = null,Object? storageUsed = null,Object? storageLimit = null,Object? roles = null,Object? totpEnabled = freezed,}) {
   return _then(_AuthResponse(
 accessToken: freezed == accessToken ? _self.accessToken : accessToken // ignore: cast_nullable_to_non_nullable
 as String?,refreshToken: freezed == refreshToken ? _self.refreshToken : refreshToken // ignore: cast_nullable_to_non_nullable
@@ -294,7 +296,8 @@ as String?,username: null == username ? _self.username : username // ignore: cas
 as String,storageUsed: null == storageUsed ? _self.storageUsed : storageUsed // ignore: cast_nullable_to_non_nullable
 as int,storageLimit: null == storageLimit ? _self.storageLimit : storageLimit // ignore: cast_nullable_to_non_nullable
 as int,roles: null == roles ? _self._roles : roles // ignore: cast_nullable_to_non_nullable
-as Set<String>,
+as Set<String>,totpEnabled: freezed == totpEnabled ? _self.totpEnabled : totpEnabled // ignore: cast_nullable_to_non_nullable
+as bool?,
   ));
 }
 

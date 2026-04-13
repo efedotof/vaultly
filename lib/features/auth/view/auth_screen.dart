@@ -29,6 +29,7 @@ class _AuthScreenState extends State<AuthScreen> {
   Timer? _splashTimer;
 
   bool _isPreloadingHome = false;
+  bool _isShowingTotpDialog = false;
 
   @override
   void initState() {
@@ -114,6 +115,25 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  Future<void> _showTotpDialog(String username, String password) async {
+    final cubit = context.read<AuthCubit>();
+    final code = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => TotpCodeDialog(
+        onSubmit: (code) async {
+          Navigator.of(context).pop(code);
+        },
+      ),
+    );
+
+    if (code != null && code.isNotEmpty) {
+      await cubit.login(username: username, password: password, totpCode: code);
+    } else {
+      cubit.resetToUnauthenticated();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -136,6 +156,16 @@ class _AuthScreenState extends State<AuthScreen> {
               if (mounted) {
                 setState(() => _isSubmitting = false);
                 _showSnackBar(message, isError: true);
+              }
+            },
+            totpRequired: (username, password) {
+              if (!_isShowingTotpDialog) {
+                _isShowingTotpDialog = true;
+                _showTotpDialog(username, password).then((_) {
+                  if (mounted) {
+                    setState(() => _isShowingTotpDialog = false);
+                  }
+                });
               }
             },
           );
@@ -189,6 +219,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 message: message,
                 onRetry: () => context.read<AuthCubit>().checkAuthStatus(),
               ),
+              totpRequired: (_, _) => const VaultlySplash(),
             );
           },
         ),

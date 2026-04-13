@@ -12,15 +12,23 @@ class ContentWidget extends StatelessWidget {
     required this.folders,
     required this.recentFiles,
     required this.allFiles,
+    this.cachedFiles, 
     required this.scrollController,
   });
+
   final List<FolderDto> folders;
   final List<FileDto> recentFiles;
   final List<FileDto> allFiles;
+  final List<FileDto>? cachedFiles;
   final ScrollController scrollController;
+
   @override
   Widget build(BuildContext context) {
-    if (folders.isEmpty && recentFiles.isEmpty && allFiles.isEmpty) {
+    final hasServerData =
+        folders.isNotEmpty || recentFiles.isNotEmpty || allFiles.isNotEmpty;
+    final hasCachedData = cachedFiles != null && cachedFiles!.isNotEmpty;
+
+    if (!hasServerData && !hasCachedData) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -45,6 +53,10 @@ class ContentWidget extends StatelessWidget {
         ),
       );
     }
+
+    final serverFileIds = allFiles.map((f) => f.id).toSet();
+    final uniqueCachedFiles =
+        cachedFiles?.where((f) => !serverFileIds.contains(f.id)).toList() ?? [];
 
     return ListView(
       controller: scrollController,
@@ -91,8 +103,21 @@ class ContentWidget extends StatelessWidget {
               children: allFiles.map((file) => FileCard(file: file)).toList(),
             ),
           ),
-          SizedBox(height: MediaQuery.of(context).size.height * 0.1),
         ],
+        if (uniqueCachedFiles.isNotEmpty) ...[
+          SectionHeader(title: 'Кэшированные файлы (офлайн)'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Wrap(
+              spacing: 12.0,
+              runSpacing: 12.0,
+              children: uniqueCachedFiles
+                  .map((file) => FileCard(file: file))
+                  .toList(),
+            ),
+          ),
+        ],
+        SizedBox(height: MediaQuery.of(context).size.height * 0.1),
       ],
     );
   }

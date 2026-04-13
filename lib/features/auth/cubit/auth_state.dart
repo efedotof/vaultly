@@ -8,4 +8,8 @@ abstract class AuthState with _$AuthState {
       _Authenticated;
   const factory AuthState.unauthenticated() = _Unauthenticated;
   const factory AuthState.error(String message) = _Error;
+  const factory AuthState.totpRequired({
+    required String username,
+    required String password,
+  }) = _TotpRequired;
 }

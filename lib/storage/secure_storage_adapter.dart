@@ -1,4 +1,4 @@
-//[SecureStorageAdapter] для web
+// //[SecureStorageAdapter] для web
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SecureStorageAdapter {
@@ -21,8 +21,7 @@ class SecureStorageAdapter {
   }
 }
 
-
-//[SecureStorageAdapter] для macos -- временное решение
+//[SecureStorageAdapter] для macos -- временное решение, так как требуется Apple Developers сертификат. Расскоментировать для macos !!! 
 
 // import 'dart:io';
 // import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -62,4 +61,3 @@ class SecureStorageAdapter {
 //     }
 //   }
 // }
-

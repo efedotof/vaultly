@@ -194,6 +194,12 @@ class _KeysManagerScreenState extends State<KeysManagerScreen> {
               error: (message) =>
                   ErrorWidgets(message: message, onRetry: _refresh),
               loggedOut: () => const SizedBox.shrink(),
+              totpSetupLoading: () => const SizedBox.shrink(),
+              totpSetupReady: (_, _) => const SizedBox.shrink(),
+              totpVerifying: () => const SizedBox.shrink(),
+              totpEnabled: (_) => const SizedBox.shrink(),
+              totpDisabling: () => const SizedBox.shrink(),
+              totpDisabled: () => const SizedBox.shrink(),
             ),
           );
         },

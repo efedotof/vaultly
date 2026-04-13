@@ -309,7 +309,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _cacheAllFiles(BuildContext context) async {
     final homeState = context.read<HomeCubit>().state;
     final List<FileDto> allFiles = homeState.maybeWhen(
-      loaded: (_, _, all) => all,
+      loaded: (_, _, all, _) => all,
       orElse: () => [],
     );
 
@@ -373,15 +373,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       const Center(child: CircularProgressIndicator()),
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  loaded: (folders, recentFiles, allFiles) => RefreshIndicator(
-                    onRefresh: _refresh,
-                    child: ContentWidget(
-                      folders: folders,
-                      recentFiles: recentFiles,
-                      allFiles: allFiles,
-                      scrollController: _scrollController,
-                    ),
-                  ),
+                  loaded: (folders, recentFiles, allFiles, cachedFiles) =>
+                      RefreshIndicator(
+                        onRefresh: _refresh,
+                        child: ContentWidget(
+                          folders: folders,
+                          recentFiles: recentFiles,
+                          allFiles: allFiles,
+                          cachedFiles: cachedFiles,
+                          scrollController: _scrollController,
+                        ),
+                      ),
                   error: (message) => ErrorWidgets(message: message),
                   creatingFolder: () => OverlayLoading(
                     message: 'Создание папки...',

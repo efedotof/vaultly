@@ -106,7 +106,7 @@ class _FloatingBottomNavBarState extends State<FloatingBottomNavBar> {
                   child: NavItem(
                     icon: Icons.home_outlined,
                     activeIcon: Icons.home,
-                    label: 'Home',
+                    label: 'Главная',
                     isActive: widget.currentIndex == 0,
                     onTap: () => widget.onTap(0),
                   ),
@@ -116,7 +116,7 @@ class _FloatingBottomNavBarState extends State<FloatingBottomNavBar> {
                   child: NavItem(
                     icon: Icons.person_outline,
                     activeIcon: Icons.person,
-                    label: 'Profile',
+                    label: 'Профиль',
                     isActive: widget.currentIndex == 1,
                     onTap: () => widget.onTap(1),
                   ),
@@ -126,7 +126,7 @@ class _FloatingBottomNavBarState extends State<FloatingBottomNavBar> {
                   child: NavItem(
                     icon: Icons.settings_outlined,
                     activeIcon: Icons.settings,
-                    label: 'Settings',
+                    label: 'Настройки',
                     isActive: widget.currentIndex == 2,
                     onTap: () => widget.onTap(2),
                   ),

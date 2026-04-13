@@ -61,7 +61,7 @@ extension AuthStatePatterns on AuthState {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _Initial value)?  initial,TResult Function( _Loading value)?  loading,TResult Function( _Authenticated value)?  authenticated,TResult Function( _Unauthenticated value)?  unauthenticated,TResult Function( _Error value)?  error,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _Initial value)?  initial,TResult Function( _Loading value)?  loading,TResult Function( _Authenticated value)?  authenticated,TResult Function( _Unauthenticated value)?  unauthenticated,TResult Function( _Error value)?  error,TResult Function( _TotpRequired value)?  totpRequired,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
@@ -69,7 +69,8 @@ return initial(_that);case _Loading() when loading != null:
 return loading(_that);case _Authenticated() when authenticated != null:
 return authenticated(_that);case _Unauthenticated() when unauthenticated != null:
 return unauthenticated(_that);case _Error() when error != null:
-return error(_that);case _:
+return error(_that);case _TotpRequired() when totpRequired != null:
+return totpRequired(_that);case _:
   return orElse();
 
 }
@@ -87,7 +88,7 @@ return error(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _Initial value)  initial,required TResult Function( _Loading value)  loading,required TResult Function( _Authenticated value)  authenticated,required TResult Function( _Unauthenticated value)  unauthenticated,required TResult Function( _Error value)  error,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _Initial value)  initial,required TResult Function( _Loading value)  loading,required TResult Function( _Authenticated value)  authenticated,required TResult Function( _Unauthenticated value)  unauthenticated,required TResult Function( _Error value)  error,required TResult Function( _TotpRequired value)  totpRequired,}){
 final _that = this;
 switch (_that) {
 case _Initial():
@@ -95,7 +96,8 @@ return initial(_that);case _Loading():
 return loading(_that);case _Authenticated():
 return authenticated(_that);case _Unauthenticated():
 return unauthenticated(_that);case _Error():
-return error(_that);case _:
+return error(_that);case _TotpRequired():
+return totpRequired(_that);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -112,7 +114,7 @@ return error(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _Initial value)?  initial,TResult? Function( _Loading value)?  loading,TResult? Function( _Authenticated value)?  authenticated,TResult? Function( _Unauthenticated value)?  unauthenticated,TResult? Function( _Error value)?  error,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _Initial value)?  initial,TResult? Function( _Loading value)?  loading,TResult? Function( _Authenticated value)?  authenticated,TResult? Function( _Unauthenticated value)?  unauthenticated,TResult? Function( _Error value)?  error,TResult? Function( _TotpRequired value)?  totpRequired,}){
 final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
@@ -120,7 +122,8 @@ return initial(_that);case _Loading() when loading != null:
 return loading(_that);case _Authenticated() when authenticated != null:
 return authenticated(_that);case _Unauthenticated() when unauthenticated != null:
 return unauthenticated(_that);case _Error() when error != null:
-return error(_that);case _:
+return error(_that);case _TotpRequired() when totpRequired != null:
+return totpRequired(_that);case _:
   return null;
 
 }
@@ -137,14 +140,15 @@ return error(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  initial,TResult Function()?  loading,TResult Function( AuthResponse authResponse)?  authenticated,TResult Function()?  unauthenticated,TResult Function( String message)?  error,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  initial,TResult Function()?  loading,TResult Function( AuthResponse authResponse)?  authenticated,TResult Function()?  unauthenticated,TResult Function( String message)?  error,TResult Function( String username,  String password)?  totpRequired,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
 return initial();case _Loading() when loading != null:
 return loading();case _Authenticated() when authenticated != null:
 return authenticated(_that.authResponse);case _Unauthenticated() when unauthenticated != null:
 return unauthenticated();case _Error() when error != null:
-return error(_that.message);case _:
+return error(_that.message);case _TotpRequired() when totpRequired != null:
+return totpRequired(_that.username,_that.password);case _:
   return orElse();
 
 }
@@ -162,14 +166,15 @@ return error(_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  initial,required TResult Function()  loading,required TResult Function( AuthResponse authResponse)  authenticated,required TResult Function()  unauthenticated,required TResult Function( String message)  error,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  initial,required TResult Function()  loading,required TResult Function( AuthResponse authResponse)  authenticated,required TResult Function()  unauthenticated,required TResult Function( String message)  error,required TResult Function( String username,  String password)  totpRequired,}) {final _that = this;
 switch (_that) {
 case _Initial():
 return initial();case _Loading():
 return loading();case _Authenticated():
 return authenticated(_that.authResponse);case _Unauthenticated():
 return unauthenticated();case _Error():
-return error(_that.message);case _:
+return error(_that.message);case _TotpRequired():
+return totpRequired(_that.username,_that.password);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -186,14 +191,15 @@ return error(_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  initial,TResult? Function()?  loading,TResult? Function( AuthResponse authResponse)?  authenticated,TResult? Function()?  unauthenticated,TResult? Function( String message)?  error,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  initial,TResult? Function()?  loading,TResult? Function( AuthResponse authResponse)?  authenticated,TResult? Function()?  unauthenticated,TResult? Function( String message)?  error,TResult? Function( String username,  String password)?  totpRequired,}) {final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
 return initial();case _Loading() when loading != null:
 return loading();case _Authenticated() when authenticated != null:
 return authenticated(_that.authResponse);case _Unauthenticated() when unauthenticated != null:
 return unauthenticated();case _Error() when error != null:
-return error(_that.message);case _:
+return error(_that.message);case _TotpRequired() when totpRequired != null:
+return totpRequired(_that.username,_that.password);case _:
   return null;
 
 }
@@ -461,6 +467,80 @@ class __$ErrorCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
   return _then(_Error(
 null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class _TotpRequired with DiagnosticableTreeMixin implements AuthState {
+  const _TotpRequired({required this.username, required this.password});
+  
+
+ final  String username;
+ final  String password;
+
+/// Create a copy of AuthState
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$TotpRequiredCopyWith<_TotpRequired> get copyWith => __$TotpRequiredCopyWithImpl<_TotpRequired>(this, _$identity);
+
+
+@override
+void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+  properties
+    ..add(DiagnosticsProperty('type', 'AuthState.totpRequired'))
+    ..add(DiagnosticsProperty('username', username))..add(DiagnosticsProperty('password', password));
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TotpRequired&&(identical(other.username, username) || other.username == username)&&(identical(other.password, password) || other.password == password));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,username,password);
+
+@override
+String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) {
+  return 'AuthState.totpRequired(username: $username, password: $password)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$TotpRequiredCopyWith<$Res> implements $AuthStateCopyWith<$Res> {
+  factory _$TotpRequiredCopyWith(_TotpRequired value, $Res Function(_TotpRequired) _then) = __$TotpRequiredCopyWithImpl;
+@useResult
+$Res call({
+ String username, String password
+});
+
+
+
+
+}
+/// @nodoc
+class __$TotpRequiredCopyWithImpl<$Res>
+    implements _$TotpRequiredCopyWith<$Res> {
+  __$TotpRequiredCopyWithImpl(this._self, this._then);
+
+  final _TotpRequired _self;
+  final $Res Function(_TotpRequired) _then;
+
+/// Create a copy of AuthState
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? username = null,Object? password = null,}) {
+  return _then(_TotpRequired(
+username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
+as String,password: null == password ? _self.password : password // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }

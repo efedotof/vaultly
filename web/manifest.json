@@ -1,11 +1,11 @@
 {
-    "name": "vaulth_app",
-    "short_name": "vaulth_app",
+    "name": "Vaultly",
+    "short_name": "Vaultly",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Vaultly — ваш персональный цифровой сейф.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

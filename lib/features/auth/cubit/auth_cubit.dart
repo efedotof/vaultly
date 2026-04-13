@@ -11,6 +11,7 @@ import 'package:vaulth_app/server/model/auth/register_request/register_request.d
 import 'package:vaulth_app/server/model/auth/token_validation_request/token_validation_request.dart';
 import 'package:vaulth_app/server/model/device/device_register_request/device_register_request.dart';
 import 'package:vaulth_app/server/repository/auth/auth_interface.dart';
+import 'package:vaulth_app/server/repository/auth/auth_repository.dart';
 import 'package:vaulth_app/server/repository/device/device_interface.dart';
 import 'package:vaulth_app/server/repository/user/user_interface.dart';
 import 'package:vaulth_app/server/service/device_id_generator.dart';
@@ -138,10 +139,15 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> login({
     required String username,
     required String password,
+    String? totpCode,
   }) async {
     emit(const AuthState.loading());
     try {
-      final request = LoginRequest(username: username, password: password);
+      final request = LoginRequest(
+        username: username,
+        password: password,
+        totpCode: totpCode,
+      );
       final response = await _authinterface.login(request);
       await _authLocalStorage.saveAuthData(response);
       _currentPassword = password;
@@ -149,7 +155,6 @@ class AuthCubit extends Cubit<AuthState> {
       final hasLocalUserKey =
           await _keyManagerService.getUserPublicKey() != null;
       if (!hasLocalUserKey) {
-        // Получаем зашифрованный приватный ключ и соль с сервера
         final encryptedKey = await _userInterface.getUserEncryptedPrivateKey();
         final salt = await _userInterface.getUserSalt();
 
@@ -159,13 +164,11 @@ class AuthCubit extends Cubit<AuthState> {
           throw Exception('Неверный пароль или данные повреждены');
         }
 
-        // Сохраняем приватный ключ локально (зашифрованный паролем)
         await _keyManagerService.storeUserPrivateKeyEncryptedWithPassword(
           privateKeyPem,
           password,
         );
 
-        // Получаем публичный ключ пользователя из профиля (он точно есть на сервере)
         final profile = await _userInterface.getCurrentUserProfile();
         final publicKeyPem = profile.publicKey;
         if (publicKeyPem == null || publicKeyPem.isEmpty) {
@@ -174,15 +177,16 @@ class AuthCubit extends Cubit<AuthState> {
         await _keyManagerService.saveUserPublicKey(publicKeyPem);
       }
 
-      // Регистрируем устройство (если ещё не зарегистрировано)
       try {
         await registerDevice(authResponse: response, userPassword: password);
       } catch (e) {
-        // Логируем, но не блокируем вход – устройство можно зарегистрировать позже
         LoggerService().warning('Device registration postponed', error: e);
       }
 
       emit(AuthState.authenticated(response));
+    } on TotpRequiredException catch (_) {
+      LoggerService().info('AuthCubit: TOTP required for $username');
+      emit(AuthState.totpRequired(username: username, password: password));
     } catch (e) {
       LoggerService().error('AuthCubit: login error', error: e);
       emit(AuthState.error(e.toString()));
@@ -200,7 +204,6 @@ class AuthCubit extends Cubit<AuthState> {
       final effectiveDeviceType = deviceType ?? await _getDeviceType();
       final uniqueDeviceId = await _deviceIdGenerator.generateDeviceId();
 
-      // Проверяем, не зарегистрировано ли уже это устройство
       final existingDevices = await _deviceInterface.getUserDevices();
       final alreadyExists = existingDevices.any(
         (d) => d.uniqueId == uniqueDeviceId,
@@ -212,7 +215,6 @@ class AuthCubit extends Cubit<AuthState> {
 
       emit(const AuthState.loading());
 
-      // 1. Получаем или генерируем ключевую пару устройства
       String devicePublicKeyPem;
       try {
         if (await _keyManagerService.hasDeviceKeys()) {
@@ -232,10 +234,8 @@ class AuthCubit extends Cubit<AuthState> {
         return;
       }
 
-      // 2. Получаем приватный ключ пользователя в формате PEM
       String userPrivateKeyPem;
       if (kIsWeb) {
-        // Веб-реализация: получаем PEM напрямую
         userPrivateKeyPem = (await _keyManagerService.getPrivateKeyPEM(
           userPassword,
         ))!;
@@ -243,7 +243,6 @@ class AuthCubit extends Cubit<AuthState> {
           throw Exception('Не удалось получить приватный ключ пользователя');
         }
       } else {
-        // Нативная реализация: получаем объект RSAPrivateKey и конвертируем в PEM
         final userPrivateKey = await _keyManagerService.getPrivateKey(
           userPassword,
         );
@@ -255,17 +254,14 @@ class AuthCubit extends Cubit<AuthState> {
         );
       }
 
-      // 3. Шифруем приватный ключ пользователя для данного устройства
       String encryptedForDevice;
       if (kIsWeb) {
-        // Веб-реализация: гибридное шифрование с использованием PEM
         encryptedForDevice = await _keyManagerService
             .hybridEncryptWithPublicKeyPem(
               userPrivateKeyPem,
               devicePublicKeyPem,
             );
       } else {
-        // Нативная реализация: парсим PEM в RSAPublicKey и шифруем
         final devicePublicKey = CryptoUtils.rsaPublicKeyFromPem(
           devicePublicKeyPem,
         );
@@ -273,7 +269,6 @@ class AuthCubit extends Cubit<AuthState> {
             .hybridEncryptWithPublicKey(userPrivateKeyPem, devicePublicKey);
       }
 
-      // 4. Отправляем запрос на регистрацию устройства
       final request = DeviceRegisterRequest(
         deviceName: effectiveDeviceName,
         deviceType: effectiveDeviceType,
@@ -307,7 +302,6 @@ class AuthCubit extends Cubit<AuthState> {
         } catch (e) {
           LoggerService().warning('AuthCubit: server logout error', error: e);
           if (!manual) {
-            // При автоматическом выходе (например, из‑за ошибки) просто чистим локальные данные
             await _authLocalStorage.clearAuthData();
             _currentPassword = null;
             emit(const AuthState.unauthenticated());
@@ -318,12 +312,10 @@ class AuthCubit extends Cubit<AuthState> {
         LoggerService().debug('AuthCubit: no access token found for logout');
       }
 
-      // Очищаем все локальные данные аутентификации
       await _authLocalStorage.clearAuthData();
       _currentPassword = null;
 
       if (manual) {
-        // При ручном выходе удаляем также пользовательские ключи (устройства остаются)
         await _keyManagerService.clearUserKeys();
         LoggerService().debug(
           'AuthCubit: user keys cleared, device keys preserved (manual logout)',
@@ -431,4 +423,6 @@ class AuthCubit extends Cubit<AuthState> {
       emit(const AuthState.unauthenticated());
     }
   }
+
+  void resetToUnauthenticated() => emit(const AuthState.unauthenticated());
 }

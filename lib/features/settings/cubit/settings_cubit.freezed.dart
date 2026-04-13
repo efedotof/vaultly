@@ -55,7 +55,7 @@ extension SettingsStatePatterns on SettingsState {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _Initial value)?  initial,TResult Function( _Loading value)?  loading,TResult Function( _Loaded value)?  loaded,TResult Function( _Error value)?  error,TResult Function( _LoggedOut value)?  loggedOut,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _Initial value)?  initial,TResult Function( _Loading value)?  loading,TResult Function( _Loaded value)?  loaded,TResult Function( _Error value)?  error,TResult Function( _LoggedOut value)?  loggedOut,TResult Function( _TotpSetupLoading value)?  totpSetupLoading,TResult Function( _TotpSetupReady value)?  totpSetupReady,TResult Function( _TotpVerifying value)?  totpVerifying,TResult Function( _TotpEnabled value)?  totpEnabled,TResult Function( _TotpDisabling value)?  totpDisabling,TResult Function( _TotpDisabled value)?  totpDisabled,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
@@ -63,7 +63,13 @@ return initial(_that);case _Loading() when loading != null:
 return loading(_that);case _Loaded() when loaded != null:
 return loaded(_that);case _Error() when error != null:
 return error(_that);case _LoggedOut() when loggedOut != null:
-return loggedOut(_that);case _:
+return loggedOut(_that);case _TotpSetupLoading() when totpSetupLoading != null:
+return totpSetupLoading(_that);case _TotpSetupReady() when totpSetupReady != null:
+return totpSetupReady(_that);case _TotpVerifying() when totpVerifying != null:
+return totpVerifying(_that);case _TotpEnabled() when totpEnabled != null:
+return totpEnabled(_that);case _TotpDisabling() when totpDisabling != null:
+return totpDisabling(_that);case _TotpDisabled() when totpDisabled != null:
+return totpDisabled(_that);case _:
   return orElse();
 
 }
@@ -81,7 +87,7 @@ return loggedOut(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _Initial value)  initial,required TResult Function( _Loading value)  loading,required TResult Function( _Loaded value)  loaded,required TResult Function( _Error value)  error,required TResult Function( _LoggedOut value)  loggedOut,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _Initial value)  initial,required TResult Function( _Loading value)  loading,required TResult Function( _Loaded value)  loaded,required TResult Function( _Error value)  error,required TResult Function( _LoggedOut value)  loggedOut,required TResult Function( _TotpSetupLoading value)  totpSetupLoading,required TResult Function( _TotpSetupReady value)  totpSetupReady,required TResult Function( _TotpVerifying value)  totpVerifying,required TResult Function( _TotpEnabled value)  totpEnabled,required TResult Function( _TotpDisabling value)  totpDisabling,required TResult Function( _TotpDisabled value)  totpDisabled,}){
 final _that = this;
 switch (_that) {
 case _Initial():
@@ -89,7 +95,13 @@ return initial(_that);case _Loading():
 return loading(_that);case _Loaded():
 return loaded(_that);case _Error():
 return error(_that);case _LoggedOut():
-return loggedOut(_that);case _:
+return loggedOut(_that);case _TotpSetupLoading():
+return totpSetupLoading(_that);case _TotpSetupReady():
+return totpSetupReady(_that);case _TotpVerifying():
+return totpVerifying(_that);case _TotpEnabled():
+return totpEnabled(_that);case _TotpDisabling():
+return totpDisabling(_that);case _TotpDisabled():
+return totpDisabled(_that);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -106,7 +118,7 @@ return loggedOut(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _Initial value)?  initial,TResult? Function( _Loading value)?  loading,TResult? Function( _Loaded value)?  loaded,TResult? Function( _Error value)?  error,TResult? Function( _LoggedOut value)?  loggedOut,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _Initial value)?  initial,TResult? Function( _Loading value)?  loading,TResult? Function( _Loaded value)?  loaded,TResult? Function( _Error value)?  error,TResult? Function( _LoggedOut value)?  loggedOut,TResult? Function( _TotpSetupLoading value)?  totpSetupLoading,TResult? Function( _TotpSetupReady value)?  totpSetupReady,TResult? Function( _TotpVerifying value)?  totpVerifying,TResult? Function( _TotpEnabled value)?  totpEnabled,TResult? Function( _TotpDisabling value)?  totpDisabling,TResult? Function( _TotpDisabled value)?  totpDisabled,}){
 final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
@@ -114,7 +126,13 @@ return initial(_that);case _Loading() when loading != null:
 return loading(_that);case _Loaded() when loaded != null:
 return loaded(_that);case _Error() when error != null:
 return error(_that);case _LoggedOut() when loggedOut != null:
-return loggedOut(_that);case _:
+return loggedOut(_that);case _TotpSetupLoading() when totpSetupLoading != null:
+return totpSetupLoading(_that);case _TotpSetupReady() when totpSetupReady != null:
+return totpSetupReady(_that);case _TotpVerifying() when totpVerifying != null:
+return totpVerifying(_that);case _TotpEnabled() when totpEnabled != null:
+return totpEnabled(_that);case _TotpDisabling() when totpDisabling != null:
+return totpDisabling(_that);case _TotpDisabled() when totpDisabled != null:
+return totpDisabled(_that);case _:
   return null;
 
 }
@@ -131,14 +149,20 @@ return loggedOut(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  initial,TResult Function()?  loading,TResult Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes)?  loaded,TResult Function( String message)?  error,TResult Function()?  loggedOut,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  initial,TResult Function()?  loading,TResult Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes)?  loaded,TResult Function( String message)?  error,TResult Function()?  loggedOut,TResult Function()?  totpSetupLoading,TResult Function( String qrCodeUrl,  String secret)?  totpSetupReady,TResult Function()?  totpVerifying,TResult Function( List<String> backupCodes)?  totpEnabled,TResult Function()?  totpDisabling,TResult Function()?  totpDisabled,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
 return initial();case _Loading() when loading != null:
 return loading();case _Loaded() when loaded != null:
 return loaded(_that.profile,_that.devices,_that.cacheSizeBytes);case _Error() when error != null:
 return error(_that.message);case _LoggedOut() when loggedOut != null:
-return loggedOut();case _:
+return loggedOut();case _TotpSetupLoading() when totpSetupLoading != null:
+return totpSetupLoading();case _TotpSetupReady() when totpSetupReady != null:
+return totpSetupReady(_that.qrCodeUrl,_that.secret);case _TotpVerifying() when totpVerifying != null:
+return totpVerifying();case _TotpEnabled() when totpEnabled != null:
+return totpEnabled(_that.backupCodes);case _TotpDisabling() when totpDisabling != null:
+return totpDisabling();case _TotpDisabled() when totpDisabled != null:
+return totpDisabled();case _:
   return orElse();
 
 }
@@ -156,14 +180,20 @@ return loggedOut();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  initial,required TResult Function()  loading,required TResult Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes)  loaded,required TResult Function( String message)  error,required TResult Function()  loggedOut,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  initial,required TResult Function()  loading,required TResult Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes)  loaded,required TResult Function( String message)  error,required TResult Function()  loggedOut,required TResult Function()  totpSetupLoading,required TResult Function( String qrCodeUrl,  String secret)  totpSetupReady,required TResult Function()  totpVerifying,required TResult Function( List<String> backupCodes)  totpEnabled,required TResult Function()  totpDisabling,required TResult Function()  totpDisabled,}) {final _that = this;
 switch (_that) {
 case _Initial():
 return initial();case _Loading():
 return loading();case _Loaded():
 return loaded(_that.profile,_that.devices,_that.cacheSizeBytes);case _Error():
 return error(_that.message);case _LoggedOut():
-return loggedOut();case _:
+return loggedOut();case _TotpSetupLoading():
+return totpSetupLoading();case _TotpSetupReady():
+return totpSetupReady(_that.qrCodeUrl,_that.secret);case _TotpVerifying():
+return totpVerifying();case _TotpEnabled():
+return totpEnabled(_that.backupCodes);case _TotpDisabling():
+return totpDisabling();case _TotpDisabled():
+return totpDisabled();case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -180,14 +210,20 @@ return loggedOut();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  initial,TResult? Function()?  loading,TResult? Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes)?  loaded,TResult? Function( String message)?  error,TResult? Function()?  loggedOut,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  initial,TResult? Function()?  loading,TResult? Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes)?  loaded,TResult? Function( String message)?  error,TResult? Function()?  loggedOut,TResult? Function()?  totpSetupLoading,TResult? Function( String qrCodeUrl,  String secret)?  totpSetupReady,TResult? Function()?  totpVerifying,TResult? Function( List<String> backupCodes)?  totpEnabled,TResult? Function()?  totpDisabling,TResult? Function()?  totpDisabled,}) {final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
 return initial();case _Loading() when loading != null:
 return loading();case _Loaded() when loaded != null:
 return loaded(_that.profile,_that.devices,_that.cacheSizeBytes);case _Error() when error != null:
 return error(_that.message);case _LoggedOut() when loggedOut != null:
-return loggedOut();case _:
+return loggedOut();case _TotpSetupLoading() when totpSetupLoading != null:
+return totpSetupLoading();case _TotpSetupReady() when totpSetupReady != null:
+return totpSetupReady(_that.qrCodeUrl,_that.secret);case _TotpVerifying() when totpVerifying != null:
+return totpVerifying();case _TotpEnabled() when totpEnabled != null:
+return totpEnabled(_that.backupCodes);case _TotpDisabling() when totpDisabling != null:
+return totpDisabling();case _TotpDisabled() when totpDisabled != null:
+return totpDisabled();case _:
   return null;
 
 }
@@ -434,6 +470,274 @@ int get hashCode => runtimeType.hashCode;
 @override
 String toString() {
   return 'SettingsState.loggedOut()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class _TotpSetupLoading implements SettingsState {
+  const _TotpSetupLoading();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TotpSetupLoading);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'SettingsState.totpSetupLoading()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class _TotpSetupReady implements SettingsState {
+  const _TotpSetupReady(this.qrCodeUrl, this.secret);
+  
+
+ final  String qrCodeUrl;
+ final  String secret;
+
+/// Create a copy of SettingsState
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$TotpSetupReadyCopyWith<_TotpSetupReady> get copyWith => __$TotpSetupReadyCopyWithImpl<_TotpSetupReady>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TotpSetupReady&&(identical(other.qrCodeUrl, qrCodeUrl) || other.qrCodeUrl == qrCodeUrl)&&(identical(other.secret, secret) || other.secret == secret));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,qrCodeUrl,secret);
+
+@override
+String toString() {
+  return 'SettingsState.totpSetupReady(qrCodeUrl: $qrCodeUrl, secret: $secret)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$TotpSetupReadyCopyWith<$Res> implements $SettingsStateCopyWith<$Res> {
+  factory _$TotpSetupReadyCopyWith(_TotpSetupReady value, $Res Function(_TotpSetupReady) _then) = __$TotpSetupReadyCopyWithImpl;
+@useResult
+$Res call({
+ String qrCodeUrl, String secret
+});
+
+
+
+
+}
+/// @nodoc
+class __$TotpSetupReadyCopyWithImpl<$Res>
+    implements _$TotpSetupReadyCopyWith<$Res> {
+  __$TotpSetupReadyCopyWithImpl(this._self, this._then);
+
+  final _TotpSetupReady _self;
+  final $Res Function(_TotpSetupReady) _then;
+
+/// Create a copy of SettingsState
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? qrCodeUrl = null,Object? secret = null,}) {
+  return _then(_TotpSetupReady(
+null == qrCodeUrl ? _self.qrCodeUrl : qrCodeUrl // ignore: cast_nullable_to_non_nullable
+as String,null == secret ? _self.secret : secret // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class _TotpVerifying implements SettingsState {
+  const _TotpVerifying();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TotpVerifying);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'SettingsState.totpVerifying()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class _TotpEnabled implements SettingsState {
+  const _TotpEnabled(final  List<String> backupCodes): _backupCodes = backupCodes;
+  
+
+ final  List<String> _backupCodes;
+ List<String> get backupCodes {
+  if (_backupCodes is EqualUnmodifiableListView) return _backupCodes;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_backupCodes);
+}
+
+
+/// Create a copy of SettingsState
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$TotpEnabledCopyWith<_TotpEnabled> get copyWith => __$TotpEnabledCopyWithImpl<_TotpEnabled>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TotpEnabled&&const DeepCollectionEquality().equals(other._backupCodes, _backupCodes));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_backupCodes));
+
+@override
+String toString() {
+  return 'SettingsState.totpEnabled(backupCodes: $backupCodes)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$TotpEnabledCopyWith<$Res> implements $SettingsStateCopyWith<$Res> {
+  factory _$TotpEnabledCopyWith(_TotpEnabled value, $Res Function(_TotpEnabled) _then) = __$TotpEnabledCopyWithImpl;
+@useResult
+$Res call({
+ List<String> backupCodes
+});
+
+
+
+
+}
+/// @nodoc
+class __$TotpEnabledCopyWithImpl<$Res>
+    implements _$TotpEnabledCopyWith<$Res> {
+  __$TotpEnabledCopyWithImpl(this._self, this._then);
+
+  final _TotpEnabled _self;
+  final $Res Function(_TotpEnabled) _then;
+
+/// Create a copy of SettingsState
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? backupCodes = null,}) {
+  return _then(_TotpEnabled(
+null == backupCodes ? _self._backupCodes : backupCodes // ignore: cast_nullable_to_non_nullable
+as List<String>,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class _TotpDisabling implements SettingsState {
+  const _TotpDisabling();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TotpDisabling);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'SettingsState.totpDisabling()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class _TotpDisabled implements SettingsState {
+  const _TotpDisabled();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TotpDisabled);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'SettingsState.totpDisabled()';
 }
 
 

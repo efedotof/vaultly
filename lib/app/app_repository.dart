@@ -14,6 +14,8 @@ import 'package:vaulth_app/server/repository/server_key/server_key_interface.dar
 import 'package:vaulth_app/server/repository/server_key/server_key_repository.dart';
 import 'package:vaulth_app/server/repository/temp_access/temp_access_interface.dart';
 import 'package:vaulth_app/server/repository/temp_access/temp_access_repository.dart';
+import 'package:vaulth_app/server/repository/totp/totp_interface.dart';
+import 'package:vaulth_app/server/repository/totp/totp_repository.dart';
 import 'package:vaulth_app/server/repository/user/user_interface.dart';
 import 'package:vaulth_app/server/repository/user/user_repository.dart';
 import 'package:vaulth_app/server/service/key_manager_service.dart';
@@ -70,6 +72,12 @@ class AppRepository extends StatelessWidget {
         RepositoryProvider<TempAccessInterface>(
           create: (context) => TempAccessRepository(
             baseUrl: tempAccessKey,
+            authLocalStorage: context.read<AuthLocalStorage>(),
+          ),
+        ),
+        RepositoryProvider<TotpInterface>(
+          create: (context) => TotpRepository(
+            totpAddress: authKey,
             authLocalStorage: context.read<AuthLocalStorage>(),
           ),
         ),

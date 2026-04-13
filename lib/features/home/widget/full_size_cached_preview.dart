@@ -1,13 +1,11 @@
 import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
 import 'package:vaulth_app/server/service/local_file_cache.dart';
-
 import 'content_type.dart';
 import 'preview_content.dart';
 
-class FullSizeCachedPreview extends StatelessWidget {
+class FullSizeCachedPreview extends StatefulWidget {
   final FileDto file;
   final LocalFileCache cache;
 
@@ -18,8 +16,28 @@ class FullSizeCachedPreview extends StatelessWidget {
   });
 
   @override
+  State<FullSizeCachedPreview> createState() => _FullSizeCachedPreviewState();
+}
+
+class _FullSizeCachedPreviewState extends State<FullSizeCachedPreview> {
+  Future<Uint8List?>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    final fileId = widget.file.id;
+    if (fileId != null) {
+      _future = widget.cache.getFileDecrypted(fileId);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final fileId = file.id;
+    final fileId = widget.file.id;
     if (fileId == null) {
       return Container(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -30,10 +48,18 @@ class FullSizeCachedPreview extends StatelessWidget {
     }
 
     return FutureBuilder<Uint8List?>(
-      future: cache.getFile(fileId),
+      future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        }
+        if (snapshot.hasError) {
+          return Container(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            child: const Center(
+              child: Icon(Icons.error_outline, color: Colors.grey, size: 48),
+            ),
+          );
         }
         final data = snapshot.data;
         if (data == null) {
@@ -45,8 +71,12 @@ class FullSizeCachedPreview extends StatelessWidget {
           );
         }
 
-        final type = _detectContentType(data, file.originalName);
-        return PreviewContent(data: data, type: type, fileName: file.name);
+        final type = _detectContentType(data, widget.file.originalName);
+        return PreviewContent(
+          data: data,
+          type: type,
+          fileName: widget.file.name,
+        );
       },
     );
   }

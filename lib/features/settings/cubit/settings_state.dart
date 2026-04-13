@@ -11,4 +11,12 @@ class SettingsState with _$SettingsState {
   }) = _Loaded;
   const factory SettingsState.error(String message) = _Error;
   const factory SettingsState.loggedOut() = _LoggedOut;
+  const factory SettingsState.totpSetupLoading() = _TotpSetupLoading;
+  const factory SettingsState.totpSetupReady(String qrCodeUrl, String secret) =
+      _TotpSetupReady;
+  const factory SettingsState.totpVerifying() = _TotpVerifying;
+  const factory SettingsState.totpEnabled(List<String> backupCodes) =
+      _TotpEnabled;
+  const factory SettingsState.totpDisabling() = _TotpDisabling;
+  const factory SettingsState.totpDisabled() = _TotpDisabled;
 }

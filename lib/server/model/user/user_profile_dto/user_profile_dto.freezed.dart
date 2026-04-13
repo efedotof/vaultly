@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$UserProfileDto {
 
- String? get id; String? get email; String? get username; String? get firstName; String? get lastName; String? get avatarUrl; int? get storageUsed; int? get storageLimit; String? get publicKey;
+ String? get id; String? get email; String? get username; String? get firstName; String? get lastName; String? get avatarUrl; int? get storageUsed; int? get storageLimit; String? get publicKey; bool? get totpEnabled;
 /// Create a copy of UserProfileDto
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $UserProfileDtoCopyWith<UserProfileDto> get copyWith => _$UserProfileDtoCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserProfileDto&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.username, username) || other.username == username)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.storageUsed, storageUsed) || other.storageUsed == storageUsed)&&(identical(other.storageLimit, storageLimit) || other.storageLimit == storageLimit)&&(identical(other.publicKey, publicKey) || other.publicKey == publicKey));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserProfileDto&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.username, username) || other.username == username)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.storageUsed, storageUsed) || other.storageUsed == storageUsed)&&(identical(other.storageLimit, storageLimit) || other.storageLimit == storageLimit)&&(identical(other.publicKey, publicKey) || other.publicKey == publicKey)&&(identical(other.totpEnabled, totpEnabled) || other.totpEnabled == totpEnabled));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,email,username,firstName,lastName,avatarUrl,storageUsed,storageLimit,publicKey);
+int get hashCode => Object.hash(runtimeType,id,email,username,firstName,lastName,avatarUrl,storageUsed,storageLimit,publicKey,totpEnabled);
 
 @override
 String toString() {
-  return 'UserProfileDto(id: $id, email: $email, username: $username, firstName: $firstName, lastName: $lastName, avatarUrl: $avatarUrl, storageUsed: $storageUsed, storageLimit: $storageLimit, publicKey: $publicKey)';
+  return 'UserProfileDto(id: $id, email: $email, username: $username, firstName: $firstName, lastName: $lastName, avatarUrl: $avatarUrl, storageUsed: $storageUsed, storageLimit: $storageLimit, publicKey: $publicKey, totpEnabled: $totpEnabled)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $UserProfileDtoCopyWith<$Res>  {
   factory $UserProfileDtoCopyWith(UserProfileDto value, $Res Function(UserProfileDto) _then) = _$UserProfileDtoCopyWithImpl;
 @useResult
 $Res call({
- String? id, String? email, String? username, String? firstName, String? lastName, String? avatarUrl, int? storageUsed, int? storageLimit, String? publicKey
+ String? id, String? email, String? username, String? firstName, String? lastName, String? avatarUrl, int? storageUsed, int? storageLimit, String? publicKey, bool? totpEnabled
 });
 
 
@@ -65,7 +65,7 @@ class _$UserProfileDtoCopyWithImpl<$Res>
 
 /// Create a copy of UserProfileDto
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? email = freezed,Object? username = freezed,Object? firstName = freezed,Object? lastName = freezed,Object? avatarUrl = freezed,Object? storageUsed = freezed,Object? storageLimit = freezed,Object? publicKey = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? email = freezed,Object? username = freezed,Object? firstName = freezed,Object? lastName = freezed,Object? avatarUrl = freezed,Object? storageUsed = freezed,Object? storageLimit = freezed,Object? publicKey = freezed,Object? totpEnabled = freezed,}) {
   return _then(_self.copyWith(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String?,email: freezed == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
@@ -76,7 +76,8 @@ as String?,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // igno
 as String?,storageUsed: freezed == storageUsed ? _self.storageUsed : storageUsed // ignore: cast_nullable_to_non_nullable
 as int?,storageLimit: freezed == storageLimit ? _self.storageLimit : storageLimit // ignore: cast_nullable_to_non_nullable
 as int?,publicKey: freezed == publicKey ? _self.publicKey : publicKey // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,totpEnabled: freezed == totpEnabled ? _self.totpEnabled : totpEnabled // ignore: cast_nullable_to_non_nullable
+as bool?,
   ));
 }
 
@@ -161,10 +162,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? id,  String? email,  String? username,  String? firstName,  String? lastName,  String? avatarUrl,  int? storageUsed,  int? storageLimit,  String? publicKey)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? id,  String? email,  String? username,  String? firstName,  String? lastName,  String? avatarUrl,  int? storageUsed,  int? storageLimit,  String? publicKey,  bool? totpEnabled)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _UserProfileDto() when $default != null:
-return $default(_that.id,_that.email,_that.username,_that.firstName,_that.lastName,_that.avatarUrl,_that.storageUsed,_that.storageLimit,_that.publicKey);case _:
+return $default(_that.id,_that.email,_that.username,_that.firstName,_that.lastName,_that.avatarUrl,_that.storageUsed,_that.storageLimit,_that.publicKey,_that.totpEnabled);case _:
   return orElse();
 
 }
@@ -182,10 +183,10 @@ return $default(_that.id,_that.email,_that.username,_that.firstName,_that.lastNa
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? id,  String? email,  String? username,  String? firstName,  String? lastName,  String? avatarUrl,  int? storageUsed,  int? storageLimit,  String? publicKey)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? id,  String? email,  String? username,  String? firstName,  String? lastName,  String? avatarUrl,  int? storageUsed,  int? storageLimit,  String? publicKey,  bool? totpEnabled)  $default,) {final _that = this;
 switch (_that) {
 case _UserProfileDto():
-return $default(_that.id,_that.email,_that.username,_that.firstName,_that.lastName,_that.avatarUrl,_that.storageUsed,_that.storageLimit,_that.publicKey);case _:
+return $default(_that.id,_that.email,_that.username,_that.firstName,_that.lastName,_that.avatarUrl,_that.storageUsed,_that.storageLimit,_that.publicKey,_that.totpEnabled);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -202,10 +203,10 @@ return $default(_that.id,_that.email,_that.username,_that.firstName,_that.lastNa
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? id,  String? email,  String? username,  String? firstName,  String? lastName,  String? avatarUrl,  int? storageUsed,  int? storageLimit,  String? publicKey)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? id,  String? email,  String? username,  String? firstName,  String? lastName,  String? avatarUrl,  int? storageUsed,  int? storageLimit,  String? publicKey,  bool? totpEnabled)?  $default,) {final _that = this;
 switch (_that) {
 case _UserProfileDto() when $default != null:
-return $default(_that.id,_that.email,_that.username,_that.firstName,_that.lastName,_that.avatarUrl,_that.storageUsed,_that.storageLimit,_that.publicKey);case _:
+return $default(_that.id,_that.email,_that.username,_that.firstName,_that.lastName,_that.avatarUrl,_that.storageUsed,_that.storageLimit,_that.publicKey,_that.totpEnabled);case _:
   return null;
 
 }
@@ -217,7 +218,7 @@ return $default(_that.id,_that.email,_that.username,_that.firstName,_that.lastNa
 @JsonSerializable()
 
 class _UserProfileDto implements UserProfileDto {
-  const _UserProfileDto({this.id, this.email, this.username, this.firstName, this.lastName, this.avatarUrl, this.storageUsed, this.storageLimit, this.publicKey});
+  const _UserProfileDto({this.id, this.email, this.username, this.firstName, this.lastName, this.avatarUrl, this.storageUsed, this.storageLimit, this.publicKey, this.totpEnabled});
   factory _UserProfileDto.fromJson(Map<String, dynamic> json) => _$UserProfileDtoFromJson(json);
 
 @override final  String? id;
@@ -229,6 +230,7 @@ class _UserProfileDto implements UserProfileDto {
 @override final  int? storageUsed;
 @override final  int? storageLimit;
 @override final  String? publicKey;
+@override final  bool? totpEnabled;
 
 /// Create a copy of UserProfileDto
 /// with the given fields replaced by the non-null parameter values.
@@ -243,16 +245,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserProfileDto&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.username, username) || other.username == username)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.storageUsed, storageUsed) || other.storageUsed == storageUsed)&&(identical(other.storageLimit, storageLimit) || other.storageLimit == storageLimit)&&(identical(other.publicKey, publicKey) || other.publicKey == publicKey));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserProfileDto&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.username, username) || other.username == username)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.storageUsed, storageUsed) || other.storageUsed == storageUsed)&&(identical(other.storageLimit, storageLimit) || other.storageLimit == storageLimit)&&(identical(other.publicKey, publicKey) || other.publicKey == publicKey)&&(identical(other.totpEnabled, totpEnabled) || other.totpEnabled == totpEnabled));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,email,username,firstName,lastName,avatarUrl,storageUsed,storageLimit,publicKey);
+int get hashCode => Object.hash(runtimeType,id,email,username,firstName,lastName,avatarUrl,storageUsed,storageLimit,publicKey,totpEnabled);
 
 @override
 String toString() {
-  return 'UserProfileDto(id: $id, email: $email, username: $username, firstName: $firstName, lastName: $lastName, avatarUrl: $avatarUrl, storageUsed: $storageUsed, storageLimit: $storageLimit, publicKey: $publicKey)';
+  return 'UserProfileDto(id: $id, email: $email, username: $username, firstName: $firstName, lastName: $lastName, avatarUrl: $avatarUrl, storageUsed: $storageUsed, storageLimit: $storageLimit, publicKey: $publicKey, totpEnabled: $totpEnabled)';
 }
 
 
@@ -263,7 +265,7 @@ abstract mixin class _$UserProfileDtoCopyWith<$Res> implements $UserProfileDtoCo
   factory _$UserProfileDtoCopyWith(_UserProfileDto value, $Res Function(_UserProfileDto) _then) = __$UserProfileDtoCopyWithImpl;
 @override @useResult
 $Res call({
- String? id, String? email, String? username, String? firstName, String? lastName, String? avatarUrl, int? storageUsed, int? storageLimit, String? publicKey
+ String? id, String? email, String? username, String? firstName, String? lastName, String? avatarUrl, int? storageUsed, int? storageLimit, String? publicKey, bool? totpEnabled
 });
 
 
@@ -280,7 +282,7 @@ class __$UserProfileDtoCopyWithImpl<$Res>
 
 /// Create a copy of UserProfileDto
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = freezed,Object? email = freezed,Object? username = freezed,Object? firstName = freezed,Object? lastName = freezed,Object? avatarUrl = freezed,Object? storageUsed = freezed,Object? storageLimit = freezed,Object? publicKey = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = freezed,Object? email = freezed,Object? username = freezed,Object? firstName = freezed,Object? lastName = freezed,Object? avatarUrl = freezed,Object? storageUsed = freezed,Object? storageLimit = freezed,Object? publicKey = freezed,Object? totpEnabled = freezed,}) {
   return _then(_UserProfileDto(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String?,email: freezed == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
@@ -291,7 +293,8 @@ as String?,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // igno
 as String?,storageUsed: freezed == storageUsed ? _self.storageUsed : storageUsed // ignore: cast_nullable_to_non_nullable
 as int?,storageLimit: freezed == storageLimit ? _self.storageLimit : storageLimit // ignore: cast_nullable_to_non_nullable
 as int?,publicKey: freezed == publicKey ? _self.publicKey : publicKey // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,totpEnabled: freezed == totpEnabled ? _self.totpEnabled : totpEnabled // ignore: cast_nullable_to_non_nullable
+as bool?,
   ));
 }
 

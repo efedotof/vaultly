@@ -152,12 +152,12 @@ return addFileError(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  initial,TResult Function()?  loading,TResult Function( List<FolderDto> folders,  List<FileDto> recentFiles,  List<FileDto> allFiles)?  loaded,TResult Function( String message)?  error,TResult Function()?  creatingFolder,TResult Function()?  updatingFolder,TResult Function()?  deletingFolder,TResult Function( String message)?  folderError,TResult Function()?  deletingFile,TResult Function( String message)?  fileDeleteError,TResult Function()?  addingFileToFolder,TResult Function( String message)?  addFileError,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  initial,TResult Function()?  loading,TResult Function( List<FolderDto> folders,  List<FileDto> recentFiles,  List<FileDto> allFiles,  List<FileDto>? cachedFiles)?  loaded,TResult Function( String message)?  error,TResult Function()?  creatingFolder,TResult Function()?  updatingFolder,TResult Function()?  deletingFolder,TResult Function( String message)?  folderError,TResult Function()?  deletingFile,TResult Function( String message)?  fileDeleteError,TResult Function()?  addingFileToFolder,TResult Function( String message)?  addFileError,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
 return initial();case _Loading() when loading != null:
 return loading();case _Loaded() when loaded != null:
-return loaded(_that.folders,_that.recentFiles,_that.allFiles);case _Error() when error != null:
+return loaded(_that.folders,_that.recentFiles,_that.allFiles,_that.cachedFiles);case _Error() when error != null:
 return error(_that.message);case _CreatingFolder() when creatingFolder != null:
 return creatingFolder();case _UpdatingFolder() when updatingFolder != null:
 return updatingFolder();case _DeletingFolder() when deletingFolder != null:
@@ -184,12 +184,12 @@ return addFileError(_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  initial,required TResult Function()  loading,required TResult Function( List<FolderDto> folders,  List<FileDto> recentFiles,  List<FileDto> allFiles)  loaded,required TResult Function( String message)  error,required TResult Function()  creatingFolder,required TResult Function()  updatingFolder,required TResult Function()  deletingFolder,required TResult Function( String message)  folderError,required TResult Function()  deletingFile,required TResult Function( String message)  fileDeleteError,required TResult Function()  addingFileToFolder,required TResult Function( String message)  addFileError,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  initial,required TResult Function()  loading,required TResult Function( List<FolderDto> folders,  List<FileDto> recentFiles,  List<FileDto> allFiles,  List<FileDto>? cachedFiles)  loaded,required TResult Function( String message)  error,required TResult Function()  creatingFolder,required TResult Function()  updatingFolder,required TResult Function()  deletingFolder,required TResult Function( String message)  folderError,required TResult Function()  deletingFile,required TResult Function( String message)  fileDeleteError,required TResult Function()  addingFileToFolder,required TResult Function( String message)  addFileError,}) {final _that = this;
 switch (_that) {
 case _Initial():
 return initial();case _Loading():
 return loading();case _Loaded():
-return loaded(_that.folders,_that.recentFiles,_that.allFiles);case _Error():
+return loaded(_that.folders,_that.recentFiles,_that.allFiles,_that.cachedFiles);case _Error():
 return error(_that.message);case _CreatingFolder():
 return creatingFolder();case _UpdatingFolder():
 return updatingFolder();case _DeletingFolder():
@@ -215,12 +215,12 @@ return addFileError(_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  initial,TResult? Function()?  loading,TResult? Function( List<FolderDto> folders,  List<FileDto> recentFiles,  List<FileDto> allFiles)?  loaded,TResult? Function( String message)?  error,TResult? Function()?  creatingFolder,TResult? Function()?  updatingFolder,TResult? Function()?  deletingFolder,TResult? Function( String message)?  folderError,TResult? Function()?  deletingFile,TResult? Function( String message)?  fileDeleteError,TResult? Function()?  addingFileToFolder,TResult? Function( String message)?  addFileError,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  initial,TResult? Function()?  loading,TResult? Function( List<FolderDto> folders,  List<FileDto> recentFiles,  List<FileDto> allFiles,  List<FileDto>? cachedFiles)?  loaded,TResult? Function( String message)?  error,TResult? Function()?  creatingFolder,TResult? Function()?  updatingFolder,TResult? Function()?  deletingFolder,TResult? Function( String message)?  folderError,TResult? Function()?  deletingFile,TResult? Function( String message)?  fileDeleteError,TResult? Function()?  addingFileToFolder,TResult? Function( String message)?  addFileError,}) {final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
 return initial();case _Loading() when loading != null:
 return loading();case _Loaded() when loaded != null:
-return loaded(_that.folders,_that.recentFiles,_that.allFiles);case _Error() when error != null:
+return loaded(_that.folders,_that.recentFiles,_that.allFiles,_that.cachedFiles);case _Error() when error != null:
 return error(_that.message);case _CreatingFolder() when creatingFolder != null:
 return creatingFolder();case _UpdatingFolder() when updatingFolder != null:
 return updatingFolder();case _DeletingFolder() when deletingFolder != null:
@@ -305,7 +305,7 @@ String toString() {
 
 
 class _Loaded implements HomeState {
-  const _Loaded({required final  List<FolderDto> folders, required final  List<FileDto> recentFiles, required final  List<FileDto> allFiles}): _folders = folders,_recentFiles = recentFiles,_allFiles = allFiles;
+  const _Loaded({required final  List<FolderDto> folders, required final  List<FileDto> recentFiles, required final  List<FileDto> allFiles, final  List<FileDto>? cachedFiles}): _folders = folders,_recentFiles = recentFiles,_allFiles = allFiles,_cachedFiles = cachedFiles;
   
 
  final  List<FolderDto> _folders;
@@ -329,6 +329,15 @@ class _Loaded implements HomeState {
   return EqualUnmodifiableListView(_allFiles);
 }
 
+ final  List<FileDto>? _cachedFiles;
+ List<FileDto>? get cachedFiles {
+  final value = _cachedFiles;
+  if (value == null) return null;
+  if (_cachedFiles is EqualUnmodifiableListView) return _cachedFiles;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(value);
+}
+
 
 /// Create a copy of HomeState
 /// with the given fields replaced by the non-null parameter values.
@@ -340,16 +349,16 @@ _$LoadedCopyWith<_Loaded> get copyWith => __$LoadedCopyWithImpl<_Loaded>(this, _
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Loaded&&const DeepCollectionEquality().equals(other._folders, _folders)&&const DeepCollectionEquality().equals(other._recentFiles, _recentFiles)&&const DeepCollectionEquality().equals(other._allFiles, _allFiles));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Loaded&&const DeepCollectionEquality().equals(other._folders, _folders)&&const DeepCollectionEquality().equals(other._recentFiles, _recentFiles)&&const DeepCollectionEquality().equals(other._allFiles, _allFiles)&&const DeepCollectionEquality().equals(other._cachedFiles, _cachedFiles));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_folders),const DeepCollectionEquality().hash(_recentFiles),const DeepCollectionEquality().hash(_allFiles));
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_folders),const DeepCollectionEquality().hash(_recentFiles),const DeepCollectionEquality().hash(_allFiles),const DeepCollectionEquality().hash(_cachedFiles));
 
 @override
 String toString() {
-  return 'HomeState.loaded(folders: $folders, recentFiles: $recentFiles, allFiles: $allFiles)';
+  return 'HomeState.loaded(folders: $folders, recentFiles: $recentFiles, allFiles: $allFiles, cachedFiles: $cachedFiles)';
 }
 
 
@@ -360,7 +369,7 @@ abstract mixin class _$LoadedCopyWith<$Res> implements $HomeStateCopyWith<$Res> 
   factory _$LoadedCopyWith(_Loaded value, $Res Function(_Loaded) _then) = __$LoadedCopyWithImpl;
 @useResult
 $Res call({
- List<FolderDto> folders, List<FileDto> recentFiles, List<FileDto> allFiles
+ List<FolderDto> folders, List<FileDto> recentFiles, List<FileDto> allFiles, List<FileDto>? cachedFiles
 });
 
 
@@ -377,12 +386,13 @@ class __$LoadedCopyWithImpl<$Res>
 
 /// Create a copy of HomeState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? folders = null,Object? recentFiles = null,Object? allFiles = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? folders = null,Object? recentFiles = null,Object? allFiles = null,Object? cachedFiles = freezed,}) {
   return _then(_Loaded(
 folders: null == folders ? _self._folders : folders // ignore: cast_nullable_to_non_nullable
 as List<FolderDto>,recentFiles: null == recentFiles ? _self._recentFiles : recentFiles // ignore: cast_nullable_to_non_nullable
 as List<FileDto>,allFiles: null == allFiles ? _self._allFiles : allFiles // ignore: cast_nullable_to_non_nullable
-as List<FileDto>,
+as List<FileDto>,cachedFiles: freezed == cachedFiles ? _self._cachedFiles : cachedFiles // ignore: cast_nullable_to_non_nullable
+as List<FileDto>?,
   ));
 }
 

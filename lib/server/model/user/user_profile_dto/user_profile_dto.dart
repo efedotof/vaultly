@@ -15,6 +15,7 @@ abstract class UserProfileDto with _$UserProfileDto {
     int? storageUsed,
     int? storageLimit,
     String? publicKey,
+    final bool? totpEnabled,
   }) = _UserProfileDto;
 
   factory UserProfileDto.fromJson(Map<String, dynamic> json) =>

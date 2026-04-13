@@ -14,6 +14,7 @@ abstract class AuthResponse with _$AuthResponse {
     required int storageUsed,
     required int storageLimit,
     required Set<String> roles,
+    bool? totpEnabled,
   }) = _AuthResponse;
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) =>

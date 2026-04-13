@@ -8,6 +8,7 @@ class HomeState with _$HomeState {
     required List<FolderDto> folders,
     required List<FileDto> recentFiles,
     required List<FileDto> allFiles,
+    List<FileDto>? cachedFiles,
   }) = _Loaded;
   const factory HomeState.error(String message) = _Error;
   const factory HomeState.creatingFolder() = _CreatingFolder;

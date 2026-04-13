@@ -13,6 +13,7 @@ import 'package:vaulth_app/server/repository/auth/auth_interface.dart';
 import 'package:vaulth_app/server/repository/device/device_interface.dart';
 import 'package:vaulth_app/server/repository/file/file_interface.dart';
 import 'package:vaulth_app/server/repository/folder/folder_interface.dart';
+import 'package:vaulth_app/server/repository/totp/totp_interface.dart';
 import 'package:vaulth_app/server/repository/user/user_interface.dart';
 import 'package:vaulth_app/server/service/file_decryption_service.dart';
 import 'package:vaulth_app/server/service/key_manager_service.dart';
@@ -71,6 +72,7 @@ class _AppBlocState extends State<AppBloc> {
             folderRepository: context.read<FolderInterface>(),
             keyManagerService: keyManagerService,
             authLocalStorage: context.read<AuthLocalStorage>(),
+            localFileCache: context.read<LocalFileCache>(),
           ),
         ),
         BlocProvider(
@@ -86,6 +88,7 @@ class _AppBlocState extends State<AppBloc> {
             fileCache: context.read<LocalFileCache>(),
             authStorage: context.read<AuthLocalStorage>(),
             authCubit: context.read<AuthCubit>(),
+            totpInterface: context.read<TotpInterface>(),
           ),
         ),
         BlocProvider(

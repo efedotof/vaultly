@@ -16,6 +16,7 @@ _AuthResponse _$AuthResponseFromJson(Map<String, dynamic> json) =>
       storageUsed: (json['storageUsed'] as num).toInt(),
       storageLimit: (json['storageLimit'] as num).toInt(),
       roles: (json['roles'] as List<dynamic>).map((e) => e as String).toSet(),
+      totpEnabled: json['totpEnabled'] as bool?,
     );
 
 Map<String, dynamic> _$AuthResponseToJson(_AuthResponse instance) =>
@@ -28,4 +29,5 @@ Map<String, dynamic> _$AuthResponseToJson(_AuthResponse instance) =>
       'storageUsed': instance.storageUsed,
       'storageLimit': instance.storageLimit,
       'roles': instance.roles.toList(),
+      'totpEnabled': instance.totpEnabled,
     };

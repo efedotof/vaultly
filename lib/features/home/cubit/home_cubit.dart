@@ -8,6 +8,7 @@ import 'package:vaulth_app/server/model/folder/folder_update_dto/folder_update_d
 import 'package:vaulth_app/server/model/page_response.dart';
 import 'package:vaulth_app/server/repository/file/file_interface.dart';
 import 'package:vaulth_app/server/repository/folder/folder_interface.dart';
+import 'package:vaulth_app/server/service/local_file_cache.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 
 part 'home_state.dart';
@@ -18,32 +19,103 @@ class HomeCubit extends Cubit<HomeState> {
   final FolderInterface folderRepository;
   final dynamic keyManagerService;
   final AuthLocalStorage authLocalStorage;
+  final LocalFileCache localFileCache;
 
   HomeCubit({
     required this.fileRepository,
     required this.folderRepository,
     required this.keyManagerService,
     required this.authLocalStorage,
+    required this.localFileCache,
   }) : super(const HomeState.initial());
 
   Future<void> loadData() async {
     emit(const HomeState.loading());
     try {
-      final List<FolderDto> folders = await folderRepository.getFolderTree();
-      final PageResponse<FileDto> recentFilesPage = await fileRepository
-          .getRecentFiles(page: 0, size: 10);
-      final PageResponse<FileDto> allFilesPage = await fileRepository
-          .getAllFiles(page: 0, size: 50);
+      final foldersFuture = folderRepository.getFolderTree();
+      final recentFuture = fileRepository.getRecentFiles(page: 0, size: 10);
+      final allFuture = fileRepository.getAllFiles(page: 0, size: 50);
+
+      final results = await Future.wait([
+        foldersFuture,
+        recentFuture,
+        allFuture,
+      ]);
+
+      final List<FolderDto> folders = results[0] as List<FolderDto>;
+      final PageResponse<FileDto> recentFilesPage =
+          results[1] as PageResponse<FileDto>;
+      final PageResponse<FileDto> allFilesPage =
+          results[2] as PageResponse<FileDto>;
+
       emit(
         HomeState.loaded(
           folders: folders,
           recentFiles: recentFilesPage.content,
           allFiles: allFilesPage.content,
+          cachedFiles: const [],
         ),
       );
+
+      _loadCacheInBackground();
     } catch (e) {
+      try {
+        final cachedMeta = await localFileCache.getAllCachedFileMetadata();
+        if (cachedMeta.isNotEmpty) {
+          final cachedFileDtos = await _mapCachedMetaToDtoWithPauses(
+            cachedMeta,
+          );
+          emit(
+            HomeState.loaded(
+              folders: const [],
+              recentFiles: const [],
+              allFiles: const [],
+              cachedFiles: cachedFileDtos,
+            ),
+          );
+          return;
+        }
+      } catch (_) {}
       emit(HomeState.error(e.toString()));
     }
+  }
+
+  Future<void> _loadCacheInBackground() async {
+    try {
+      final cachedMeta = await localFileCache.getAllCachedFileMetadata();
+      final cachedFileDtos = await _mapCachedMetaToDtoWithPauses(cachedMeta);
+
+      final currentState = state;
+      if (currentState is _Loaded) {
+        emit(currentState.copyWith(cachedFiles: cachedFileDtos));
+      }
+    } catch (_) {
+    }
+  }
+
+  Future<List<FileDto>> _mapCachedMetaToDtoWithPauses(
+    List<Map<String, dynamic>> cachedMeta,
+  ) async {
+    final List<FileDto> result = [];
+    for (int i = 0; i < cachedMeta.length; i++) {
+      final meta = cachedMeta[i];
+      result.add(
+        FileDto(
+          id: meta['id'] as String,
+          name: meta['originalName'] as String,
+          originalName: meta['originalName'] as String,
+          size: 0,
+          mimeType: 'application/octet-stream',
+          createdAt: DateTime.fromMillisecondsSinceEpoch(
+            meta['timestamp'] as int,
+          ),
+        ),
+      );
+      if (i % 10 == 0) {
+        await Future.delayed(Duration.zero);
+      }
+    }
+    return result;
   }
 
   Future<void> refresh() => loadData();

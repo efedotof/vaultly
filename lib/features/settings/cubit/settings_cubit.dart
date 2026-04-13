@@ -4,9 +4,13 @@ import 'package:vaulth_app/features/auth/cubit/auth_cubit.dart';
 import 'package:vaulth_app/server/model/device/device_register_request/device_register_request.dart';
 import 'package:vaulth_app/server/model/device/device_response/device_response.dart';
 import 'package:vaulth_app/server/model/device/device_update_request/device_update_request.dart';
+import 'package:vaulth_app/server/model/totp/totp_disable_request/totp_disable_request.dart';
+import 'package:vaulth_app/server/model/totp/totp_setup_response/totp_setup_response.dart';
+import 'package:vaulth_app/server/model/totp/totp_verify_request/totp_verify_request.dart';
 import 'package:vaulth_app/server/model/user/user_profile_dto/user_profile_dto.dart';
 import 'package:vaulth_app/server/repository/auth/auth_interface.dart';
 import 'package:vaulth_app/server/repository/device/device_interface.dart';
+import 'package:vaulth_app/server/repository/totp/totp_interface.dart';
 import 'package:vaulth_app/server/repository/user/user_interface.dart';
 import 'package:vaulth_app/server/service/local_file_cache.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
@@ -22,6 +26,8 @@ class SettingsCubit extends Cubit<SettingsState> {
   final LocalFileCache fileCache;
   final AuthLocalStorage authStorage;
   final AuthCubit authCubit;
+  final TotpInterface totpInterface;
+
   SettingsCubit({
     required this.userRepository,
     required this.authRepository,
@@ -30,7 +36,10 @@ class SettingsCubit extends Cubit<SettingsState> {
     required this.fileCache,
     required this.authStorage,
     required this.authCubit,
+    required this.totpInterface,
   }) : super(const SettingsState.initial());
+
+  TotpSetupResponse? _pendingTotpSetup;
 
   Future<void> loadSettingsData() async {
     emit(const SettingsState.loading());
@@ -237,6 +246,78 @@ class SettingsCubit extends Cubit<SettingsState> {
         ),
       ),
       orElse: () => emit(const SettingsState.initial()),
+    );
+  }
+
+  Future<void> startTotpSetup() async {
+    final previousState = state;
+    try {
+      emit(const SettingsState.totpSetupLoading());
+      final response = await totpInterface.setupTotp();
+      _pendingTotpSetup = response;
+      emit(SettingsState.totpSetupReady(response.qrCodeUrl, response.secret));
+    } catch (e) {
+      emit(SettingsState.error('Ошибка настройки TOTP: $e'));
+      _restoreState(previousState);
+    }
+  }
+
+  Future<void> verifyAndEnableTotp(String code) async {
+    if (_pendingTotpSetup == null) {
+      emit(const SettingsState.error('Нет активной настройки TOTP'));
+      return;
+    }
+    final previousState = state;
+    try {
+      emit(const SettingsState.totpVerifying());
+      final request = TotpVerifyRequest(code: code);
+      final response = await totpInterface.verifyTotp(request);
+      await refreshProfile();
+      emit(SettingsState.totpEnabled(response.backupCodes));
+    } catch (e) {
+      emit(SettingsState.error('Неверный код: $e'));
+      _restoreState(previousState);
+    }
+  }
+
+  Future<void> disableTotp(String code) async {
+    final previousState = state;
+    try {
+      emit(const SettingsState.totpDisabling());
+      final request = TotpDisableRequest(code: code);
+      await totpInterface.disableTotp(request);
+      await refreshProfile();
+      emit(const SettingsState.totpDisabled());
+    } catch (e) {
+      emit(SettingsState.error('Ошибка отключения TOTP: $e'));
+      _restoreState(previousState);
+    }
+  }
+
+  void _restoreState(SettingsState previousState) {
+    previousState.maybeWhen(
+      loaded: (profile, devices, cacheSize) => emit(
+        SettingsState.loaded(
+          profile: profile,
+          devices: devices,
+          cacheSizeBytes: cacheSize,
+        ),
+      ),
+      orElse: () => emit(const SettingsState.initial()),
+    );
+  }
+
+  void resetTotpStates() {
+    _pendingTotpSetup = null;
+    state.maybeWhen(
+      loaded: (profile, devices, cacheSize) => emit(
+        SettingsState.loaded(
+          profile: profile,
+          devices: devices,
+          cacheSizeBytes: cacheSize,
+        ),
+      ),
+      orElse: () {},
     );
   }
 }

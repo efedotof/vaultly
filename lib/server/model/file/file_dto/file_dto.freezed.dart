@@ -15,8 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$FileDto {
 
- String? get id;// UUID
- String get name; String get originalName; int get size; String get mimeType; String? get s3Url; bool? get isEncrypted; bool? get isPublic;@JsonKey(name: 'createdAt') DateTime? get createdAt; String? get folderId; String? get folderName;
+ String? get id; String get name; String get originalName; int get size; String get mimeType; String? get s3Url; bool? get isEncrypted; bool? get isPublic;@JsonKey(name: 'createdAt') DateTime? get createdAt; String? get folderId; String? get folderName;
 /// Create a copy of FileDto
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -224,7 +223,6 @@ class _FileDto implements FileDto {
   factory _FileDto.fromJson(Map<String, dynamic> json) => _$FileDtoFromJson(json);
 
 @override final  String? id;
-// UUID
 @override final  String name;
 @override final  String originalName;
 @override final  int size;

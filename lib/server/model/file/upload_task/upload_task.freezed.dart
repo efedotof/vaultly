@@ -14,9 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$UploadTask {
 
- String get id;// уникальный идентификатор задачи
- String get fileName; UploadStatus get status; double get progress;// от 0.0 до 1.0
- String? get errorMessage; String? get folderId;
+ String get id; String get fileName; UploadStatus get status; double get progress; String? get errorMessage; String? get folderId;
 /// Create a copy of UploadTask
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -217,11 +215,9 @@ class _UploadTask implements UploadTask {
   
 
 @override final  String id;
-// уникальный идентификатор задачи
 @override final  String fileName;
 @override@JsonKey() final  UploadStatus status;
 @override@JsonKey() final  double progress;
-// от 0.0 до 1.0
 @override final  String? errorMessage;
 @override final  String? folderId;
 

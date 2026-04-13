@@ -47,6 +47,7 @@ class BatchCacheCubit extends Cubit<BatchCacheState> {
         );
       }
       emit(BatchCacheState.inProgress(current: i + 1, total: files.length));
+      await Future.delayed(Duration.zero);
     }
 
     if (failed > 0) {

@@ -81,7 +81,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
     emit(const DocumentViewerState.loading());
 
     try {
-      final cachedData = await localFileCache.getFile(file.id!);
+      final cachedData = await localFileCache.getFileDecrypted(file.id!);
       if (cachedData != null) {
         _logger.info('[DocumentViewerCubit] Файл найден в кэше');
         String? cachedOriginalName = await localFileCache.getOriginalName(

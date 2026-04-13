@@ -17,6 +17,7 @@ _UserProfileDto _$UserProfileDtoFromJson(Map<String, dynamic> json) =>
       storageUsed: (json['storageUsed'] as num?)?.toInt(),
       storageLimit: (json['storageLimit'] as num?)?.toInt(),
       publicKey: json['publicKey'] as String?,
+      totpEnabled: json['totpEnabled'] as bool?,
     );
 
 Map<String, dynamic> _$UserProfileDtoToJson(_UserProfileDto instance) =>
@@ -30,4 +31,5 @@ Map<String, dynamic> _$UserProfileDtoToJson(_UserProfileDto instance) =>
       'storageUsed': instance.storageUsed,
       'storageLimit': instance.storageLimit,
       'publicKey': instance.publicKey,
+      'totpEnabled': instance.totpEnabled,
     };

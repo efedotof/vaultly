@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
@@ -8,6 +10,95 @@ import 'package:vaulth_app/server/service/public_file_decryption_service.dart';
 import 'package:vaulth_app/server/service/shirm_decryption_service.dart';
 import 'package:vaulth_app/server/service/shirm_decryption_service_web.dart';
 import 'package:vaulth_app/server/service/shirmps_header.dart';
+import 'package:pointycastle/block/aes.dart';
+import 'package:pointycastle/block/modes/gcm.dart';
+
+Future<Map<String, dynamic>> _processPrivateFileInIsolate(
+  Map<String, dynamic> args,
+) async {
+  final Uint8List encryptedBytes = args['encryptedBytes'] as Uint8List;
+  final String privateKeyPem = args['privateKeyPem'] as String;
+
+  final privateKey = CryptoUtils.rsaPrivateKeyFromPem(privateKeyPem);
+  final Uint8List plaintext = ShirmDecryptionService.decryptShps(
+    encryptedBytes,
+    privateKey: privateKey,
+  );
+
+  final random = Random.secure();
+  final key = Uint8List(32);
+  final nonce = Uint8List(12);
+  for (int i = 0; i < 32; i++) {
+    key[i] = random.nextInt(256);
+  }
+  for (int i = 0; i < 12; i++) {
+    nonce[i] = random.nextInt(256);
+  }
+
+  final keyParam = KeyParameter(key);
+  final gcm = GCMBlockCipher(AESEngine())
+    ..init(true, AEADParameters(keyParam, 128, nonce, Uint8List(0)));
+  final ciphertext = Uint8List(gcm.getOutputSize(plaintext.length));
+  final processed = gcm.processBytes(
+    plaintext,
+    0,
+    plaintext.length,
+    ciphertext,
+    0,
+  );
+  final finalised = gcm.doFinal(ciphertext, processed);
+  final total = processed + finalised;
+  final encryptedData = Uint8List.sublistView(ciphertext, 0, total);
+
+  return {'key': key, 'nonce': nonce, 'encryptedData': encryptedData};
+}
+
+Future<Map<String, dynamic>> _processPublicFileInIsolate(
+  Map<String, dynamic> args,
+) async {
+  final Uint8List shpsData = args['shpsData'] as Uint8List;
+  final String reEncryptedKeyBase64 = args['reEncryptedKeyBase64'] as String;
+  final String ivBase64 = args['ivBase64'] as String;
+  final String clientPrivateKeyPem = args['clientPrivateKeyPem'] as String;
+
+  final clientPrivateKey = CryptoUtils.rsaPrivateKeyFromPem(
+    clientPrivateKeyPem,
+  );
+  final Uint8List plaintext =
+      await PublicFileDecryptionService.decryptPublicFile(
+        shpsData: shpsData,
+        reEncryptedKeyBase64: reEncryptedKeyBase64,
+        ivBase64: ivBase64,
+        clientPrivateKey: clientPrivateKey,
+      );
+
+  final random = Random.secure();
+  final key = Uint8List(32);
+  final nonce = Uint8List(12);
+  for (int i = 0; i < 32; i++) {
+    key[i] = random.nextInt(256);
+  }
+  for (int i = 0; i < 12; i++) {
+    nonce[i] = random.nextInt(256);
+  }
+
+  final keyParam = KeyParameter(key);
+  final gcm = GCMBlockCipher(AESEngine())
+    ..init(true, AEADParameters(keyParam, 128, nonce, Uint8List(0)));
+  final ciphertext = Uint8List(gcm.getOutputSize(plaintext.length));
+  final processed = gcm.processBytes(
+    plaintext,
+    0,
+    plaintext.length,
+    ciphertext,
+    0,
+  );
+  final finalised = gcm.doFinal(ciphertext, processed);
+  final total = processed + finalised;
+  final encryptedData = Uint8List.sublistView(ciphertext, 0, total);
+
+  return {'key': key, 'nonce': nonce, 'encryptedData': encryptedData};
+}
 
 class FileDecryptionService {
   final FileInterface fileRepository;
@@ -31,7 +122,7 @@ class FileDecryptionService {
       '[FileDecryptionService] decryptAndCache START для файла ${file.id}',
     );
     try {
-      final cached = await localFileCache.getFile(file.id!);
+      final cached = await localFileCache.getFileDecrypted(file.id!);
       if (cached != null) {
         _logger.debug('[FileDecryptionService] Файл ${file.id} уже в кэше');
         return cached;
@@ -61,13 +152,8 @@ class FileDecryptionService {
     );
 
     final metadata = await fileRepository.getDecryptionMetadata(file.id!);
-    _logger.debug('[FileDecryptionService] Получены метаданные для ${file.id}');
-
     final shpsData = await fileRepository.downloadShpsFromUrl(
       metadata.presignedUrl,
-    );
-    _logger.debug(
-      '[FileDecryptionService] SHPS данные загружены, размер: ${shpsData.length} байт',
     );
 
     dynamic clientPrivateKey;
@@ -77,33 +163,53 @@ class FileDecryptionService {
       clientPrivateKey = await keyManagerService.getPrivateKey(password);
     }
     if (clientPrivateKey == null) {
-      _logger.error(
-        '[FileDecryptionService] Не удалось получить приватный ключ для публичного файла ${file.id}',
-      );
       throw Exception('Не удалось получить приватный ключ. Неверный пароль?');
     }
 
-    _logger.debug(
-      '[FileDecryptionService] Начало расшифровки публичного файла ${file.id}',
-    );
-    final decryptedBytes = await PublicFileDecryptionService.decryptPublicFile(
-      shpsData: shpsData,
-      reEncryptedKeyBase64: metadata.encryptedKey,
-      ivBase64: metadata.iv,
-      clientPrivateKey: clientPrivateKey,
-    );
-    _logger.debug(
-      '[FileDecryptionService] Публичный файл ${file.id} успешно расшифрован, размер: ${decryptedBytes.length} байт',
-    );
+    final String clientPrivateKeyPem;
+    if (kIsWeb) {
+      clientPrivateKeyPem = clientPrivateKey as String;
+    } else {
+      clientPrivateKeyPem = CryptoUtils.encodeRSAPrivateKeyToPem(
+        clientPrivateKey,
+      );
+    }
 
-    await localFileCache.saveFile(
-      file.id!,
-      decryptedBytes,
-      originalName: metadata.fileName,
-    );
-    _logger.debug('[FileDecryptionService] Файл ${file.id} сохранён в кэш');
+    Uint8List plaintext;
+    if (kIsWeb) {
+      plaintext = await PublicFileDecryptionService.decryptPublicFile(
+        shpsData: shpsData,
+        reEncryptedKeyBase64: metadata.encryptedKey,
+        ivBase64: metadata.iv,
+        clientPrivateKey: clientPrivateKey,
+      );
+      await localFileCache.saveFile(
+        file.id!,
+        plaintext,
+        originalName: metadata.fileName,
+      );
+    } else {
+      final result = await compute(_processPublicFileInIsolate, {
+        'shpsData': shpsData,
+        'reEncryptedKeyBase64': metadata.encryptedKey,
+        'ivBase64': metadata.iv,
+        'clientPrivateKeyPem': clientPrivateKeyPem,
+      });
+      await localFileCache.saveFileEncrypted(
+        fileId: file.id!,
+        key: result['key'] as Uint8List,
+        nonce: result['nonce'] as Uint8List,
+        encryptedData: result['encryptedData'] as Uint8List,
+        originalName: metadata.fileName,
+      );
+      plaintext = await _decryptFromCache(
+        file.id!,
+        result['key'] as Uint8List,
+        result['nonce'] as Uint8List,
+      );
+    }
 
-    return decryptedBytes;
+    return plaintext;
   }
 
   Future<Uint8List> _decryptPrivateFile(FileDto file, String password) async {
@@ -112,9 +218,6 @@ class FileDecryptionService {
     );
 
     final encryptedBytes = await fileRepository.downloadShps(file.id!);
-    _logger.debug(
-      '[FileDecryptionService] Загружены зашифрованные данные для ${file.id}, размер: ${encryptedBytes.length} байт',
-    );
 
     String originalFileName = file.originalName;
     try {
@@ -123,9 +226,6 @@ class FileDecryptionService {
           header.originalFileName!.isNotEmpty) {
         originalFileName = header.originalFileName!;
       }
-      _logger.debug(
-        '[FileDecryptionService] Извлечено имя файла из заголовка: $originalFileName',
-      );
     } catch (e) {
       _logger.error(
         '[FileDecryptionService] Ошибка извлечения заголовка для ${file.id}',
@@ -139,48 +239,54 @@ class FileDecryptionService {
     } else {
       final privateKey = await keyManagerService.getPrivateKey(password);
       if (privateKey == null) {
-        _logger.error(
-          '[FileDecryptionService] Приватный ключ не получен для ${file.id}',
-        );
         throw Exception('Не удалось получить приватный ключ. Неверный пароль?');
       }
       privateKeyPem = CryptoUtils.encodeRSAPrivateKeyToPem(privateKey);
     }
 
     if (privateKeyPem == null || privateKeyPem.isEmpty) {
-      _logger.error(
-        '[FileDecryptionService] Приватный ключ пуст для ${file.id}',
-      );
       throw Exception('Приватный ключ не получен');
     }
 
-    _logger.debug(
-      '[FileDecryptionService] Начало расшифровки приватного файла ${file.id}',
-    );
-    Uint8List decryptedBytes;
+    Uint8List plaintext;
     if (kIsWeb) {
-      decryptedBytes = await ShirmDecryptionServiceWeb.decryptShps(
+      plaintext = await ShirmDecryptionServiceWeb.decryptShps(
         encryptedBytes,
         privateKeyPem: privateKeyPem,
       );
+      await localFileCache.saveFile(
+        file.id!,
+        plaintext,
+        originalName: originalFileName,
+      );
     } else {
-      decryptedBytes = ShirmDecryptionService.decryptShps(
-        encryptedBytes,
-        privateKey: CryptoUtils.rsaPrivateKeyFromPem(privateKeyPem),
+      final result = await compute(_processPrivateFileInIsolate, {
+        'encryptedBytes': encryptedBytes,
+        'privateKeyPem': privateKeyPem,
+      });
+      await localFileCache.saveFileEncrypted(
+        fileId: file.id!,
+        key: result['key'] as Uint8List,
+        nonce: result['nonce'] as Uint8List,
+        encryptedData: result['encryptedData'] as Uint8List,
+        originalName: originalFileName,
+      );
+      plaintext = await _decryptFromCache(
+        file.id!,
+        result['key'] as Uint8List,
+        result['nonce'] as Uint8List,
       );
     }
-    _logger.debug(
-      '[FileDecryptionService] Приватный файл ${file.id} успешно расшифрован, размер: ${decryptedBytes.length} байт',
-    );
 
-    await localFileCache.saveFile(
-      file.id!,
-      decryptedBytes,
-      originalName: originalFileName,
-    );
-    _logger.debug('[FileDecryptionService] Файл ${file.id} сохранён в кэш');
+    return plaintext;
+  }
 
-    return decryptedBytes;
+  Future<Uint8List> _decryptFromCache(
+    String fileId,
+    Uint8List key,
+    Uint8List nonce,
+  ) async {
+    return (await localFileCache.getFileDecrypted(fileId))!;
   }
 
   ShirmpsHeader _extractShirmpsHeader(Uint8List shpsBytes) {

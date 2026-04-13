@@ -198,4 +198,24 @@ class FileRepository implements FileInterface {
   Exception _handleDioError(DioException e) {
     return Exception('Network error: ${e.message}');
   }
+
+  @override
+  Future<FileDto> uploadPublicFileFromBytes({
+    required Uint8List bytes,
+    required String fileName,
+    String? folderId,
+    ProgressCallback? onSendProgress,
+  }) async {
+    final multipartFile = MultipartFile.fromBytes(bytes, filename: fileName);
+    final formData = FormData.fromMap({
+      'file': multipartFile,
+      'folderId': folderId,
+    });
+    final response = await _dio.post(
+      '/upload/public',
+      data: formData,
+      onSendProgress: onSendProgress,
+    );
+    return FileDto.fromJson(response.data);
+  }
 }

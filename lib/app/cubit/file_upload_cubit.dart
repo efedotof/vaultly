@@ -132,8 +132,13 @@ class FileUploadCubit extends Cubit<FileUploadState> {
         );
 
         if (kIsWeb) {
-          throw UnsupportedError(
-            'Публичная загрузка на вебе пока не поддерживается',
+          await fileRepository.uploadPublicFileFromBytes(
+            bytes: fileBytes,
+            fileName: fileName,
+            folderId: folderId,
+            onSendProgress: (sent, total) {
+              _updateTask(task.copyWith(progress: sent / total));
+            },
           );
         } else {
           final tempDir = await getTemporaryDirectory();

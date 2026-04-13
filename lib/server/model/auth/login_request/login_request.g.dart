@@ -10,10 +10,12 @@ _LoginRequest _$LoginRequestFromJson(Map<String, dynamic> json) =>
     _LoginRequest(
       username: json['username'] as String,
       password: json['password'] as String,
+      totpCode: json['totpCode'] as String?,
     );
 
 Map<String, dynamic> _$LoginRequestToJson(_LoginRequest instance) =>
     <String, dynamic>{
       'username': instance.username,
       'password': instance.password,
+      'totpCode': instance.totpCode,
     };

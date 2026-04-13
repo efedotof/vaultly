@@ -32,4 +32,11 @@ abstract class FileInterface {
 
   Future<DecryptionMetadata> getDecryptionMetadata(String fileId);
   Future<Uint8List> downloadShpsFromUrl(String url);
+
+  Future<FileDto> uploadPublicFileFromBytes({
+    required Uint8List bytes,
+    required String fileName,
+    String? folderId,
+    ProgressCallback? onSendProgress,
+  });
 }

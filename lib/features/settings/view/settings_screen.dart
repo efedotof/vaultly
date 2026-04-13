@@ -8,6 +8,7 @@ import 'package:vaulth_app/features/settings/cubit/settings_cubit.dart';
 import 'package:vaulth_app/features/settings/widget/widget.dart';
 import 'package:vaulth_app/route/app_router.dart';
 import 'package:vaulth_app/server/model/file/upload_task/upload_task.dart';
+import 'package:vaulth_app/server/model/user/user_profile_dto/user_profile_dto.dart';
 
 @RoutePage()
 class SettingsScreen extends StatefulWidget {
@@ -18,6 +19,9 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  UserProfileDto? _lastProfile;
+  int? _lastCacheSize;
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +55,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             listener: (context, state) {
               state.whenOrNull(
                 error: (message) => _showSnackBar(message, isError: true),
+                loaded: (profile, devices, cacheSizeBytes) {
+                  _lastProfile = profile;
+                  _lastCacheSize = cacheSizeBytes;
+                },
               );
             },
           ),
@@ -69,25 +77,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             BlocBuilder<SettingsCubit, SettingsState>(
               builder: (context, state) {
+                if (state.maybeWhen(
+                  initial: () => true,
+                  loading: () => true,
+                  orElse: () => false,
+                )) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final errorMessage = state.maybeWhen(
+                  error: (message) => message,
+                  orElse: () => null,
+                );
+                if (errorMessage != null) {
+                  return ErrorWidgets(message: errorMessage, onRetry: _refresh);
+                }
+
+                if (_lastProfile == null) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
                 return RefreshIndicator(
                   onRefresh: _refresh,
-                  child: state.when(
-                    initial: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    loaded: (profile, devices, cacheSizeBytes) => SettingsList(
-                      profile: profile,
-                      cacheSizeBytes: cacheSizeBytes,
-                    ),
-                    error: (message) =>
-                        ErrorWidgets(message: message, onRetry: _refresh),
-                    loggedOut: () => const SizedBox.shrink(),
+                  child: SettingsList(
+                    profile: _lastProfile!,
+                    cacheSizeBytes: _lastCacheSize,
                   ),
                 );
               },
             ),
-
             Positioned(
               top: MediaQuery.of(context).size.height * 0.046,
               left: 24.0,
@@ -127,7 +145,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
             ),
-
             Positioned(
               bottom: 90,
               left: 16,
@@ -143,7 +160,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       .where((t) => t.status != UploadStatus.completed)
                       .toList();
                   if (activeTasks.isEmpty) return const SizedBox.shrink();
-
                   return UploadOverlay(
                     tasks: activeTasks,
                     onRetry: (taskId) =>

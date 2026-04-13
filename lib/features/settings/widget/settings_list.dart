@@ -1,12 +1,13 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:vaulth_app/features/auth/widget/totp_code_dialog.dart';
 import 'package:vaulth_app/features/settings/cubit/settings_cubit.dart';
 import 'package:vaulth_app/route/app_router.dart';
 import 'package:vaulth_app/server/model/user/user_profile_dto/user_profile_dto.dart';
-
 import 'confirm_dialog.dart';
 import 'info_row.dart';
+import 'totp_setup_dialog.dart';
 
 class SettingsList extends StatelessWidget {
   final UserProfileDto profile;
@@ -57,213 +58,350 @@ class SettingsList extends StatelessWidget {
     );
   }
 
+  void _showTotpSetupDialog(
+    BuildContext context,
+    String qrCodeUrl,
+    String secret,
+  ) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => TotpSetupDialog(
+        secret: secret,
+        username: profile.username ?? "",
+        onVerify: (code) {
+          context.read<SettingsCubit>().verifyAndEnableTotp(code);
+        },
+      ),
+    );
+  }
+
+  void _showTotpDisableDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => TotpCodeDialog(
+        onSubmit: (code) async {
+          await context.read<SettingsCubit>().disableTotp(code);
+          if (context.mounted) {
+            Navigator.pop(context);
+          }
+        },
+      ),
+    );
+  }
+
+  void _showBackupCodesDialog(BuildContext context, List<String> backupCodes) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Резервные коды'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Сохраните эти коды в надёжном месте. Они помогут восстановить доступ при утере устройства.',
+              ),
+              const SizedBox(height: 16),
+              ...backupCodes.map(
+                (code) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: SelectableText(
+                    code,
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Закрыть'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final storageUsage =
         (profile.storageUsed != null && profile.storageLimit != null)
         ? profile.storageUsed! / profile.storageLimit!
         : 0.0;
+    final isTotpEnabled = profile.totpEnabled ?? false;
 
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        vertical: MediaQuery.of(context).size.height * 0.1,
-      ),
-      child: ListView(
-        padding: const EdgeInsets.only(
-          top: kToolbarHeight + 24,
-          left: 20,
-          right: 20,
-          bottom: 20,
+    return BlocListener<SettingsCubit, SettingsState>(
+      listener: (context, state) {
+        state.whenOrNull(
+          totpSetupReady: (qrCodeUrl, secret) {
+            _showTotpSetupDialog(context, qrCodeUrl, secret);
+          },
+          totpEnabled: (backupCodes) {
+            _showBackupCodesDialog(context, backupCodes);
+            context.read<SettingsCubit>().loadSettingsData();
+          },
+          totpDisabled: () {
+            context.read<SettingsCubit>().loadSettingsData();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Двухфакторная аутентификация отключена'),
+              ),
+            );
+          },
+          error: (message) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(message), backgroundColor: Colors.red),
+            );
+          },
+        );
+      },
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          vertical: MediaQuery.of(context).size.height * 0.1,
         ),
-        children: [
-          Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Профиль',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  InfoRow(label: 'Имя', value: profile.firstName),
-                  InfoRow(label: 'Фамилия', value: profile.lastName),
-                  InfoRow(label: 'Имя пользователя', value: profile.username),
-                  InfoRow(label: 'Email', value: profile.email),
-                  if (profile.storageLimit != null &&
-                      profile.storageUsed != null) ...[
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Хранилище',
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        Text(
-                          '${(storageUsage * 100).toStringAsFixed(1)}%',
-                          style: TextStyle(
-                            color: storageUsage > 0.9
-                                ? Theme.of(context).colorScheme.error
-                                : Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: LinearProgressIndicator(
-                        value: storageUsage.clamp(0.0, 1.0),
-                        minHeight: 8,
-                        backgroundColor: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest
-                            .withValues(alpha: 0.5),
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          storageUsage > 0.9
-                              ? Theme.of(context).colorScheme.error
-                              : Theme.of(context).colorScheme.primary,
-                        ),
+        child: ListView(
+          padding: const EdgeInsets.only(
+            top: kToolbarHeight + 24,
+            left: 20,
+            right: 20,
+            bottom: 20,
+          ),
+          children: [
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Профиль',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _formatBytes(profile.storageUsed!),
-                          style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
+                    const SizedBox(height: 16),
+                    InfoRow(label: 'Имя', value: profile.firstName),
+                    InfoRow(label: 'Фамилия', value: profile.lastName),
+                    InfoRow(label: 'Имя пользователя', value: profile.username),
+                    InfoRow(label: 'Email', value: profile.email),
+                    if (profile.storageLimit != null &&
+                        profile.storageUsed != null) ...[
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Хранилище',
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            '${(storageUsage * 100).toStringAsFixed(1)}%',
+                            style: TextStyle(
+                              color: storageUsage > 0.9
+                                  ? Theme.of(context).colorScheme.error
+                                  : Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LinearProgressIndicator(
+                          value: storageUsage.clamp(0.0, 1.0),
+                          minHeight: 8,
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withValues(alpha: 0.5),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            storageUsage > 0.9
+                                ? Theme.of(context).colorScheme.error
+                                : Theme.of(context).colorScheme.primary,
                           ),
                         ),
-                        Text(
-                          _formatBytes(profile.storageLimit!),
-                          style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _formatBytes(profile.storageUsed!),
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
                           ),
-                        ),
-                      ],
+                          Text(
+                            _formatBytes(profile.storageLimit!),
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    secondary: const Icon(Icons.security),
+                    title: const Text('Двухфакторная аутентификация (TOTP)'),
+                    subtitle: Text(
+                      isTotpEnabled ? 'Включена' : 'Отключена',
+                      style: TextStyle(
+                        color: isTotpEnabled ? Colors.green : Colors.grey,
+                      ),
+                    ),
+                    value: isTotpEnabled,
+                    onChanged: (enabled) {
+                      if (enabled) {
+                        context.read<SettingsCubit>().startTotpSetup();
+                      } else {
+                        _showTotpDisableDialog(context);
+                      }
+                    },
+                  ),
+                  if (isTotpEnabled) ...[
+                    const Divider(height: 0, indent: 16, endIndent: 16),
+                    ListTile(
+                      leading: const Icon(Icons.vpn_key_off),
+                      title: const Text('Отключить TOTP'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _showTotpDisableDialog(context),
                     ),
                   ],
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-          Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.devices),
-                  title: const Text('Устройства'),
-                  subtitle: const Text(
-                    'Управление зарегистрированными устройствами',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.pushRoute(const DeviceRoute()),
-                ),
-                const Divider(height: 0, indent: 16, endIndent: 16),
-                ListTile(
-                  leading: const Icon(Icons.vpn_key),
-                  title: const Text('Ключи'),
-                  subtitle: const Text('Управление ключами шифрования'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.pushRoute(const KeysManagerRoute()),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Кэш файлов',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  ListTile(
+                    leading: const Icon(Icons.devices),
+                    title: const Text('Устройства'),
+                    subtitle: const Text(
+                      'Управление зарегистрированными устройствами',
                     ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.pushRoute(const DeviceRoute()),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Занято:',
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                      Text(
-                        cacheSizeBytes != null
-                            ? _formatBytes(cacheSizeBytes!)
-                            : 'вычисляется...',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  OutlinedButton.icon(
-                    onPressed: () => _confirmClearCache(context),
-                    icon: const Icon(
-                      Icons.delete_outline,
-                      color: Colors.orange,
-                    ),
-                    label: const Text('Очистить кэш'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.orange,
-                      minimumSize: const Size(double.infinity, 48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
+                  const Divider(height: 0, indent: 16, endIndent: 16),
+                  ListTile(
+                    leading: const Icon(Icons.vpn_key),
+                    title: const Text('Ключи'),
+                    subtitle: const Text('Управление ключами шифрования'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.pushRoute(const KeysManagerRoute()),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 32),
+            const SizedBox(height: 20),
 
-          FilledButton.icon(
-            onPressed: () => _logout(context),
-            icon: const Icon(Icons.logout),
-            label: const Text('Выйти из аккаунта'),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              minimumSize: const Size(double.infinity, 52),
+            Card(
+              elevation: 4,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Кэш файлов',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Занято:',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                        Text(
+                          cacheSizeBytes != null
+                              ? _formatBytes(cacheSizeBytes!)
+                              : 'вычисляется...',
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    OutlinedButton.icon(
+                      onPressed: () => _confirmClearCache(context),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Colors.orange,
+                      ),
+                      label: const Text('Очистить кэш'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.orange,
+                        minimumSize: const Size(double.infinity, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-        ],
+            const SizedBox(height: 32),
+
+            FilledButton.icon(
+              onPressed: () => _logout(context),
+              icon: const Icon(Icons.logout),
+              label: const Text('Выйти из аккаунта'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                minimumSize: const Size(double.infinity, 52),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
     );
   }
