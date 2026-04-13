@@ -4,10 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
-public class LoginRequest {
+public class TotpVerifyRequest {
     @NotBlank
-    private String username;
-    @NotBlank
-    private String password;
-    private String totpCode;
+    private String code;
 }

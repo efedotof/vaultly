@@ -73,6 +73,7 @@ public class UserService {
         dto.setStorageUsed(user.getStorageUsed());
         dto.setStorageLimit(user.getStorageLimit());
         dto.setPublicKey(user.getPublicKey());
+        dto.setTotpEnabled(user.getTotpEnabled());
         return dto;
     }
 }

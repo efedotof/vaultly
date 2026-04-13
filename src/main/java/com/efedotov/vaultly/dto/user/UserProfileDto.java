@@ -15,4 +15,5 @@ public class UserProfileDto {
     private Long storageUsed;
     private Long storageLimit;
     private String publicKey;
+    private Boolean totpEnabled;
 }

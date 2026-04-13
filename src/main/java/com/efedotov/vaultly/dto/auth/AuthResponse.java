@@ -1,9 +1,8 @@
 package com.efedotov.vaultly.dto.auth;
 
+import lombok.Data;
 import java.util.Set;
 import java.util.UUID;
-
-import lombok.Data;
 
 @Data
 public class AuthResponse {
@@ -15,4 +14,5 @@ public class AuthResponse {
     private Long storageUsed;
     private Long storageLimit;
     private Set<String> roles;
+    private Boolean totpEnabled;
 }

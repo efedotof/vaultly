@@ -26,10 +26,14 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(sessionAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/tempacces/version132/temp-access/{token}").permitAll()
-                        .requestMatchers("/tempacces/version132/temp-access/{token}/download").permitAll()
-                        .requestMatchers("/tempacces/version132/temp-access/{token}/metadata").permitAll()
+                        .requestMatchers(
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/api/auth/validate",
+                                "/api/auth/logout",
+                                "/api/auth/health")
+                        .permitAll()
+                        .requestMatchers("/tempacces/version132/temp-access/{token}/**").permitAll()
                         .anyRequest().authenticated());
         return http.build();
     }

@@ -1,8 +1,10 @@
 package com.efedotov.vaultly.service;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,12 +14,15 @@ import org.springframework.transaction.annotation.Transactional;
 import com.efedotov.vaultly.dto.auth.AuthResponse;
 import com.efedotov.vaultly.dto.auth.LoginRequest;
 import com.efedotov.vaultly.dto.auth.RegisterRequest;
+import com.efedotov.vaultly.dto.auth.TotpSetupResponse;
+import com.efedotov.vaultly.dto.auth.TotpVerifyResponse;
 import com.efedotov.vaultly.model.Role;
 import com.efedotov.vaultly.model.User;
 import com.efedotov.vaultly.model.UserSession;
 import com.efedotov.vaultly.repository.RoleRepository;
 import com.efedotov.vaultly.repository.UserRepository;
 
+import dev.samstevens.totp.exceptions.QrGenerationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.core.JacksonException;
@@ -32,15 +37,22 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final TotpService totpService;
+    private final LoginAttemptService loginAttemptService;
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
         log.info("Login attempt for username: {}", request.getUsername());
 
+        if (loginAttemptService.isBlocked(request.getUsername())) {
+            throw new RuntimeException("Too many failed attempts. Try again later.");
+        }
+
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            loginAttemptService.loginFailed(request.getUsername());
             throw new RuntimeException("Invalid password");
         }
 
@@ -48,9 +60,39 @@ public class AuthService {
             throw new RuntimeException("User account is disabled");
         }
 
-        UserSession session = sessionService.createSession(user.getId());
+        if (Boolean.TRUE.equals(user.getTotpEnabled())) {
+            String totpCode = request.getTotpCode();
+            if (totpCode == null || totpCode.isBlank()) {
+                throw new TotpRequiredException("TOTP code required");
+            }
 
+            boolean isValid = totpService.verifyCode(user.getTotpSecret(), totpCode);
+            if (!isValid && user.getBackupCodesHash() != null) {
+                isValid = totpService.verifyBackupCode(totpCode, user.getBackupCodesHash());
+                if (isValid) {
+                    String updatedHashes = totpService.removeUsedBackupCode(totpCode, user.getBackupCodesHash());
+                    user.setBackupCodesHash(updatedHashes);
+                    userRepository.save(user);
+                    log.info("Backup code used for user: {}", user.getUsername());
+                }
+            }
+
+            if (!isValid) {
+                loginAttemptService.loginFailed(request.getUsername());
+                throw new RuntimeException("Invalid TOTP or backup code");
+            }
+        }
+
+        loginAttemptService.loginSucceeded(request.getUsername());
+
+        UserSession session = sessionService.createSession(user.getId());
         return createAuthResponse(user, session.getToken());
+    }
+
+    public static class TotpRequiredException extends RuntimeException {
+        public TotpRequiredException(String message) {
+            super(message);
+        }
     }
 
     @Transactional
@@ -153,8 +195,87 @@ public class AuthService {
                 .map(Role::getRoleName)
                 .collect(Collectors.toSet());
         response.setRoles(roles);
-
+        response.setTotpEnabled(user.getTotpEnabled());
         return response;
+    }
+
+    @Transactional
+    public TotpSetupResponse setupTotp(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (Boolean.TRUE.equals(user.getTotpEnabled())) {
+            throw new RuntimeException("TOTP is already enabled");
+        }
+
+        String secret = totpService.generateSecret();
+        user.setTotpSecret(secret);
+        user.setTotpEnabled(false);
+        userRepository.save(user);
+
+        try {
+            String qrUrl = totpService.generateQrCodeUrl(secret, user.getUsername());
+            return new TotpSetupResponse(secret, qrUrl);
+        } catch (QrGenerationException e) {
+            throw new RuntimeException("Failed to generate QR code", e);
+        }
+    }
+
+    @Transactional
+    public TotpVerifyResponse verifyAndEnableTotp(UUID userId, String code) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getTotpSecret() == null) {
+            throw new RuntimeException("TOTP setup not initiated");
+        }
+
+        if (!totpService.verifyCode(user.getTotpSecret(), code)) {
+            throw new RuntimeException("Invalid TOTP code");
+        }
+
+        TotpService.BackupCodes backupCodes = totpService.generateBackupCodes();
+
+        user.setTotpEnabled(true);
+        user.setTotpVerifiedAt(LocalDateTime.now());
+        user.setBackupCodesHash(backupCodes.hashesJson());
+        userRepository.save(user);
+
+        log.info("TOTP enabled for user: {}", user.getUsername());
+        return new TotpVerifyResponse(true, backupCodes.plainCodes());
+    }
+
+    @Transactional
+    public void disableTotp(UUID userId, String code) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!Boolean.TRUE.equals(user.getTotpEnabled())) {
+            throw new RuntimeException("TOTP is not enabled");
+        }
+
+        boolean isValid = totpService.verifyCode(user.getTotpSecret(), code);
+        if (!isValid) {
+            if (user.getBackupCodesHash() != null) {
+                isValid = totpService.verifyBackupCode(code, user.getBackupCodesHash());
+                if (isValid) {
+                    String updatedHashes = totpService.removeUsedBackupCode(code, user.getBackupCodesHash());
+                    user.setBackupCodesHash(updatedHashes);
+                }
+            }
+        }
+
+        if (!isValid) {
+            throw new RuntimeException("Invalid TOTP or backup code");
+        }
+
+        user.setTotpEnabled(false);
+        user.setTotpSecret(null);
+        user.setTotpVerifiedAt(null);
+        user.setBackupCodesHash(null);
+        userRepository.save(user);
+
+        log.info("TOTP disabled for user: {}", user.getUsername());
     }
 
 }

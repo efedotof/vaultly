@@ -89,4 +89,18 @@ public class User {
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
     private Set<Role> roles;
+
+    // TOTP
+    @Column(name = "totp_secret", length = 64)
+    private String totpSecret;
+
+    @Column(name = "totp_enabled")
+    @Builder.Default
+    private Boolean totpEnabled = false;
+
+    @Column(name = "totp_verified_at")
+    private LocalDateTime totpVerifiedAt;
+
+    @Column(name = "backup_codes_hash", columnDefinition = "TEXT")
+    private String backupCodesHash;
 }

@@ -1,14 +1,16 @@
 package com.efedotov.vaultly.controller;
 
-import com.efedotov.vaultly.dto.auth.AuthResponse;
-import com.efedotov.vaultly.dto.auth.LoginRequest;
-import com.efedotov.vaultly.dto.auth.LogoutRequest;
-import com.efedotov.vaultly.dto.auth.RegisterRequest;
-import com.efedotov.vaultly.dto.auth.TokenValidationRequest;
+import com.efedotov.vaultly.dto.auth.*;
+import com.efedotov.vaultly.security.CustomUserDetails;
 import com.efedotov.vaultly.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -21,45 +23,60 @@ public class AuthController {
     @PostMapping("/register")
     public AuthResponse register(@RequestBody RegisterRequest request) {
         log.info("REST register request for username: {}", request.getUsername());
-        try {
-            return authService.registration(request);
-        } catch (Exception e) {
-            log.error("Registration error", e);
-            throw new RuntimeException("Registration failed: " + e.getMessage());
-        }
+        return authService.registration(request);
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         log.info("REST login request for username: {}", request.getUsername());
         try {
-            return authService.login(request);
+            AuthResponse response = authService.login(request);
+            return ResponseEntity.ok(response);
+        } catch (AuthService.TotpRequiredException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "totp_required", "message", e.getMessage()));
         } catch (Exception e) {
             log.error("Login error", e);
-            throw new RuntimeException("Login failed: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "login_failed", "message", e.getMessage()));
         }
+    }
+
+    @PostMapping("/totp/setup")
+    public ResponseEntity<TotpSetupResponse> setupTotp(@AuthenticationPrincipal CustomUserDetails user) {
+        log.info("TOTP setup requested for user: {}", user.getUsername());
+        TotpSetupResponse response = authService.setupTotp(user.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/totp/verify")
+    public ResponseEntity<TotpVerifyResponse> verifyTotp(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @RequestBody TotpVerifyRequest request) {
+        log.info("TOTP verification requested for user: {}", user.getUsername());
+        TotpVerifyResponse response = authService.verifyAndEnableTotp(user.getUserId(), request.getCode());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/totp/disable")
+    public ResponseEntity<Void> disableTotp(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @RequestBody TotpDisableRequest request) {
+        log.info("TOTP disable requested for user: {}", user.getUsername());
+        authService.disableTotp(user.getUserId(), request.getCode());
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/validate")
     public AuthResponse validateToken(@RequestBody TokenValidationRequest request) {
         log.debug("REST token validation request");
-        try {
-            return authService.validateToken(request.getToken());
-        } catch (Exception e) {
-            log.error("Token validation error", e);
-            throw new RuntimeException("Token validation failed: " + e.getMessage());
-        }
+        return authService.validateToken(request.getToken());
     }
 
     @PostMapping("/logout")
     public void logout(@RequestBody LogoutRequest request) {
         log.info("REST logout request");
-        try {
-            authService.logout(request.getToken());
-        } catch (Exception e) {
-            log.error("Logout error", e);
-            throw new RuntimeException("Logout failed: " + e.getMessage());
-        }
+        authService.logout(request.getToken());
     }
 
     @GetMapping("/health")

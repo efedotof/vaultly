@@ -1,13 +1,22 @@
 package com.efedotov.vaultly.controller;
 
-import com.efedotov.vaultly.dto.file.DecryptionMetadata;
-import com.efedotov.vaultly.dto.file.FileDto;
-import com.efedotov.vaultly.model.File;
-import com.efedotov.vaultly.security.CustomUserDetails;
-import com.efedotov.vaultly.service.*;
-import com.efedotov.vaultly.shirmps.ShirmpsHeader;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.spec.MGF1ParameterSpec;
+import java.time.Duration;
+import java.util.Base64;
+import java.util.HexFormat;
+import java.util.UUID;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.spec.OAEPParameterSpec;
+import javax.crypto.spec.PSource;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -16,26 +25,30 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.crypto.spec.OAEPParameterSpec;
-import javax.crypto.spec.PSource;
-import java.security.MessageDigest;
-import java.util.HexFormat;
+import com.efedotov.vaultly.dto.file.DecryptionMetadata;
+import com.efedotov.vaultly.dto.file.FileDto;
+import com.efedotov.vaultly.model.File;
+import com.efedotov.vaultly.security.CustomUserDetails;
+import com.efedotov.vaultly.service.FileService;
+import com.efedotov.vaultly.service.FolderService;
+import com.efedotov.vaultly.service.S3Service;
+import com.efedotov.vaultly.service.ServerKeyService;
+import com.efedotov.vaultly.service.ShpsEncryptionService;
+import com.efedotov.vaultly.service.ShpsSecurityService;
+import com.efedotov.vaultly.service.UserKeyService;
+import com.efedotov.vaultly.shirmps.ShirmpsHeader;
 
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.spec.MGF1ParameterSpec;
-import java.time.Duration;
-import java.util.Base64;
-import java.util.UUID;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/files")
