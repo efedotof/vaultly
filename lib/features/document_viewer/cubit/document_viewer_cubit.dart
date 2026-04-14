@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:bloc/bloc.dart';
@@ -11,12 +12,10 @@ import 'package:vaulth_app/server/repository/file/file_interface.dart';
 import 'package:vaulth_app/server/service/local_file_cache.dart';
 import 'package:vaulth_app/server/service/logger_service.dart';
 import 'package:vaulth_app/server/service/public_file_decryption_service.dart';
-import 'package:vaulth_app/server/service/shirm_decryption_service.dart';
-import 'package:vaulth_app/server/service/shirm_decryption_service_web.dart';
+import 'package:vaulth_app/server/service/shirm_decryption_service_platform.dart';
 import 'package:vaulth_app/server/service/shirmps_header.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'dart:io' show Platform, Directory, File;
-import 'dart:io';
+
 part 'document_viewer_state.dart';
 part 'document_viewer_cubit.freezed.dart';
 
@@ -32,15 +31,20 @@ class _DecryptParams {
 }
 
 Future<void> _decryptShpsInIsolate(_DecryptParams params) async {
-  final inputFile = File(params.inputPath);
-  final outputFile = File(params.outputPath);
-  final encryptedBytes = await inputFile.readAsBytes();
-  final privateKey = CryptoUtils.rsaPrivateKeyFromPem(params.privateKeyPem);
-  final decryptedBytes = ShirmDecryptionService.decryptShps(
-    encryptedBytes,
-    privateKey: privateKey,
-  );
-  await outputFile.writeAsBytes(decryptedBytes);
+  try {
+    final inputFile = File(params.inputPath);
+    final encryptedBytes = await inputFile.readAsBytes();
+
+    final decryptedBytes = await ShirmDecryptionService.decryptShps(
+      encryptedBytes,
+      privateKeyPem: params.privateKeyPem,
+    );
+
+    final outputFile = File(params.outputPath);
+    await outputFile.writeAsBytes(decryptedBytes);
+  } catch (e) {
+    rethrow;
+  }
 }
 
 class DocumentViewerCubit extends Cubit<DocumentViewerState> {
@@ -66,24 +70,17 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
     required String password,
   }) async {
     if (_currentlyLoadingFileId == file.id) {
-      _logger.debug(
-        '[DocumentViewerCubit] Already loading file ${file.id}, skipping duplicate call',
-      );
       return;
     }
     _currentlyLoadingFileId = file.id;
     _lastFile = file;
     _lastPassword = password;
 
-    _logger.info(
-      '[DocumentViewerCubit] Начало загрузки файла: ${file.originalName} (id: ${file.id})',
-    );
     emit(const DocumentViewerState.loading());
 
     try {
       final cachedData = await localFileCache.getFileDecrypted(file.id!);
       if (cachedData != null) {
-        _logger.info('[DocumentViewerCubit] Файл найден в кэше');
         String? cachedOriginalName = await localFileCache.getOriginalName(
           file.id!,
         );
@@ -127,21 +124,11 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
     if (authCubit.currentPassword == "") return;
     String password = authCubit.currentPassword!;
 
-    _logger.debug(
-      '[DocumentViewerCubit] Публичный файл, получение метаданных...',
-    );
-
     final metadata = await fileRepository.getDecryptionMetadata(file.id!);
-    _logger.debug(
-      '[DocumentViewerCubit] Метаданные получены, presigned URL: ${metadata.presignedUrl}',
-    );
 
     emit(const DocumentViewerState.downloading());
     final shpsData = await fileRepository.downloadShpsFromUrl(
       metadata.presignedUrl,
-    );
-    _logger.debug(
-      '[DocumentViewerCubit] SHPS файл скачан, размер: ${shpsData.length} байт',
     );
 
     dynamic clientPrivateKey;
@@ -152,85 +139,84 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
     }
 
     if (clientPrivateKey == null) {
-      _logger.error(
-        '[DocumentViewerCubit] Не удалось получить приватный ключ клиента',
-      );
       emit(
         const DocumentViewerState.error('Неверный пароль или ключ не найден'),
       );
       return;
     }
 
+    final String clientPrivateKeyPem;
+    if (kIsWeb) {
+      clientPrivateKeyPem = clientPrivateKey as String;
+    } else {
+      clientPrivateKeyPem = CryptoUtils.encodeRSAPrivateKeyToPem(
+        clientPrivateKey,
+      );
+    }
+
     emit(const DocumentViewerState.decrypting());
-    final decryptedBytes = await PublicFileDecryptionService.decryptPublicFile(
-      shpsData: shpsData,
-      reEncryptedKeyBase64: metadata.encryptedKey,
-      ivBase64: metadata.iv,
-      clientPrivateKey: clientPrivateKey,
-    );
-    _logger.debug(
-      '[DocumentViewerCubit] Расшифровка завершена, размер: ${decryptedBytes.length} байт',
-    );
+    try {
+      _validateBase64(metadata.encryptedKey, 'encryptedKey');
+      _validateBase64(metadata.iv, 'iv');
 
-    await localFileCache.saveFile(
-      file.id!,
-      decryptedBytes,
-      originalName: metadata.fileName,
-    );
+      final decryptedBytes =
+          await PublicFileDecryptionService.decryptPublicFile(
+            shpsData: shpsData,
+            reEncryptedKeyBase64: metadata.encryptedKey,
+            ivBase64: metadata.iv,
+            clientPrivateKeyPem: clientPrivateKeyPem,
+          );
 
-    final contentType = _detectContentType(decryptedBytes, metadata.fileName);
-    emit(
-      DocumentViewerState.loaded(
-        data: decryptedBytes,
-        fileName: metadata.fileName,
-        contentType: contentType,
-      ),
-    );
+      await localFileCache.saveFile(
+        file.id!,
+        decryptedBytes,
+        originalName: metadata.fileName,
+      );
+
+      final contentType = _detectContentType(decryptedBytes, metadata.fileName);
+      emit(
+        DocumentViewerState.loaded(
+          data: decryptedBytes,
+          fileName: metadata.fileName,
+          contentType: contentType,
+        ),
+      );
+    } catch (e, stack) {
+      _logger.error(
+        '[DocumentViewerCubit] Ошибка в PublicFileDecryptionService',
+        error: e,
+        stackTrace: stack,
+      );
+      rethrow;
+    }
   }
 
   Future<void> _loadPrivateFile(FileDto file, String password) async {
-    _logger.debug('[DocumentViewerCubit] Приватный файл, загрузка SHPS...');
     final encryptedBytes = await fileRepository.downloadShps(file.id!);
-    _logger.debug(
-      '[DocumentViewerCubit] Файл получен, размер: ${encryptedBytes.length} байт',
-    );
 
     String originalFileName = file.originalName;
+    String? keyOwner;
     try {
       final header = _extractShirmpsHeader(encryptedBytes);
       if (header.originalFileName != null &&
           header.originalFileName!.isNotEmpty) {
         originalFileName = header.originalFileName!;
-        _logger.debug(
-          '[DocumentViewerCubit] Оригинальное имя из заголовка: $originalFileName',
-        );
       }
-    } catch (e) {
-      _logger.error(
-        '[DocumentViewerCubit] Ошибка извлечения заголовка SHPS',
-        error: e,
-      );
-    }
+      keyOwner = header.keyOwner;
+    } catch (_) {}
 
-    String? privateKeyPem;
-    if (kIsWeb) {
-      privateKeyPem = await keyManagerService.getPrivateKeyPEM(password);
+    final keys = await _getAvailablePrivateKeys(password);
+
+    final List<String> pemKeysToTry = [];
+    if (keyOwner == 'device') {
+      if (keys.deviceKey != null) pemKeysToTry.add(keys.deviceKey!);
+      if (keys.userKey != null) pemKeysToTry.add(keys.userKey!);
     } else {
-      final privateKey = await keyManagerService.getPrivateKey(password);
-      if (privateKey == null) {
-        _logger.error(
-          '[DocumentViewerCubit] Не удалось получить приватный ключ',
-        );
-        emit(
-          const DocumentViewerState.error('Неверный пароль или ключ не найден'),
-        );
-        return;
-      }
-      privateKeyPem = CryptoUtils.encodeRSAPrivateKeyToPem(privateKey);
+      if (keys.userKey != null) pemKeysToTry.add(keys.userKey!);
+      if (keys.deviceKey != null) pemKeysToTry.add(keys.deviceKey!);
     }
 
-    if (privateKeyPem == null || privateKeyPem.isEmpty) {
-      _logger.error('[DocumentViewerCubit] Приватный ключ не получен');
+    if (pemKeysToTry.isEmpty) {
       emit(
         const DocumentViewerState.error('Неверный пароль или ключ не найден'),
       );
@@ -239,29 +225,88 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
 
     emit(const DocumentViewerState.decrypting());
 
-    Uint8List decryptedBytes;
+    Exception? lastError;
+    for (int i = 0; i < pemKeysToTry.length; i++) {
+      final pem = pemKeysToTry[i];
+
+      try {
+        final decryptedBytes = await _decryptShpsWithPem(
+          encryptedBytes: encryptedBytes,
+          privateKeyPem: pem,
+        );
+
+        await localFileCache.saveFile(
+          file.id!,
+          decryptedBytes,
+          originalName: originalFileName,
+        );
+
+        final contentType = _detectContentType(
+          decryptedBytes,
+          originalFileName,
+        );
+        emit(
+          DocumentViewerState.loaded(
+            data: decryptedBytes,
+            fileName: originalFileName,
+            contentType: contentType,
+          ),
+        );
+        return;
+      } catch (e) {
+        lastError = e is Exception ? e : Exception(e.toString());
+      }
+    }
+
+    _logger.error(
+      '[DocumentViewerCubit] Ошибка расшифровки приватного файла',
+      error: lastError,
+    );
+    emit(DocumentViewerState.error(_formatErrorMessage(lastError)));
+  }
+
+  Future<({String? userKey, String? deviceKey})> _getAvailablePrivateKeys(
+    String password,
+  ) async {
+    String? userPem;
+    String? devicePem;
+
     if (kIsWeb) {
-      decryptedBytes = await ShirmDecryptionServiceWeb.decryptShps(
+      userPem = await keyManagerService.getPrivateKeyPEM(password);
+      devicePem = await keyManagerService.getDevicePrivateKeyPEM(password);
+    } else {
+      final userKey = await keyManagerService.getPrivateKey(password);
+      if (userKey != null) {
+        userPem = CryptoUtils.encodeRSAPrivateKeyToPem(userKey);
+      }
+      final deviceKey = await keyManagerService.getDevicePrivateKeyObject(
+        password,
+      );
+      if (deviceKey != null) {
+        devicePem = CryptoUtils.encodeRSAPrivateKeyToPem(deviceKey);
+      }
+    }
+
+    return (userKey: userPem, deviceKey: devicePem);
+  }
+
+  Future<Uint8List> _decryptShpsWithPem({
+    required Uint8List encryptedBytes,
+    required String privateKeyPem,
+  }) async {
+    if (kIsWeb) {
+      return await ShirmDecryptionService.decryptShps(
         encryptedBytes,
         privateKeyPem: privateKeyPem,
       );
     } else {
-      String? tempEncryptedPath;
-      String? tempDecryptedPath;
+      final tempDir = await getTemporaryDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final tempEncryptedPath = '${tempDir.path}/enc_$timestamp.shps';
+      final tempDecryptedPath = '${tempDir.path}/dec_$timestamp.bin';
+
       try {
-        final tempDir = await getTemporaryDirectory();
-        if (!await tempDir.exists()) {
-          await tempDir.create(recursive: true);
-          _logger.debug(
-            '[DocumentViewerCubit] Создана временная директория: ${tempDir.path}',
-          );
-        }
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        tempEncryptedPath = '${tempDir.path}/enc_$timestamp.shps';
-        tempDecryptedPath = '${tempDir.path}/dec_$timestamp.bin';
-
         await File(tempEncryptedPath).writeAsBytes(encryptedBytes);
-
         await compute(
           _decryptShpsInIsolate,
           _DecryptParams(
@@ -271,31 +316,11 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
           ),
         );
 
-        final decryptedFile = File(tempDecryptedPath);
-        decryptedBytes = await decryptedFile.readAsBytes();
+        return await File(tempDecryptedPath).readAsBytes();
       } finally {
         await _deleteTempFiles([tempEncryptedPath, tempDecryptedPath]);
       }
     }
-
-    _logger.debug(
-      '[DocumentViewerCubit] Расшифровка завершена, размер: ${decryptedBytes.length} байт',
-    );
-
-    await localFileCache.saveFile(
-      file.id!,
-      decryptedBytes,
-      originalName: originalFileName,
-    );
-
-    final contentType = _detectContentType(decryptedBytes, originalFileName);
-    emit(
-      DocumentViewerState.loaded(
-        data: decryptedBytes,
-        fileName: originalFileName,
-        contentType: contentType,
-      ),
-    );
   }
 
   Future<void> _deleteTempFiles(List<String?> paths) async {
@@ -303,23 +328,41 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
       if (path != null) {
         try {
           final f = File(path);
-          if (await f.exists()) await f.delete();
+          if (await f.exists()) {
+            await f.delete();
+          }
         } catch (_) {}
       }
     }
   }
 
   ShirmpsHeader _extractShirmpsHeader(Uint8List shpsBytes) {
-    final byteData = shpsBytes.buffer.asByteData(
-      shpsBytes.offsetInBytes,
-      shpsBytes.length,
-    );
-    final headerLength = byteData.getInt32(0, Endian.big);
-    if (headerLength <= 0 || headerLength > 20 * 1024) {
-      throw Exception('Invalid header length: $headerLength');
+    try {
+      final byteData = shpsBytes.buffer.asByteData(
+        shpsBytes.offsetInBytes,
+        shpsBytes.length,
+      );
+      final headerLength = byteData.getInt32(0, Endian.big);
+
+      if (headerLength <= 0 || headerLength > 20 * 1024) {
+        throw Exception('Invalid header length: $headerLength');
+      }
+      final headerBytes = shpsBytes.sublist(4, 4 + headerLength);
+
+      final header = ShirmpsHeader.fromJsonBytes(headerBytes);
+
+      return header;
+    } catch (_) {
+      rethrow;
     }
-    final headerBytes = shpsBytes.sublist(4, 4 + headerLength);
-    return ShirmpsHeader.fromJsonBytes(headerBytes);
+  }
+
+  void _validateBase64(String base64Str, String fieldName) {
+    try {
+      base64Decode(base64Str);
+    } catch (e) {
+      throw FormatException('Invalid Base64 for $fieldName: $e');
+    }
   }
 
   String _formatErrorMessage(dynamic error) {
@@ -343,12 +386,15 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
   ContentType _detectContentType(Uint8List data, String fileName) {
     final lowerName = fileName.toLowerCase();
 
+    if (lowerName.endsWith('.md') || lowerName.endsWith('.markdown')) {
+      return ContentType.markdown;
+    }
+
     if (lowerName.endsWith('.txt') ||
         lowerName.endsWith('.json') ||
         lowerName.endsWith('.xml') ||
         lowerName.endsWith('.csv') ||
-        lowerName.endsWith('.log') ||
-        lowerName.endsWith('.md')) {
+        lowerName.endsWith('.log')) {
       return ContentType.text;
     }
 

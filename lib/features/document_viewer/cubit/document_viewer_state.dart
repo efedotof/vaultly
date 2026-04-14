@@ -1,6 +1,6 @@
 part of 'document_viewer_cubit.dart';
 
-enum ContentType { text, image, binary, pdf, video, office }
+enum ContentType { text, image, binary, pdf, video, office, markdown }
 
 @freezed
 abstract class DocumentViewerState with _$DocumentViewerState {

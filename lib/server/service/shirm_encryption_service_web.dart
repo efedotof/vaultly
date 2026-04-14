@@ -15,9 +15,13 @@ class ShirmEncryptionServiceWeb {
   }) async {
     final aesKey = _generateRandomBytes(32);
     final iv = _generateRandomBytes(12);
+
     final encryptedData = await _aesGcmEncrypt(originalBytes, aesKey, iv);
+
     final publicKey = await _importPublicKeyFromPem(publicKeyPem);
+
     final encryptedKey = await publicKey.encryptBytes(aesKey);
+
     final header = ShirmpsHeader(creationDate: DateTime.now())
       ..originalFileName = originalFileName ?? 'file.bin'
       ..originalFileSize = originalBytes.length

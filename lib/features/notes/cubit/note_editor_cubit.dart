@@ -9,10 +9,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:vaulth_app/features/auth/cubit/auth_cubit.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
 import 'package:vaulth_app/server/repository/file/file_interface.dart';
-import 'package:vaulth_app/server/service/shirm_encryption_service.dart';
-import 'package:vaulth_app/server/service/shirm_encryption_service_web.dart';
-import 'package:vaulth_app/server/service/shirm_decryption_service.dart';
-import 'package:vaulth_app/server/service/shirm_decryption_service_web.dart';
+import 'package:vaulth_app/server/service/shirm_encryption_service.dart'
+    as native_encrypt;
+import 'package:vaulth_app/server/service/shirm_encryption_service_web.dart'
+    as web_encrypt;
+import 'package:vaulth_app/server/service/shirm_decryption_service_platform.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 
 part 'note_editor_state.dart';
@@ -51,32 +52,24 @@ class NoteEditorCubit extends Cubit<NoteEditorState> {
       final password = authCubit.currentPassword ?? '';
       final encryptedBytes = await fileRepository.downloadShps(note.id!);
 
-      dynamic privateKey;
+      String? privateKeyPem;
       if (kIsWeb) {
-        privateKey = await keyManager.getPrivateKeyPEM(password);
+        privateKeyPem = await keyManager.getPrivateKeyPEM(password);
       } else {
-        privateKey = await keyManager.getPrivateKey(password);
-        if (privateKey != null) {
-          privateKey = CryptoUtils.encodeRSAPrivateKeyToPem(privateKey);
+        final privateKeyObj = await keyManager.getPrivateKey(password);
+        if (privateKeyObj != null) {
+          privateKeyPem = CryptoUtils.encodeRSAPrivateKeyToPem(privateKeyObj);
         }
       }
 
-      if (privateKey == null) {
+      if (privateKeyPem == null) {
         throw Exception('Не удалось получить приватный ключ');
       }
 
-      Uint8List decrypted;
-      if (kIsWeb) {
-        decrypted = await ShirmDecryptionServiceWeb.decryptShps(
-          encryptedBytes,
-          privateKeyPem: privateKey,
-        );
-      } else {
-        decrypted = ShirmDecryptionService.decryptShps(
-          encryptedBytes,
-          privateKey: CryptoUtils.rsaPrivateKeyFromPem(privateKey),
-        );
-      }
+      final decrypted = await ShirmDecryptionService.decryptShps(
+        encryptedBytes,
+        privateKeyPem: privateKeyPem,
+      );
 
       final content = utf8.decode(decrypted);
       emit(
@@ -133,14 +126,15 @@ class NoteEditorCubit extends Cubit<NoteEditorState> {
       if (kIsWeb) {
         final publicKeyPem = await keyManager.getUserPublicKey() ?? '';
         final privateKeyPem = await keyManager.getPrivateKeyPEM(password) ?? '';
-        encryptedData = await ShirmEncryptionServiceWeb.encryptBytes(
-          Uint8List.fromList(bytes),
-          publicKeyPem: publicKeyPem,
-          userId: userId,
-          keyOwner: 'user',
-          privateKeyPem: privateKeyPem,
-          originalFileName: fileName,
-        );
+        encryptedData =
+            await web_encrypt.ShirmEncryptionServiceWeb.encryptBytes(
+              Uint8List.fromList(bytes),
+              publicKeyPem: publicKeyPem,
+              userId: userId,
+              keyOwner: 'user',
+              privateKeyPem: privateKeyPem,
+              originalFileName: fileName,
+            );
       } else {
         final publicKeyObj = await keyManager.getUserPublicKeyObject();
         final privateKeyObj = await keyManager.getPrivateKey(password);
@@ -155,13 +149,14 @@ class NoteEditorCubit extends Cubit<NoteEditorState> {
         await tempPlainFile.writeAsBytes(bytes);
 
         try {
-          encryptedData = await ShirmEncryptionService.encryptFile(
-            tempPlainFile,
-            publicKey: publicKeyObj as RSAPublicKey,
-            userId: userId,
-            keyOwner: 'user',
-            privateKey: privateKeyObj as RSAPrivateKey,
-          );
+          encryptedData =
+              await native_encrypt.ShirmEncryptionService.encryptFile(
+                tempPlainFile,
+                publicKey: publicKeyObj,
+                userId: userId,
+                keyOwner: 'user',
+                privateKey: privateKeyObj,
+              );
         } finally {
           await tempPlainFile.delete();
         }

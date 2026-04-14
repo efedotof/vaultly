@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:vaulth_app/features/document_viewer/cubit/document_viewer_cubit.dart';
+import 'package:vaulth_app/features/notes/widget/note_editor_screen.dart';
+import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
 
 import 'media_kit_video_player.dart';
 import 'office_viewer.dart';
@@ -19,6 +22,8 @@ class ContentView extends StatelessWidget {
     required this.onVideoTempPath,
     this.onToggleFullscreen,
     this.onUserInteraction,
+    required this.preUrlFile,
+    this.file,
   });
 
   final Uint8List data;
@@ -29,6 +34,8 @@ class ContentView extends StatelessWidget {
   final void Function(String path) onVideoTempPath;
   final VoidCallback? onToggleFullscreen;
   final VoidCallback? onUserInteraction;
+  final String preUrlFile;
+  final FileDto? file;
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +90,7 @@ class ContentView extends StatelessWidget {
       case ContentType.office:
         return Padding(
           padding: EdgeInsets.only(top: topMargin),
-          child: OfficeViewer(data: data, fileName: fileName),
+          child: OfficeViewer(publicUrl: preUrlFile),
         );
 
       case ContentType.binary:
@@ -110,6 +117,80 @@ class ContentView extends StatelessWidget {
             ),
           ),
         );
+
+      case ContentType.markdown:
+        return MarkdownPreview(
+          data: data,
+          fileName: fileName,
+          file: file,
+          isFullscreen: isFullscreen,
+          onToggleFullscreen: onToggleFullscreen,
+          onUserInteraction: onUserInteraction,
+        );
     }
   }
 }
+
+class MarkdownPreview extends StatelessWidget {
+  final Uint8List data;
+  final String fileName;
+  final FileDto? file;
+  final bool isFullscreen;
+  final VoidCallback? onToggleFullscreen;
+  final VoidCallback? onUserInteraction;
+
+  const MarkdownPreview({
+    super.key,
+    required this.data,
+    required this.fileName,
+    required this.file,
+    required this.isFullscreen,
+    this.onToggleFullscreen,
+    this.onUserInteraction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final content = utf8.decode(data, allowMalformed: true);
+    final topMargin = isFullscreen ? 0.0 : kToolbarHeight;
+
+    return Stack(
+      children: [
+        Container(
+          margin: EdgeInsets.only(top: topMargin),
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification is ScrollUpdateNotification) {
+                onUserInteraction?.call();
+              }
+              return false;
+            },
+            child: Markdown(
+              data: content,
+              selectable: true,
+              padding: const EdgeInsets.all(16),
+            ),
+          ),
+        ),
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: FloatingActionButton.extended(
+            onPressed: () {
+              if (file != null) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => NoteEditorScreen(note: file!),
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.edit),
+            label: const Text('Редактировать'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+

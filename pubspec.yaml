@@ -67,6 +67,7 @@ dependencies:
   sembast_web: ^2.4.4+1
   flutter_secure_storage_web: ^2.1.0
   flutter_markdown: ^0.7.7+1
+  easy_docs_viewer: ^0.0.2-unstable-release
 
 dev_dependencies:
   flutter_test:

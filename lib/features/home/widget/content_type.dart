@@ -1,1 +1,1 @@
-enum ContentType { text, image, binary }
+enum ContentType { text, image, binary,markdown }

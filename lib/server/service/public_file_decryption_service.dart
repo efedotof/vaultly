@@ -2,35 +2,30 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:webcrypto/webcrypto.dart' as web;
-import 'package:pointycastle/asymmetric/api.dart';
+
 import 'package:pointycastle/asymmetric/oaep.dart';
 import 'package:pointycastle/asymmetric/rsa.dart';
 import 'package:pointycastle/block/aes.dart';
 import 'package:pointycastle/block/modes/gcm.dart';
-import 'package:pointycastle/api.dart'
-    show AEADParameters, KeyParameter, PrivateKeyParameter;
+import 'package:basic_utils/basic_utils.dart';
 
 class PublicFileDecryptionService {
   static Future<Uint8List> decryptPublicFile({
     required Uint8List shpsData,
     required String reEncryptedKeyBase64,
     required String ivBase64,
-    required dynamic clientPrivateKey,
+    required String clientPrivateKeyPem,
   }) async {
     final encryptedAesKey = base64Decode(reEncryptedKeyBase64);
     final iv = base64Decode(ivBase64);
 
     Uint8List aesKey;
     if (kIsWeb) {
-      final privateKey = await _importPrivateKeyFromPem(
-        clientPrivateKey as String,
-      );
+      final privateKey = await _importPrivateKeyFromPem(clientPrivateKeyPem);
       aesKey = await privateKey.decryptBytes(encryptedAesKey);
     } else {
-      aesKey = _rsaOaepDecrypt(
-        encryptedAesKey,
-        clientPrivateKey as RSAPrivateKey,
-      );
+      final privateKey = CryptoUtils.rsaPrivateKeyFromPem(clientPrivateKeyPem);
+      aesKey = _rsaOaepDecrypt(encryptedAesKey, privateKey);
     }
 
     final encryptedData = _extractEncryptedDataFromShps(shpsData);

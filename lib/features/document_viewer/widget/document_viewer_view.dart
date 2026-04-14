@@ -36,6 +36,7 @@ class _DocumentViewerViewState extends State<DocumentViewerView> {
   @override
   void initState() {
     super.initState();
+
     _cubit = context.read<DocumentViewerCubit>();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkCacheAndLoad();
@@ -585,6 +586,8 @@ class _DocumentViewerViewState extends State<DocumentViewerView> {
                 onPdfTempPath: (path) => _tempPdfPath = path,
                 onVideoTempPath: (path) => _tempVideoPath = path,
                 onToggleFullscreen: _toggleFullscreen,
+                preUrlFile: widget.file.s3Url ?? "",
+                file: widget.file, 
               ),
               error: (message) => Center(
                 child: Padding(

@@ -4,7 +4,7 @@ import 'dart:js' as js;
 
 import 'shirmps_header.dart';
 
-class ShirmDecryptionServiceWeb {
+class ShirmDecryptionService {
   static Future<Uint8List> decryptShps(
     Uint8List shpsBytes, {
     required String privateKeyPem,
@@ -15,6 +15,7 @@ class ShirmDecryptionServiceWeb {
         shpsBytes.length,
       );
       final headerLength = byteData.getInt32(0, Endian.big);
+
       if (headerLength <= 0 || headerLength > 20 * 1024) {
         throw Exception('Invalid header length: $headerLength');
       }
@@ -29,9 +30,27 @@ class ShirmDecryptionServiceWeb {
       final encryptedAesKey = base64.decode(header.encryptedKey!);
       final iv = base64.decode(header.iv!);
 
-      final privateKey = await _importPrivateKeyJs(privateKeyPem);
+      Uint8List? aesKeyBytes;
+      List<Exception> errors = [];
+      for (final hash in ['SHA-256', 'SHA-1']) {
+        try {
+          final privateKey = await _importPrivateKeyJs(privateKeyPem, hash);
+          aesKeyBytes = await _rsaOaepDecryptJsWithHash(
+            encryptedAesKey,
+            privateKey,
+            hash,
+          );
+          break; 
+        } catch (e) {
+          errors.add(Exception('Failed with hash $hash: $e'));
+        }
+      }
 
-      final aesKeyBytes = await _rsaOaepDecryptJs(encryptedAesKey, privateKey);
+      if (aesKeyBytes == null) {
+        throw Exception(
+          'Failed to decrypt AES key with any hash. Errors: $errors',
+        );
+      }
 
       final encryptedData = shpsBytes.sublist(4 + headerLength);
 
@@ -47,7 +66,7 @@ class ShirmDecryptionServiceWeb {
     }
   }
 
-  static Future<dynamic> _importPrivateKeyJs(String pem) async {
+  static Future<dynamic> _importPrivateKeyJs(String pem, String hash) async {
     final b64 = pem
         .replaceFirst('-----BEGIN PRIVATE KEY-----', '')
         .replaceFirst('-----END PRIVATE KEY-----', '')
@@ -61,20 +80,22 @@ class ShirmDecryptionServiceWeb {
     return await subtle.callMethod('importKey', [
       'pkcs8',
       jsKeyData,
-      {'name': 'RSA-OAEP', 'hash': 'SHA-256'},
+      {'name': 'RSA-OAEP', 'hash': hash},
       false,
       ['decrypt'],
     ]);
   }
 
-  static Future<Uint8List> _rsaOaepDecryptJs(
+  static Future<Uint8List> _rsaOaepDecryptJsWithHash(
     Uint8List encrypted,
     dynamic privateKey,
+    String hash,
   ) async {
     final encryptedJs = js.JsObject.jsify(encrypted);
     final subtle = js.context['crypto']['subtle'];
+
     final decryptedJs = await subtle.callMethod('decrypt', [
-      {'name': 'RSA-OAEP'},
+      {'name': 'RSA-OAEP', 'hash': hash},
       privateKey,
       encryptedJs,
     ]);

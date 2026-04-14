@@ -141,7 +141,7 @@ class LocalFileCache {
   Future<void> _deleteFileKey(String fileId) async {
     try {
       await SecureStorageAdapter.delete(key: '$_keyPrefix$fileId');
-    } catch (e) {}
+    } catch (_) {}
   }
 
   Future<Uint8List> _aesGcmEncrypt(

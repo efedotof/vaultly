@@ -41,13 +41,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         cubit.initialize(widget.note);
         return cubit;
       },
-      child: const NoteEditorView(),
+      child: NoteEditorView(initialPreview: widget.note != null),
     );
   }
 }
 
 class NoteEditorView extends StatefulWidget {
-  const NoteEditorView({super.key});
+  final bool initialPreview;
+  const NoteEditorView({super.key, this.initialPreview = false});
 
   @override
   State<NoteEditorView> createState() => _NoteEditorViewState();
@@ -56,12 +57,13 @@ class NoteEditorView extends StatefulWidget {
 class _NoteEditorViewState extends State<NoteEditorView> {
   final TextEditingController _controller = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
-  bool _isPreview = false;
+  late bool _isPreview;
   bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
+    _isPreview = widget.initialPreview;
     final cubit = context.read<NoteEditorCubit>();
     _controller.addListener(() {
       cubit.updateContent(_controller.text);

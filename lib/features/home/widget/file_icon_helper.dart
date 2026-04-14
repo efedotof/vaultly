@@ -36,6 +36,9 @@ IconData getIconByExtension(String fileName) {
     case 'rar':
     case '7z':
       return Icons.archive;
+    case 'md':
+    case 'markdown':
+      return Icons.code;
     default:
       return Icons.insert_drive_file;
   }

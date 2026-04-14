@@ -7,8 +7,7 @@ import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
 import 'package:vaulth_app/server/repository/file/file_interface.dart';
 import 'package:vaulth_app/server/service/local_file_cache.dart';
 import 'package:vaulth_app/server/service/public_file_decryption_service.dart';
-import 'package:vaulth_app/server/service/shirm_decryption_service.dart';
-import 'package:vaulth_app/server/service/shirm_decryption_service_web.dart';
+import 'package:vaulth_app/server/service/shirm_decryption_service_platform.dart';
 import 'package:vaulth_app/server/service/shirmps_header.dart';
 import 'package:pointycastle/block/aes.dart';
 import 'package:pointycastle/block/modes/gcm.dart';
@@ -20,10 +19,9 @@ Future<Map<String, dynamic>> _processPrivateFileInIsolate(
     final Uint8List encryptedBytes = args['encryptedBytes'] as Uint8List;
     final String privateKeyPem = args['privateKeyPem'] as String;
 
-    final privateKey = CryptoUtils.rsaPrivateKeyFromPem(privateKeyPem);
-    final Uint8List plaintext = ShirmDecryptionService.decryptShps(
+    final Uint8List plaintext = await ShirmDecryptionService.decryptShps(
       encryptedBytes,
-      privateKey: privateKey,
+      privateKeyPem: privateKeyPem,
     );
 
     final random = Random.secure();
@@ -66,15 +64,12 @@ Future<Map<String, dynamic>> _processPublicFileInIsolate(
     final String ivBase64 = args['ivBase64'] as String;
     final String clientPrivateKeyPem = args['clientPrivateKeyPem'] as String;
 
-    final clientPrivateKey = CryptoUtils.rsaPrivateKeyFromPem(
-      clientPrivateKeyPem,
-    );
     final Uint8List plaintext =
         await PublicFileDecryptionService.decryptPublicFile(
           shpsData: shpsData,
           reEncryptedKeyBase64: reEncryptedKeyBase64,
           ivBase64: ivBase64,
-          clientPrivateKey: clientPrivateKey,
+          clientPrivateKeyPem: clientPrivateKeyPem,
         );
 
     final random = Random.secure();
@@ -170,7 +165,7 @@ class FileDecryptionService {
         shpsData: shpsData,
         reEncryptedKeyBase64: metadata.encryptedKey,
         ivBase64: metadata.iv,
-        clientPrivateKey: clientPrivateKey,
+        clientPrivateKeyPem: clientPrivateKeyPem,
       );
       await localFileCache.saveFile(
         file.id!,
@@ -248,7 +243,7 @@ class FileDecryptionService {
 
     Uint8List plaintext;
     if (kIsWeb) {
-      plaintext = await ShirmDecryptionServiceWeb.decryptShps(
+      plaintext = await ShirmDecryptionService.decryptShps(
         encryptedBytes,
         privateKeyPem: privateKeyPem,
       );

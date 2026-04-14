@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
+
 import 'package:pointycastle/asymmetric/oaep.dart';
 import 'package:pointycastle/asymmetric/rsa.dart';
 import 'package:pointycastle/block/aes.dart';
@@ -27,6 +28,7 @@ class ShirmEncryptionService {
       final iv = secureRandom.nextBytes(12);
 
       final encryptedData = _aesGcmEncrypt(originalBytes, aesKey, iv);
+
       final encryptedKey = _rsaOaepEncrypt(aesKey, publicKey);
 
       final header = ShirmpsHeader(creationDate: DateTime.now())
@@ -76,7 +78,6 @@ class ShirmEncryptionService {
         ..init(true, AEADParameters(keyParam, 128, iv, Uint8List(0)));
 
       final ciphertext = Uint8List(gcm.getOutputSize(plaintext.length));
-
       final processed = gcm.processBytes(
         plaintext,
         0,
@@ -98,7 +99,7 @@ class ShirmEncryptionService {
 
   static Uint8List _rsaOaepEncrypt(Uint8List data, RSAPublicKey publicKey) {
     try {
-      final cipher = OAEPEncoding(RSAEngine())
+      final cipher = OAEPEncoding.withSHA256(RSAEngine())
         ..init(true, PublicKeyParameter<RSAPublicKey>(publicKey));
       return cipher.process(data);
     } catch (e) {
