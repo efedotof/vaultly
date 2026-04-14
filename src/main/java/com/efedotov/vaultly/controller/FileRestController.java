@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -325,6 +326,40 @@ public class FileRestController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/notes")
+    public ResponseEntity<Page<FileDto>> getNotes(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        UUID userId = user.getUserId();
+        Page<File> notesPage = fileService.getUsersNodes(userId, page, size);
+        Page<FileDto> dtoPage = notesPage.map(this::mapToDto);
+        return ResponseEntity.ok(dtoPage);
+    }
+
+    @PostMapping("/notes")
+    public FileDto createNote(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "folderId", required = false) UUID folderId,
+            @AuthenticationPrincipal CustomUserDetails user) throws Exception {
+
+        UUID userId = user.getUserId();
+        File note = fileService.createNote(file, folderId, userId);
+        return mapToDto(note);
+    }
+
+    @PutMapping("/notes/{noteId}/content")
+    public FileDto updateNoteContent(
+            @PathVariable UUID noteId,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal CustomUserDetails user) throws Exception {
+
+        UUID userId = user.getUserId();
+        File updatedNote = fileService.updateNoteContent(noteId, file, userId);
+        return mapToDto(updatedNote);
+    }
+
     private FileDto mapToDto(File file) {
         FileDto dto = new FileDto();
         dto.setId(file.getId());
@@ -335,14 +370,13 @@ public class FileRestController {
         dto.setS3Url(file.getS3Url());
         dto.setIsEncrypted(file.getIsEncrypted());
         dto.setIsPublic(file.getIsPublic());
+        dto.setIsNote(file.getIsNote());
         dto.setCreatedAt(file.getCreatedAt());
+        dto.setUpdatedAt(file.getUpdatedAt());
 
         if (file.getFolder() != null) {
             dto.setFolderId(file.getFolder().getId());
             dto.setFolderName(file.getFolder().getName());
-        } else {
-            dto.setFolderId(null);
-            dto.setFolderName(null);
         }
 
         return dto;

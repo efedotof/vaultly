@@ -32,9 +32,6 @@ public class S3Service {
     private final S3Presigner s3Presigner;
     private final Dotenv dotenv;
 
-    /**
-     * Загрузка byte[]
-     */
     public String uploadShpsFileBytes(byte[] fileBytes, String originalFilename, String contentType) {
         validateShpsFile(originalFilename, contentType);
         String bucketName = dotenv.get("S3_BUCKET");
@@ -59,9 +56,6 @@ public class S3Service {
         return dotenv.get("S3_PUBLIC_URL") + "/" + key;
     }
 
-    /**
-     * Загрузка локального файла с автоматической многокомпонентной отправкой
-     */
     public String uploadFileWithMultipart(Path filePath, String originalFilename, String contentType) {
         validateShpsFile(originalFilename, contentType);
         String bucketName = dotenv.get("S3_BUCKET");
@@ -96,10 +90,6 @@ public class S3Service {
         }
     }
 
-    /**
-     * Загрузка данных из InputStream с предварительным сохранением во временный
-     * файл.
-     */
     public String uploadStreamWithMultipart(InputStream inputStream, long contentLength,
             String originalFilename, String contentType) throws IOException {
         Path tempFile = Files.createTempFile("upload-", ".tmp");
@@ -190,4 +180,38 @@ public class S3Service {
         s3Client.deleteObject(deleteObjectRequest);
         log.info("File successfully deleted from S3: {}", objectKey);
     }
+
+    public String uploadFileWithMultipart(Path filePath, String objectKey, String originalFilename,
+            String contentType) {
+        validateShpsFile(originalFilename, contentType);
+        String bucketName = dotenv.get("S3_BUCKET");
+
+        try {
+            long fileSize = Files.size(filePath);
+            log.info("Uploading file to S3 with specific key: bucket={}, key={}, file={}, size={} bytes",
+                    bucketName, objectKey, filePath, fileSize);
+
+            String safeFilename = URLEncoder.encode(originalFilename, StandardCharsets.UTF_8);
+            Map<String, String> metadata = Map.of(
+                    "Original-Filename", safeFilename,
+                    "Content-Type", contentType);
+
+            PutObjectRequest request = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(objectKey)
+                    .contentType(contentType)
+                    .metadata(metadata)
+                    .contentLength(fileSize)
+                    .build();
+
+            s3Client.putObject(request, RequestBody.fromFile(filePath));
+
+            log.info("Upload completed: bucket={}, key={}", bucketName, objectKey);
+            return dotenv.get("S3_PUBLIC_URL") + "/" + objectKey;
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to upload file: " + filePath, e);
+        }
+    }
+
 }

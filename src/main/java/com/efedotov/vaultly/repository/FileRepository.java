@@ -32,4 +32,7 @@ public interface FileRepository extends JpaRepository<File, UUID> {
 
     @Query("SELECT f FROM File f WHERE f.user.id = :userId AND f.isDeleted = false ORDER BY f.createdAt DESC")
     Page<File> findLatestByUserId(@Param("userId") UUID userId, Pageable pageable);
+
+    @Query("SELECT f FROM File f WHERE f.user.id = :userId AND f.isDeleted = false AND f.isNote = true")
+    Page<File> findNotesByUserId(@Param("userId") UUID userId, Pageable pageable);
 }

@@ -72,6 +72,9 @@ public class File {
     @Builder.Default
     private Boolean isDeleted = false;
 
+    @Column(name = "is_note")
+    private Boolean isNote;
+
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
@@ -81,4 +84,5 @@ public class File {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
 }

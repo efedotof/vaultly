@@ -1,8 +1,8 @@
 package com.efedotov.vaultly.dto.file;
 
+import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.UUID;
-import lombok.Data;
 
 @Data
 public class FileDto {
@@ -14,7 +14,9 @@ public class FileDto {
     private String s3Url;
     private Boolean isEncrypted;
     private Boolean isPublic;
+    private Boolean isNote;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private UUID folderId;
     private String folderName;
 }

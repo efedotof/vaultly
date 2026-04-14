@@ -1,6 +1,9 @@
 package com.efedotov.vaultly.service;
 
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.MGF1ParameterSpec;
@@ -14,9 +17,12 @@ import javax.crypto.spec.OAEPParameterSpec;
 import javax.crypto.spec.PSource;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.efedotov.vaultly.dto.file.DecryptionMetadata;
 import com.efedotov.vaultly.model.File;
@@ -42,6 +48,7 @@ public class FileService {
     private final ShpsSecurityService shpsSecurityService;
     private final ServerKeyService serverKeyService;
     private final UserKeyService userKeyService;
+    private final FolderService folderService;
 
     @Transactional
     public File createFile(String name, String originalName, String s3Key,
@@ -208,4 +215,95 @@ public class FileService {
                 .orElseThrow(() -> new IllegalArgumentException("Файл не найден"));
         return createMetadataForPublicFile(file, userId);
     }
+
+    @Transactional
+    public File createNote(MultipartFile shpsFile, UUID folderId, UUID userId) throws Exception {
+        String originalFilename = shpsFile.getOriginalFilename();
+        long fileSize = shpsFile.getSize();
+
+        log.info("Creating note: {}, size: {} bytes, user: {}", originalFilename, fileSize, userId);
+
+        Path tempFile = Files.createTempFile("note-upload-", ".shps");
+        try (InputStream inputStream = shpsFile.getInputStream()) {
+            Files.copy(inputStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
+
+            ShirmpsHeader header = shpsSecurityService.validateHeaderOnly(tempFile, originalFilename);
+            if (!"user".equals(header.getKeyOwner())) {
+                throw new SecurityException("Note must be encrypted for user (keyOwner=user)");
+            }
+            if (!userId.toString().equals(header.getUserId())) {
+                throw new SecurityException("Note belongs to a different user");
+            }
+
+            String url = s3Service.uploadFileWithMultipart(tempFile, originalFilename, "application/x-shirmps");
+            String s3Key = s3Service.getObjectKeyFromUrl(url);
+
+            File note = createFile(
+                    originalFilename.replace(".shps", ""),
+                    originalFilename,
+                    s3Key,
+                    url,
+                    Files.size(tempFile),
+                    "text/markdown",
+                    userId,
+                    true,
+                    false);
+            note.setIsNote(true);
+            note = fileRepository.save(note);
+
+            if (folderId != null) {
+                note = folderService.addFileToFolder(note.getId(), folderId, userId);
+            }
+
+            log.info("Note created: {}", note.getId());
+            return note;
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
+    }
+
+    @Transactional
+    public File updateNoteContent(UUID fileId, MultipartFile updatedShpsFile, UUID userId) throws Exception {
+        File existingNote = fileRepository.findByIdAndUserId(fileId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Заметка не найдена или доступ запрещен"));
+
+        if (!existingNote.getIsNote()) {
+            throw new IllegalArgumentException("Файл не является заметкой");
+        }
+
+        String originalFilename = updatedShpsFile.getOriginalFilename();
+        log.info("Updating note content: {} (id: {})", originalFilename, fileId);
+
+        Path tempFile = Files.createTempFile("note-update-", ".shps");
+        try (InputStream inputStream = updatedShpsFile.getInputStream()) {
+            Files.copy(inputStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
+
+            ShirmpsHeader header = shpsSecurityService.validateHeaderOnly(tempFile, originalFilename);
+            if (!"user".equals(header.getKeyOwner())) {
+                throw new SecurityException("Note must be encrypted for user (keyOwner=user)");
+            }
+            if (!userId.toString().equals(header.getUserId())) {
+                throw new SecurityException("Note belongs to a different user");
+            }
+
+            String s3Key = existingNote.getS3Key();
+            s3Service.uploadFileWithMultipart(tempFile, s3Key, originalFilename, "application/x-shirmps");
+            existingNote.setSize(Files.size(tempFile));
+            existingNote.setOriginalName(originalFilename);
+            File savedNote = fileRepository.save(existingNote);
+
+            log.info("Note content updated: {}", savedNote.getId());
+            return savedNote;
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
+    }
+
+    public Page<File> getUsersNodes(UUID userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("updatedAt").descending());
+
+        Page<File> notesPage = fileRepository.findNotesByUserId(userId, pageable);
+        return notesPage;
+    }
+
 }
