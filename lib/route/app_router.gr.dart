@@ -190,6 +190,22 @@ class MainHomeRoute extends PageRouteInfo<void> {
 }
 
 /// generated route for
+/// [NotesScreen]
+class NotesRoute extends PageRouteInfo<void> {
+  const NotesRoute({List<PageRouteInfo>? children})
+    : super(NotesRoute.name, initialChildren: children);
+
+  static const String name = 'NotesRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const NotesScreen();
+    },
+  );
+}
+
+/// generated route for
 /// [ProfileScreen]
 class ProfileRoute extends PageRouteInfo<void> {
   const ProfileRoute({List<PageRouteInfo>? children})

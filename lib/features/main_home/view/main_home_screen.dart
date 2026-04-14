@@ -10,7 +10,12 @@ class MainHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AutoTabsRouter.builder(
-      routes: const [HomeRoute(), ProfileRoute(), SettingsRoute()],
+      routes: const [
+        HomeRoute(),
+        NotesRoute(),
+        ProfileRoute(),
+        SettingsRoute(),
+      ],
       builder: (context, children, tabsRouter) {
         return Scaffold(
           backgroundColor: Colors.transparent,

@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$FileDto {
 
- String? get id; String get name; String get originalName; int get size; String get mimeType; String? get s3Url; bool? get isEncrypted; bool? get isPublic;@JsonKey(name: 'createdAt') DateTime? get createdAt; String? get folderId; String? get folderName;
+ String? get id; String get name; String get originalName; int get size; String get mimeType; String? get s3Url; bool? get isEncrypted; bool? get isPublic;@JsonKey(name: 'createdAt') DateTime? get createdAt; String? get folderId; String? get folderName; bool? get isNote; DateTime? get updatedAt;
 /// Create a copy of FileDto
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $FileDtoCopyWith<FileDto> get copyWith => _$FileDtoCopyWithImpl<FileDto>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is FileDto&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.originalName, originalName) || other.originalName == originalName)&&(identical(other.size, size) || other.size == size)&&(identical(other.mimeType, mimeType) || other.mimeType == mimeType)&&(identical(other.s3Url, s3Url) || other.s3Url == s3Url)&&(identical(other.isEncrypted, isEncrypted) || other.isEncrypted == isEncrypted)&&(identical(other.isPublic, isPublic) || other.isPublic == isPublic)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.folderId, folderId) || other.folderId == folderId)&&(identical(other.folderName, folderName) || other.folderName == folderName));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FileDto&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.originalName, originalName) || other.originalName == originalName)&&(identical(other.size, size) || other.size == size)&&(identical(other.mimeType, mimeType) || other.mimeType == mimeType)&&(identical(other.s3Url, s3Url) || other.s3Url == s3Url)&&(identical(other.isEncrypted, isEncrypted) || other.isEncrypted == isEncrypted)&&(identical(other.isPublic, isPublic) || other.isPublic == isPublic)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.folderId, folderId) || other.folderId == folderId)&&(identical(other.folderName, folderName) || other.folderName == folderName)&&(identical(other.isNote, isNote) || other.isNote == isNote)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,originalName,size,mimeType,s3Url,isEncrypted,isPublic,createdAt,folderId,folderName);
+int get hashCode => Object.hash(runtimeType,id,name,originalName,size,mimeType,s3Url,isEncrypted,isPublic,createdAt,folderId,folderName,isNote,updatedAt);
 
 @override
 String toString() {
-  return 'FileDto(id: $id, name: $name, originalName: $originalName, size: $size, mimeType: $mimeType, s3Url: $s3Url, isEncrypted: $isEncrypted, isPublic: $isPublic, createdAt: $createdAt, folderId: $folderId, folderName: $folderName)';
+  return 'FileDto(id: $id, name: $name, originalName: $originalName, size: $size, mimeType: $mimeType, s3Url: $s3Url, isEncrypted: $isEncrypted, isPublic: $isPublic, createdAt: $createdAt, folderId: $folderId, folderName: $folderName, isNote: $isNote, updatedAt: $updatedAt)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $FileDtoCopyWith<$Res>  {
   factory $FileDtoCopyWith(FileDto value, $Res Function(FileDto) _then) = _$FileDtoCopyWithImpl;
 @useResult
 $Res call({
- String? id, String name, String originalName, int size, String mimeType, String? s3Url, bool? isEncrypted, bool? isPublic,@JsonKey(name: 'createdAt') DateTime? createdAt, String? folderId, String? folderName
+ String? id, String name, String originalName, int size, String mimeType, String? s3Url, bool? isEncrypted, bool? isPublic,@JsonKey(name: 'createdAt') DateTime? createdAt, String? folderId, String? folderName, bool? isNote, DateTime? updatedAt
 });
 
 
@@ -65,7 +65,7 @@ class _$FileDtoCopyWithImpl<$Res>
 
 /// Create a copy of FileDto
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? name = null,Object? originalName = null,Object? size = null,Object? mimeType = null,Object? s3Url = freezed,Object? isEncrypted = freezed,Object? isPublic = freezed,Object? createdAt = freezed,Object? folderId = freezed,Object? folderName = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? name = null,Object? originalName = null,Object? size = null,Object? mimeType = null,Object? s3Url = freezed,Object? isEncrypted = freezed,Object? isPublic = freezed,Object? createdAt = freezed,Object? folderId = freezed,Object? folderName = freezed,Object? isNote = freezed,Object? updatedAt = freezed,}) {
   return _then(_self.copyWith(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String?,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -78,7 +78,9 @@ as bool?,isPublic: freezed == isPublic ? _self.isPublic : isPublic // ignore: ca
 as bool?,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,folderId: freezed == folderId ? _self.folderId : folderId // ignore: cast_nullable_to_non_nullable
 as String?,folderName: freezed == folderName ? _self.folderName : folderName // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,isNote: freezed == isNote ? _self.isNote : isNote // ignore: cast_nullable_to_non_nullable
+as bool?,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
   ));
 }
 
@@ -163,10 +165,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? id,  String name,  String originalName,  int size,  String mimeType,  String? s3Url,  bool? isEncrypted,  bool? isPublic, @JsonKey(name: 'createdAt')  DateTime? createdAt,  String? folderId,  String? folderName)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? id,  String name,  String originalName,  int size,  String mimeType,  String? s3Url,  bool? isEncrypted,  bool? isPublic, @JsonKey(name: 'createdAt')  DateTime? createdAt,  String? folderId,  String? folderName,  bool? isNote,  DateTime? updatedAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _FileDto() when $default != null:
-return $default(_that.id,_that.name,_that.originalName,_that.size,_that.mimeType,_that.s3Url,_that.isEncrypted,_that.isPublic,_that.createdAt,_that.folderId,_that.folderName);case _:
+return $default(_that.id,_that.name,_that.originalName,_that.size,_that.mimeType,_that.s3Url,_that.isEncrypted,_that.isPublic,_that.createdAt,_that.folderId,_that.folderName,_that.isNote,_that.updatedAt);case _:
   return orElse();
 
 }
@@ -184,10 +186,10 @@ return $default(_that.id,_that.name,_that.originalName,_that.size,_that.mimeType
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? id,  String name,  String originalName,  int size,  String mimeType,  String? s3Url,  bool? isEncrypted,  bool? isPublic, @JsonKey(name: 'createdAt')  DateTime? createdAt,  String? folderId,  String? folderName)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? id,  String name,  String originalName,  int size,  String mimeType,  String? s3Url,  bool? isEncrypted,  bool? isPublic, @JsonKey(name: 'createdAt')  DateTime? createdAt,  String? folderId,  String? folderName,  bool? isNote,  DateTime? updatedAt)  $default,) {final _that = this;
 switch (_that) {
 case _FileDto():
-return $default(_that.id,_that.name,_that.originalName,_that.size,_that.mimeType,_that.s3Url,_that.isEncrypted,_that.isPublic,_that.createdAt,_that.folderId,_that.folderName);case _:
+return $default(_that.id,_that.name,_that.originalName,_that.size,_that.mimeType,_that.s3Url,_that.isEncrypted,_that.isPublic,_that.createdAt,_that.folderId,_that.folderName,_that.isNote,_that.updatedAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -204,10 +206,10 @@ return $default(_that.id,_that.name,_that.originalName,_that.size,_that.mimeType
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? id,  String name,  String originalName,  int size,  String mimeType,  String? s3Url,  bool? isEncrypted,  bool? isPublic, @JsonKey(name: 'createdAt')  DateTime? createdAt,  String? folderId,  String? folderName)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? id,  String name,  String originalName,  int size,  String mimeType,  String? s3Url,  bool? isEncrypted,  bool? isPublic, @JsonKey(name: 'createdAt')  DateTime? createdAt,  String? folderId,  String? folderName,  bool? isNote,  DateTime? updatedAt)?  $default,) {final _that = this;
 switch (_that) {
 case _FileDto() when $default != null:
-return $default(_that.id,_that.name,_that.originalName,_that.size,_that.mimeType,_that.s3Url,_that.isEncrypted,_that.isPublic,_that.createdAt,_that.folderId,_that.folderName);case _:
+return $default(_that.id,_that.name,_that.originalName,_that.size,_that.mimeType,_that.s3Url,_that.isEncrypted,_that.isPublic,_that.createdAt,_that.folderId,_that.folderName,_that.isNote,_that.updatedAt);case _:
   return null;
 
 }
@@ -219,7 +221,7 @@ return $default(_that.id,_that.name,_that.originalName,_that.size,_that.mimeType
 @JsonSerializable()
 
 class _FileDto implements FileDto {
-  const _FileDto({this.id, required this.name, required this.originalName, required this.size, required this.mimeType, this.s3Url, this.isEncrypted, this.isPublic, @JsonKey(name: 'createdAt') this.createdAt, this.folderId, this.folderName});
+  const _FileDto({this.id, required this.name, required this.originalName, required this.size, required this.mimeType, this.s3Url, this.isEncrypted, this.isPublic, @JsonKey(name: 'createdAt') this.createdAt, this.folderId, this.folderName, this.isNote, this.updatedAt});
   factory _FileDto.fromJson(Map<String, dynamic> json) => _$FileDtoFromJson(json);
 
 @override final  String? id;
@@ -233,6 +235,8 @@ class _FileDto implements FileDto {
 @override@JsonKey(name: 'createdAt') final  DateTime? createdAt;
 @override final  String? folderId;
 @override final  String? folderName;
+@override final  bool? isNote;
+@override final  DateTime? updatedAt;
 
 /// Create a copy of FileDto
 /// with the given fields replaced by the non-null parameter values.
@@ -247,16 +251,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _FileDto&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.originalName, originalName) || other.originalName == originalName)&&(identical(other.size, size) || other.size == size)&&(identical(other.mimeType, mimeType) || other.mimeType == mimeType)&&(identical(other.s3Url, s3Url) || other.s3Url == s3Url)&&(identical(other.isEncrypted, isEncrypted) || other.isEncrypted == isEncrypted)&&(identical(other.isPublic, isPublic) || other.isPublic == isPublic)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.folderId, folderId) || other.folderId == folderId)&&(identical(other.folderName, folderName) || other.folderName == folderName));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _FileDto&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.originalName, originalName) || other.originalName == originalName)&&(identical(other.size, size) || other.size == size)&&(identical(other.mimeType, mimeType) || other.mimeType == mimeType)&&(identical(other.s3Url, s3Url) || other.s3Url == s3Url)&&(identical(other.isEncrypted, isEncrypted) || other.isEncrypted == isEncrypted)&&(identical(other.isPublic, isPublic) || other.isPublic == isPublic)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.folderId, folderId) || other.folderId == folderId)&&(identical(other.folderName, folderName) || other.folderName == folderName)&&(identical(other.isNote, isNote) || other.isNote == isNote)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,originalName,size,mimeType,s3Url,isEncrypted,isPublic,createdAt,folderId,folderName);
+int get hashCode => Object.hash(runtimeType,id,name,originalName,size,mimeType,s3Url,isEncrypted,isPublic,createdAt,folderId,folderName,isNote,updatedAt);
 
 @override
 String toString() {
-  return 'FileDto(id: $id, name: $name, originalName: $originalName, size: $size, mimeType: $mimeType, s3Url: $s3Url, isEncrypted: $isEncrypted, isPublic: $isPublic, createdAt: $createdAt, folderId: $folderId, folderName: $folderName)';
+  return 'FileDto(id: $id, name: $name, originalName: $originalName, size: $size, mimeType: $mimeType, s3Url: $s3Url, isEncrypted: $isEncrypted, isPublic: $isPublic, createdAt: $createdAt, folderId: $folderId, folderName: $folderName, isNote: $isNote, updatedAt: $updatedAt)';
 }
 
 
@@ -267,7 +271,7 @@ abstract mixin class _$FileDtoCopyWith<$Res> implements $FileDtoCopyWith<$Res> {
   factory _$FileDtoCopyWith(_FileDto value, $Res Function(_FileDto) _then) = __$FileDtoCopyWithImpl;
 @override @useResult
 $Res call({
- String? id, String name, String originalName, int size, String mimeType, String? s3Url, bool? isEncrypted, bool? isPublic,@JsonKey(name: 'createdAt') DateTime? createdAt, String? folderId, String? folderName
+ String? id, String name, String originalName, int size, String mimeType, String? s3Url, bool? isEncrypted, bool? isPublic,@JsonKey(name: 'createdAt') DateTime? createdAt, String? folderId, String? folderName, bool? isNote, DateTime? updatedAt
 });
 
 
@@ -284,7 +288,7 @@ class __$FileDtoCopyWithImpl<$Res>
 
 /// Create a copy of FileDto
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = freezed,Object? name = null,Object? originalName = null,Object? size = null,Object? mimeType = null,Object? s3Url = freezed,Object? isEncrypted = freezed,Object? isPublic = freezed,Object? createdAt = freezed,Object? folderId = freezed,Object? folderName = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = freezed,Object? name = null,Object? originalName = null,Object? size = null,Object? mimeType = null,Object? s3Url = freezed,Object? isEncrypted = freezed,Object? isPublic = freezed,Object? createdAt = freezed,Object? folderId = freezed,Object? folderName = freezed,Object? isNote = freezed,Object? updatedAt = freezed,}) {
   return _then(_FileDto(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String?,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -297,7 +301,9 @@ as bool?,isPublic: freezed == isPublic ? _self.isPublic : isPublic // ignore: ca
 as bool?,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,folderId: freezed == folderId ? _self.folderId : folderId // ignore: cast_nullable_to_non_nullable
 as String?,folderName: freezed == folderName ? _self.folderName : folderName // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,isNote: freezed == isNote ? _self.isNote : isNote // ignore: cast_nullable_to_non_nullable
+as bool?,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
   ));
 }
 

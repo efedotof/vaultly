@@ -20,6 +20,10 @@ _FileDto _$FileDtoFromJson(Map<String, dynamic> json) => _FileDto(
       : DateTime.parse(json['createdAt'] as String),
   folderId: json['folderId'] as String?,
   folderName: json['folderName'] as String?,
+  isNote: json['isNote'] as bool?,
+  updatedAt: json['updatedAt'] == null
+      ? null
+      : DateTime.parse(json['updatedAt'] as String),
 );
 
 Map<String, dynamic> _$FileDtoToJson(_FileDto instance) => <String, dynamic>{
@@ -34,4 +38,6 @@ Map<String, dynamic> _$FileDtoToJson(_FileDto instance) => <String, dynamic>{
   'createdAt': instance.createdAt?.toIso8601String(),
   'folderId': instance.folderId,
   'folderName': instance.folderName,
+  'isNote': instance.isNote,
+  'updatedAt': instance.updatedAt?.toIso8601String(),
 };

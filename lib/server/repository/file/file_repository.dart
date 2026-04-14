@@ -218,4 +218,81 @@ class FileRepository implements FileInterface {
     );
     return FileDto.fromJson(response.data);
   }
+
+  @override
+  Future<FileDto> createNote({
+    required Uint8List encryptedData,
+    required String fileName,
+    String? folderId,
+    required String userId,
+    required String keyOwner,
+    ProgressCallback? onSendProgress,
+  }) async {
+    try {
+      final multipartFile = MultipartFile.fromBytes(
+        encryptedData,
+        filename: fileName.endsWith('.shps') ? fileName : '$fileName.shps',
+      );
+
+      final formData = FormData.fromMap({
+        'file': multipartFile,
+        'folderId': folderId,
+      });
+
+      final response = await _dio.post(
+        '/notes',
+        data: formData,
+        options: Options(headers: {'Content-Type': 'multipart/form-data'}),
+        onSendProgress: onSendProgress,
+      );
+
+      return FileDto.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<FileDto> updateNoteContent({
+    required String noteId,
+    required Uint8List encryptedData,
+    required String fileName,
+    ProgressCallback? onSendProgress,
+  }) async {
+    try {
+      final multipartFile = MultipartFile.fromBytes(
+        encryptedData,
+        filename: fileName.endsWith('.shps') ? fileName : '$fileName.shps',
+      );
+
+      final formData = FormData.fromMap({'file': multipartFile});
+
+      final response = await _dio.put(
+        '/notes/$noteId/content',
+        data: formData,
+        options: Options(headers: {'Content-Type': 'multipart/form-data'}),
+        onSendProgress: onSendProgress,
+      );
+
+      return FileDto.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<PageResponse<FileDto>> getNotes({int page = 0, int size = 20}) async {
+    try {
+      final response = await _dio.get(
+        '/notes',
+        queryParameters: {'page': page, 'size': size},
+      );
+      return PageResponse.fromJson(
+        response.data as Map<String, dynamic>,
+        (json) => FileDto.fromJson(json),
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
 }

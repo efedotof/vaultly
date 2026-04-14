@@ -16,7 +16,12 @@ class FloatingBottomNavBar extends StatefulWidget {
 }
 
 class _FloatingBottomNavBarState extends State<FloatingBottomNavBar> {
-  final List<GlobalKey> _itemKeys = [GlobalKey(), GlobalKey(), GlobalKey()];
+  final List<GlobalKey> _itemKeys = [
+    GlobalKey(),
+    GlobalKey(),
+    GlobalKey(),
+    GlobalKey(),
+  ];
 
   Rect? _indicatorRect;
   bool _firstBuild = true;
@@ -114,21 +119,31 @@ class _FloatingBottomNavBarState extends State<FloatingBottomNavBar> {
                 Container(
                   key: _itemKeys[1],
                   child: NavItem(
-                    icon: Icons.person_outline,
-                    activeIcon: Icons.person,
-                    label: 'Профиль',
-                    isActive: widget.currentIndex == 1,
-                    onTap: () => widget.onTap(1),
+                    icon: Icons.note_outlined, 
+                    activeIcon: Icons.note,
+                    label: 'Заметки',
+                    isActive: widget.currentIndex == 1, 
+                    onTap: () => widget.onTap(1), 
                   ),
                 ),
                 Container(
                   key: _itemKeys[2],
                   child: NavItem(
+                    icon: Icons.person_outline,
+                    activeIcon: Icons.person,
+                    label: 'Профиль',
+                    isActive: widget.currentIndex == 2, 
+                    onTap: () => widget.onTap(2), 
+                  ),
+                ),
+                Container(
+                  key: _itemKeys[3],
+                  child: NavItem(
                     icon: Icons.settings_outlined,
                     activeIcon: Icons.settings,
                     label: 'Настройки',
-                    isActive: widget.currentIndex == 2,
-                    onTap: () => widget.onTap(2),
+                    isActive: widget.currentIndex == 3, 
+                    onTap: () => widget.onTap(3), 
                   ),
                 ),
               ],

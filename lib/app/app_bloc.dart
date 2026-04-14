@@ -7,6 +7,7 @@ import 'package:vaulth_app/features/document_viewer/cubit/document_viewer_cubit.
 import 'package:vaulth_app/features/folder/cubit/folder_cubit.dart';
 import 'package:vaulth_app/features/home/cubit/batch_cache_cubit.dart';
 import 'package:vaulth_app/features/home/cubit/home_cubit.dart';
+import 'package:vaulth_app/features/notes/cubit/notes_cubit.dart';
 import 'package:vaulth_app/features/profile/cubit/profile_cubit.dart';
 import 'package:vaulth_app/features/settings/cubit/settings_cubit.dart';
 import 'package:vaulth_app/server/repository/auth/auth_interface.dart';
@@ -109,6 +110,12 @@ class _AppBlocState extends State<AppBloc> {
             authCubit: context.read<AuthCubit>(),
           ),
         ),
+        BlocProvider(
+          create: (context) =>
+              NotesCubit(fileRepository: context.read<FileInterface>()),
+        ),
+       
+        // NoteEditorCubit
       ],
       child: widget.child,
     );

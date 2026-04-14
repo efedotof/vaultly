@@ -39,4 +39,22 @@ abstract class FileInterface {
     String? folderId,
     ProgressCallback? onSendProgress,
   });
+
+  Future<FileDto> createNote({
+    required Uint8List encryptedData,
+    required String fileName,
+    String? folderId,
+    required String userId,
+    required String keyOwner,
+    ProgressCallback? onSendProgress,
+  });
+
+  Future<FileDto> updateNoteContent({
+    required String noteId,
+    required Uint8List encryptedData,
+    required String fileName,
+    ProgressCallback? onSendProgress,
+  });
+
+  Future<PageResponse<FileDto>> getNotes({int page = 0, int size = 20});
 }

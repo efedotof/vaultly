@@ -7,3 +7,4 @@ export 'settings/settings.dart';
 export 'document_viewer/document_viewer.dart';
 export 'device/device.dart';
 export 'keys_manager/keys_manager.dart';
+export 'notes/notes.dart';

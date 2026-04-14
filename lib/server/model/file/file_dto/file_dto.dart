@@ -17,6 +17,8 @@ abstract class FileDto with _$FileDto {
     @JsonKey(name: 'createdAt') DateTime? createdAt,
     String? folderId,
     String? folderName,
+    bool? isNote,
+    DateTime? updatedAt,
   }) = _FileDto;
 
   factory FileDto.fromJson(Map<String, dynamic> json) =>
