@@ -82,6 +82,17 @@ class _TotpSetupDialogState extends State<TotpSetupDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final dialogPadding = screenWidth < 400 ? 16.0 : 24.0;
+    const double maxCellWidth = 56.0;
+    const double minCellWidth = 42.0;
+
+    final double availableWidth = screenWidth - (dialogPadding * 2) - 40;
+    final double cellWidth = (availableWidth / 6).clamp(
+      minCellWidth,
+      maxCellWidth,
+    );
+
     return BlocListener<SettingsCubit, SettingsState>(
       listener: (context, state) {
         state.whenOrNull(
@@ -102,13 +113,14 @@ class _TotpSetupDialogState extends State<TotpSetupDialog> {
       child: Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: EdgeInsets.all(dialogPadding),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
                 'Настройка двухфакторной аутентификации',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
               const Text(
@@ -133,32 +145,36 @@ class _TotpSetupDialogState extends State<TotpSetupDialog> {
                 style: const TextStyle(fontFamily: 'monospace', fontSize: 16),
               ),
               const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(6, (index) {
-                  return SizedBox(
-                    width: 48,
-                    child: TextField(
-                      controller: _controllers[index],
-                      focusNode: _focusNodes[index],
-                      textAlign: TextAlign.center,
-                      keyboardType: TextInputType.number,
-                      maxLength: 1,
-                      enabled: !_isVerifying,
-                      style: const TextStyle(fontSize: 24),
-                      decoration: InputDecoration(
-                        counterText: '',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+              Center(
+                child: Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  alignment: WrapAlignment.center,
+                  children: List.generate(6, (index) {
+                    return SizedBox(
+                      width: cellWidth,
+                      child: TextField(
+                        controller: _controllers[index],
+                        focusNode: _focusNodes[index],
+                        textAlign: TextAlign.center,
+                        keyboardType: TextInputType.number,
+                        maxLength: 1,
+                        enabled: !_isVerifying,
+                        style: const TextStyle(fontSize: 24),
+                        decoration: InputDecoration(
+                          counterText: '',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                          ),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 12,
-                        ),
+                        onChanged: (value) => _onCodeChanged(index, value),
                       ),
-                      onChanged: (value) => _onCodeChanged(index, value),
-                    ),
-                  );
-                }),
+                    );
+                  }),
+                ),
               ),
               const SizedBox(height: 24),
               Row(

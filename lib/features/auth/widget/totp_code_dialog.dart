@@ -87,10 +87,21 @@ class _TotpCodeDialogState extends State<TotpCodeDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final dialogPadding = screenWidth < 400 ? 16.0 : 24.0;
+    const double maxCellWidth = 56.0;
+    const double minCellWidth = 42.0;
+
+    final double availableWidth = screenWidth - (dialogPadding * 2) - 40;
+    final double cellWidth = (availableWidth / 6).clamp(
+      minCellWidth,
+      maxCellWidth,
+    );
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: EdgeInsets.all(dialogPadding),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -102,9 +113,11 @@ class _TotpCodeDialogState extends State<TotpCodeDialog> {
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  'Двухфакторная аутентификация',
-                  style: Theme.of(context).textTheme.titleLarge,
+                Flexible(
+                  child: Text(
+                    'Двухфакторная аутентификация',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                 ),
               ],
             ),
@@ -116,38 +129,44 @@ class _TotpCodeDialogState extends State<TotpCodeDialog> {
               ),
             ),
             const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(6, (index) {
-                return SizedBox(
-                  width: 48,
-                  child: TextField(
-                    controller: _controllers[index],
-                    focusNode: _focusNodes[index],
-                    textAlign: TextAlign.center,
-                    keyboardType: TextInputType.number,
-                    maxLength: 1,
-                    enabled: !_isLoading,
-                    style: const TextStyle(fontSize: 24),
-                    decoration: InputDecoration(
-                      counterText: '',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+            Center(
+              child: Wrap(
+                spacing: 8.0,
+                runSpacing: 8.0,
+                alignment: WrapAlignment.center,
+                children: List.generate(6, (index) {
+                  return SizedBox(
+                    width: cellWidth,
+                    child: TextField(
+                      controller: _controllers[index],
+                      focusNode: _focusNodes[index],
+                      textAlign: TextAlign.center,
+                      keyboardType: TextInputType.number,
+                      maxLength: 1,
+                      enabled: !_isLoading,
+                      style: const TextStyle(fontSize: 24),
+                      decoration: InputDecoration(
+                        counterText: '',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                        ),
+                        errorBorder: _error != null
+                            ? OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                              )
+                            : null,
                       ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                      errorBorder: _error != null
-                          ? OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                            )
-                          : null,
+                      onChanged: (value) => _onCodeChanged(index, value),
                     ),
-                    onChanged: (value) => _onCodeChanged(index, value),
-                  ),
-                );
-              }),
+                  );
+                }),
+              ),
             ),
             if (_error != null) ...[
               const SizedBox(height: 8),
