@@ -146,11 +146,21 @@ class FileRepository implements FileInterface {
   @override
   Future<Uint8List> downloadShps(String fileId) async {
     _logger.debug('[FileRepository] Downloading SHPS file: $fileId');
-    final response = await _dio.get(
-      '/$fileId/download',
-      options: Options(responseType: ResponseType.bytes),
-    );
-    return Uint8List.fromList(response.data);
+
+    final response = await _dio.get('/$fileId/download');
+    final data = response.data;
+
+    if (data is Map<String, dynamic> && data.containsKey('url')) {
+      final url = data['url'] as String;
+      _logger.debug('[FileRepository] Got presigned URL: $url');
+
+      return await downloadShpsFromUrl(url);
+    } else {
+      _logger.error(
+        '[FileRepository] Unexpected response from /download: $data',
+      );
+      throw Exception('Server did not return a presigned URL');
+    }
   }
 
   @override

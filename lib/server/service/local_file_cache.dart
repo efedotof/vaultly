@@ -1,12 +1,10 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:math';
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb, compute;
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
 import 'package:sembast_web/sembast_web.dart';
-import 'package:vaulth_app/server/service/logger_service.dart';
 import 'package:vaulth_app/storage/secure_storage_adapter.dart';
 import 'package:webcrypto/webcrypto.dart' as web;
 import 'package:pointycastle/block/aes.dart';
@@ -14,44 +12,53 @@ import 'package:pointycastle/block/modes/gcm.dart';
 import 'package:pointycastle/api.dart' show AEADParameters, KeyParameter;
 
 Future<Uint8List> _decryptInIsolate(Map<String, dynamic> args) async {
-  final Uint8List encryptedData = args['encryptedData'] as Uint8List;
-  final Uint8List key = args['key'] as Uint8List;
-  final Uint8List nonce = args['nonce'] as Uint8List;
+  try {
+    final Uint8List encryptedData = args['encryptedData'] as Uint8List;
+    final Uint8List key = args['key'] as Uint8List;
+    final Uint8List nonce = args['nonce'] as Uint8List;
 
-  final keyParam = KeyParameter(key);
-  final gcm = GCMBlockCipher(AESEngine())
-    ..init(false, AEADParameters(keyParam, 128, nonce, Uint8List(0)));
-  final plaintext = Uint8List(gcm.getOutputSize(encryptedData.length));
-  final processed = gcm.processBytes(
-    encryptedData,
-    0,
-    encryptedData.length,
-    plaintext,
-    0,
-  );
-  final finalised = gcm.doFinal(plaintext, processed);
-  final total = processed + finalised;
-  return Uint8List.sublistView(plaintext, 0, total);
+    final keyParam = KeyParameter(key);
+    final gcm = GCMBlockCipher(AESEngine())
+      ..init(false, AEADParameters(keyParam, 128, nonce, Uint8List(0)));
+    final plaintext = Uint8List(gcm.getOutputSize(encryptedData.length));
+    final processed = gcm.processBytes(
+      encryptedData,
+      0,
+      encryptedData.length,
+      plaintext,
+      0,
+    );
+    final finalised = gcm.doFinal(plaintext, processed);
+    final total = processed + finalised;
+    final result = Uint8List.sublistView(plaintext, 0, total);
+    return result;
+  } catch (e) {
+    rethrow;
+  }
 }
 
 Future<List<Map<String, dynamic>>> _readMetadataInIsolate(String dbPath) async {
-  final factory = databaseFactoryIo;
-  final db = await factory.openDatabase(dbPath);
-  final store = StoreRef.main();
-  final records = await store.find(db, finder: Finder());
-  final result = records.map((record) {
-    return {
-      'id': record['id'] as String,
-      'originalName': record['originalName'] as String? ?? '',
-      'timestamp': record['timestamp'] as int? ?? 0,
-    };
-  }).toList();
-  await db.close();
-  return result;
+  try {
+    final factory = databaseFactoryIo;
+    final db = await factory.openDatabase(dbPath);
+    final store = StoreRef.main();
+    final records = await store.find(db, finder: Finder());
+    final result = records.map((record) {
+      return {
+        'id': record['id'] as String,
+        'originalName': record['originalName'] as String? ?? '',
+        'timestamp': record['timestamp'] as int? ?? 0,
+      };
+    }).toList();
+    await db.close();
+
+    return result;
+  } catch (e) {
+    return [];
+  }
 }
 
 class LocalFileCache {
-  final LoggerService _logger = LoggerService();
   late final Database _db;
   late final StoreRef<String, Map<String, dynamic>> _store;
   bool _initialized = false;
@@ -86,9 +93,8 @@ class LocalFileCache {
       _db = await factory.openDatabase(dbPath);
       _store = StoreRef.main();
       _initialized = true;
-    } catch (e, stack) {
+    } catch (e) {
       _initFuture = null;
-      _logger.error('[LocalFileCache] INIT ERROR', error: e, stackTrace: stack);
       rethrow;
     }
   }
@@ -112,32 +118,22 @@ class LocalFileCache {
         key: '$_keyPrefix$fileId',
         value: base64Encode(key),
       );
-      _logger.debug('[LocalFileCache] Key saved for $fileId');
-    } catch (e, stack) {
-      _logger.error(
-        '[LocalFileCache] Failed to save key for $fileId',
-        error: e,
-        stackTrace: stack,
-      );
-      rethrow;
-    }
+    } catch (_) {}
   }
 
   Future<Uint8List?> _getFileKey(String fileId) async {
     try {
       final b64 = await SecureStorageAdapter.read(key: '$_keyPrefix$fileId');
-      if (b64 == null) {
-        _logger.warning('[LocalFileCache] No key found for $fileId');
+      if (b64 == null || b64.isEmpty) {
         return null;
       }
-      final key = base64Decode(b64);
-      return key;
-    } catch (e, stack) {
-      _logger.error(
-        '[LocalFileCache] Failed to read key for $fileId',
-        error: e,
-        stackTrace: stack,
-      );
+      try {
+        return base64Decode(b64);
+      } catch (e) {
+        await SecureStorageAdapter.delete(key: '$_keyPrefix$fileId');
+        return null;
+      }
+    } catch (e) {
       return null;
     }
   }
@@ -145,14 +141,7 @@ class LocalFileCache {
   Future<void> _deleteFileKey(String fileId) async {
     try {
       await SecureStorageAdapter.delete(key: '$_keyPrefix$fileId');
-      _logger.debug('[LocalFileCache] Key deleted for $fileId');
-    } catch (e, stack) {
-      _logger.error(
-        '[LocalFileCache] Failed to delete key for $fileId',
-        error: e,
-        stackTrace: stack,
-      );
-    }
+    } catch (e) {}
   }
 
   Future<Uint8List> _aesGcmEncrypt(
@@ -180,12 +169,7 @@ class LocalFileCache {
         final total = processed + finalised;
         return Uint8List.sublistView(ciphertext, 0, total);
       }
-    } catch (e, stack) {
-      _logger.error(
-        '[LocalFileCache] AES-GCM encryption failed',
-        error: e,
-        stackTrace: stack,
-      );
+    } catch (e) {
       rethrow;
     }
   }
@@ -215,12 +199,7 @@ class LocalFileCache {
         final total = processed + finalised;
         return Uint8List.sublistView(plaintext, 0, total);
       }
-    } catch (e, stack) {
-      _logger.error(
-        '[LocalFileCache] AES-GCM decryption failed',
-        error: e,
-        stackTrace: stack,
-      );
+    } catch (e) {
       rethrow;
     }
   }
@@ -248,34 +227,16 @@ class LocalFileCache {
 
       await _store.record(fileId).put(_db, record);
       _memoryCache[fileId] = data;
-      _logger.debug(
-        '[LocalFileCache] File $fileId saved to cache successfully',
-      );
-    } catch (e, stack) {
-      _logger.error(
-        '[LocalFileCache] Error saving file $fileId',
-        error: e,
-        stackTrace: stack,
-      );
-      await _store.record(fileId).delete(_db);
-      rethrow;
-    }
+    } catch (_) {}
   }
 
   Future<bool> hasFile(String fileId) async {
-    _logger.debug('[LocalFileCache] hasFile called for $fileId');
     await _init();
     try {
       final snapshot = await _store.record(fileId).getSnapshot(_db);
       final exists = snapshot != null;
-      _logger.debug('[LocalFileCache] File $fileId exists in cache: $exists');
       return exists;
-    } catch (e, stack) {
-      _logger.error(
-        '[LocalFileCache] Error checking file existence $fileId',
-        error: e,
-        stackTrace: stack,
-      );
+    } catch (e) {
       return false;
     }
   }
@@ -360,28 +321,17 @@ class LocalFileCache {
       }
 
       return plaintext;
-    } catch (e, stack) {
-      _logger.error(
-        '[LocalFileCache] Error retrieving/decrypting file $fileId',
-        error: e,
-        stackTrace: stack,
-      );
+    } catch (e) {
       return null;
     }
   }
 
   Future<String?> getOriginalName(String fileId) async {
-    _logger.debug('[LocalFileCache] getOriginalName called for $fileId');
     await _init();
     try {
       final record = await _store.record(fileId).get(_db);
       return record?['originalName'] as String?;
-    } catch (e, stack) {
-      _logger.error(
-        '[LocalFileCache] Error getting original name for $fileId',
-        error: e,
-        stackTrace: stack,
-      );
+    } catch (e) {
       return null;
     }
   }
@@ -392,17 +342,10 @@ class LocalFileCache {
       await _store.record(fileId).delete(_db);
       await _deleteFileKey(fileId);
       _memoryCache.remove(fileId);
-    } catch (e, stack) {
-      _logger.error(
-        '[LocalFileCache] Error deleting file $fileId',
-        error: e,
-        stackTrace: stack,
-      );
-    }
+    } catch (_) {}
   }
 
   Future<void> clearCache() async {
-    _logger.debug('[LocalFileCache] clearCache called');
     await _init();
     try {
       final keys = await _store.findKeys(_db);
@@ -411,18 +354,10 @@ class LocalFileCache {
       }
       await _store.drop(_db);
       _memoryCache.clear();
-      _logger.debug('[LocalFileCache] Cache cleared completely');
-    } catch (e, stack) {
-      _logger.error(
-        '[LocalFileCache] Error clearing cache',
-        error: e,
-        stackTrace: stack,
-      );
-    }
+    } catch (_) {}
   }
 
   Future<int> getCacheSize() async {
-    _logger.debug('[LocalFileCache] getCacheSize called');
     await _init();
     try {
       final finder = Finder();
@@ -438,30 +373,18 @@ class LocalFileCache {
           totalBytes += data.length;
         }
       }
-      _logger.debug('[LocalFileCache] Cache size: $totalBytes bytes');
       return totalBytes;
-    } catch (e, stack) {
-      _logger.error(
-        '[LocalFileCache] Error getting cache size',
-        error: e,
-        stackTrace: stack,
-      );
+    } catch (e) {
       return 0;
     }
   }
 
   Future<List<String>> getCachedFileIds() async {
-    _logger.debug('[LocalFileCache] getCachedFileIds called');
     await _init();
     try {
       final keys = await _store.findKeys(_db);
       return keys.map((k) => k.toString()).toList();
-    } catch (e, stack) {
-      _logger.error(
-        '[LocalFileCache] Error getting cached file IDs',
-        error: e,
-        stackTrace: stack,
-      );
+    } catch (e) {
       return [];
     }
   }
@@ -480,14 +403,12 @@ class LocalFileCache {
           };
         }).toList();
       } else {
+        if (_dbPath == null) {
+          return [];
+        }
         return await compute(_readMetadataInIsolate, _dbPath!);
       }
-    } catch (e, stack) {
-      _logger.error(
-        '[LocalFileCache] Error getting cached files metadata',
-        error: e,
-        stackTrace: stack,
-      );
+    } catch (e) {
       return [];
     }
   }
@@ -512,15 +433,7 @@ class LocalFileCache {
       };
 
       await _store.record(fileId).put(_db, record);
-      _logger.debug(
-        '[LocalFileCache] File $fileId saved to cache (pre-encrypted)',
-      );
-    } catch (e, stack) {
-      _logger.error(
-        '[LocalFileCache] Error saving pre-encrypted file $fileId',
-        error: e,
-        stackTrace: stack,
-      );
+    } catch (e) {
       await _store.record(fileId).delete(_db);
       rethrow;
     }

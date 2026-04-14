@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 class ShirmpsHeader {
@@ -58,7 +59,12 @@ class ShirmpsHeader {
   }
 
   static ShirmpsHeader fromJsonBytes(Uint8List bytes) {
-    final json = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
-    return fromJson(json);
+    try {
+      final jsonString = utf8.decode(bytes);
+      final json = jsonDecode(jsonString) as Map<String, dynamic>;
+      return fromJson(json);
+    } catch (e) {
+      rethrow;
+    }
   }
 }
