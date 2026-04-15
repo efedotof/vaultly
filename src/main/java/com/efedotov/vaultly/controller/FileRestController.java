@@ -10,6 +10,7 @@ import java.security.spec.MGF1ParameterSpec;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.Map;
 import java.util.UUID;
 
 import javax.crypto.BadPaddingException;
@@ -21,8 +22,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -212,7 +211,7 @@ public class FileRestController {
     }
 
     @GetMapping("/{fileId}/download")
-    public ResponseEntity<Void> downloadFile(
+    public ResponseEntity<Map<String, String>> downloadFile(
             @PathVariable UUID fileId,
             @AuthenticationPrincipal CustomUserDetails user) {
 
@@ -225,9 +224,7 @@ public class FileRestController {
         Duration duration = Duration.ofSeconds(30);
         String presignedUrl = s3Service.generatePresignedUrl(file.getS3Key(), duration);
 
-        return ResponseEntity.status(HttpStatus.SEE_OTHER)
-                .header(HttpHeaders.LOCATION, presignedUrl)
-                .build();
+        return ResponseEntity.ok(Map.of("url", presignedUrl));
     }
 
     @GetMapping("/{fileId}/content")

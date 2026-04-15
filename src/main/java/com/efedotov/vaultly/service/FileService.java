@@ -94,7 +94,15 @@ public class FileService {
         file.setDeletedAt(LocalDateTime.now());
         fileRepository.save(file);
 
-        log.info("Файл помечен как удалённый: {}", fileId);
+        User user = file.getUser();
+        long newStorageUsed = user.getStorageUsed() - file.getSize();
+        if (newStorageUsed < 0) {
+            newStorageUsed = 0L;
+        }
+        user.setStorageUsed(newStorageUsed);
+        userRepository.save(user);
+
+        log.info("Файл помечен как удалённый: {}, storageUsed уменьшен на {} байт", fileId, file.getSize());
     }
 
     @Transactional
