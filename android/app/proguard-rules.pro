@@ -1,1 +1,3 @@
--keep class org.videolan.libvlc.** { *; }
+-keep class io.flutter.plugin.**  { *; }
+-keep class com.media_kit.** { *; }
+-keep class org.videolan.** { *; }

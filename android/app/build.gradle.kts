@@ -26,9 +26,13 @@ android {
         }
     }
 
-    packaging {
+   packagingOptions {
         jniLibs {
-            pickFirsts.add("lib/**/libc++_shared.so")
+            pickFirsts += listOf(
+                "**/libc++_shared.so",
+                "**/libmpv.so"        
+            )
+            useLegacyPackaging = true
         }
     }
 

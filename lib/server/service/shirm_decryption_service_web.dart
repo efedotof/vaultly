@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:js' as js;
-
+import 'package:webcrypto/webcrypto.dart' as web;
 import 'shirmps_header.dart';
 
 class ShirmDecryptionService {
@@ -31,16 +30,16 @@ class ShirmDecryptionService {
       final iv = base64.decode(header.iv!);
 
       Uint8List? aesKeyBytes;
-      List<Exception> errors = [];
-      for (final hash in ['SHA-256', 'SHA-1']) {
+      final errors = <Exception>[];
+
+      for (final hash in [web.Hash.sha256, web.Hash.sha1]) {
         try {
-          final privateKey = await _importPrivateKeyJs(privateKeyPem, hash);
-          aesKeyBytes = await _rsaOaepDecryptJsWithHash(
-            encryptedAesKey,
-            privateKey,
+          final privateKey = await _importRsaOaepPrivateKey(
+            privateKeyPem,
             hash,
           );
-          break; 
+          aesKeyBytes = await privateKey.decryptBytes(encryptedAesKey);
+          break;
         } catch (e) {
           errors.add(Exception('Failed with hash $hash: $e'));
         }
@@ -54,11 +53,8 @@ class ShirmDecryptionService {
 
       final encryptedData = shpsBytes.sublist(4 + headerLength);
 
-      final decryptedData = await _aesGcmDecryptJs(
-        encryptedData,
-        aesKeyBytes,
-        iv,
-      );
+      final aesKey = await web.AesGcmSecretKey.importRawKey(aesKeyBytes);
+      final decryptedData = await aesKey.decryptBytes(encryptedData, iv);
 
       return decryptedData;
     } catch (e) {
@@ -66,7 +62,10 @@ class ShirmDecryptionService {
     }
   }
 
-  static Future<dynamic> _importPrivateKeyJs(String pem, String hash) async {
+  static Future<web.RsaOaepPrivateKey> _importRsaOaepPrivateKey(
+    String pem,
+    web.Hash hash,
+  ) async {
     final b64 = pem
         .replaceFirst('-----BEGIN PRIVATE KEY-----', '')
         .replaceFirst('-----END PRIVATE KEY-----', '')
@@ -74,52 +73,6 @@ class ShirmDecryptionService {
         .replaceFirst('-----END RSA PRIVATE KEY-----', '')
         .replaceAll(RegExp(r'\s'), '');
     final keyData = base64Decode(b64);
-    final jsKeyData = js.JsObject.jsify(keyData);
-
-    final subtle = js.context['crypto']['subtle'];
-    return await subtle.callMethod('importKey', [
-      'pkcs8',
-      jsKeyData,
-      {'name': 'RSA-OAEP', 'hash': hash},
-      false,
-      ['decrypt'],
-    ]);
-  }
-
-  static Future<Uint8List> _rsaOaepDecryptJsWithHash(
-    Uint8List encrypted,
-    dynamic privateKey,
-    String hash,
-  ) async {
-    final encryptedJs = js.JsObject.jsify(encrypted);
-    final subtle = js.context['crypto']['subtle'];
-
-    final decryptedJs = await subtle.callMethod('decrypt', [
-      {'name': 'RSA-OAEP', 'hash': hash},
-      privateKey,
-      encryptedJs,
-    ]);
-    return Uint8List.fromList(List<int>.from(decryptedJs as List));
-  }
-
-  static Future<Uint8List> _aesGcmDecryptJs(
-    Uint8List ciphertext,
-    Uint8List key,
-    Uint8List iv,
-  ) async {
-    final subtle = js.context['crypto']['subtle'];
-    final keyJs = await subtle.callMethod('importKey', [
-      'raw',
-      js.JsObject.jsify(key),
-      'AES-GCM',
-      false,
-      ['decrypt'],
-    ]);
-    final decryptedJs = await subtle.callMethod('decrypt', [
-      {'name': 'AES-GCM', 'iv': js.JsObject.jsify(iv)},
-      keyJs,
-      js.JsObject.jsify(ciphertext),
-    ]);
-    return Uint8List.fromList(List<int>.from(decryptedJs as List));
+    return await web.RsaOaepPrivateKey.importPkcs8Key(keyData, hash);
   }
 }
