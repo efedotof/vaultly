@@ -3,6 +3,7 @@ package com.efedotov.vaultly.controller;
 import com.efedotov.vaultly.dto.auth.*;
 import com.efedotov.vaultly.security.CustomUserDetails;
 import com.efedotov.vaultly.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -82,5 +83,12 @@ public class AuthController {
     @GetMapping("/health")
     public String healthCheck() {
         return "Auth service is healthy";
+    }
+
+    @PostMapping("/recover")
+    public ResponseEntity<AuthResponse> recoverAccess(@Valid @RequestBody RecoverRequest request) {
+        log.info("REST recover access request with publicKey");
+        AuthResponse response = authService.recoverAccess(request);
+        return ResponseEntity.ok(response);
     }
 }

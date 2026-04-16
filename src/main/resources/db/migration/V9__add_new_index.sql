@@ -1,0 +1,1 @@
+CREATE INDEX idx_users_public_key ON users(public_key);

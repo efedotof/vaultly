@@ -31,6 +31,7 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/validate",
                                 "/api/auth/logout",
+                                "/api/auth/recover",
                                 "/api/auth/health")
                         .permitAll()
                         .requestMatchers("/tempacces/version132/temp-access/{token}/**").permitAll()

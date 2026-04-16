@@ -7,12 +7,14 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.efedotov.vaultly.dto.auth.AuthResponse;
 import com.efedotov.vaultly.dto.auth.LoginRequest;
+import com.efedotov.vaultly.dto.auth.RecoverRequest;
 import com.efedotov.vaultly.dto.auth.RegisterRequest;
 import com.efedotov.vaultly.dto.auth.TotpSetupResponse;
 import com.efedotov.vaultly.dto.auth.TotpVerifyResponse;
@@ -278,4 +280,39 @@ public class AuthService {
         log.info("TOTP disabled for user: {}", user.getUsername());
     }
 
+    @Transactional
+    public AuthResponse recoverAccess(RecoverRequest request) {
+        String publicKeyHash = DigestUtils.sha256Hex(request.getPublicKey());
+
+        if (loginAttemptService.isBlocked("recover:" + publicKeyHash)) {
+            throw new RuntimeException("Too many recovery attempts. Try again later.");
+        }
+
+        String normalizedPublicKey = normalizePublicKey(request.getPublicKey());
+        User user = userRepository.findByRecoveryPublicKey(normalizedPublicKey)
+                .orElseThrow(() -> {
+                    loginAttemptService.loginFailed("recover:" + publicKeyHash);
+                    return new RuntimeException("No user found with this recovery key");
+                });
+
+        if (!user.getIsActive()) {
+            throw new RuntimeException("User account is disabled");
+        }
+        
+        userRepository.save(user);
+
+        loginAttemptService.loginSucceeded("recover:" + publicKeyHash);
+        UserSession session = sessionService.createSession(user.getId());
+        return createAuthResponse(user, session.getToken());
+    }
+
+    private String normalizePublicKey(String raw) {
+        if (raw == null)
+            return null;
+
+        return raw.trim()
+                .replaceAll("\\s+", "")
+                .replace("-----BEGIN PUBLIC KEY-----", "")
+                .replace("-----END PUBLIC KEY-----", "");
+    }
 }

@@ -103,4 +103,16 @@ public class User {
 
     @Column(name = "backup_codes_hash", columnDefinition = "TEXT")
     private String backupCodesHash;
+
+    @Column(name = "recovery_public_key", columnDefinition = "TEXT")
+    private String recoveryPublicKey;
+
+    @Column(name = "recovery_private_key_encrypted", columnDefinition = "TEXT")
+    private String recoveryPrivateKeyEncrypted;
+
+    @Column(name = "recovery_salt")
+    private String recoverySalt;
+
+    @Column(name = "recovery_encrypted_rsa_key", columnDefinition = "TEXT")
+    private String recoveryEncryptedRsaKey;
 }

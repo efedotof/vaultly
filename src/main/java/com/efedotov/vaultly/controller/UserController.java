@@ -7,11 +7,15 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.efedotov.vaultly.dto.user.RecoveryDataResponse;
+import com.efedotov.vaultly.dto.user.UpdateKeysRequest;
+import com.efedotov.vaultly.dto.user.UpdateRecoveryKeysRequest;
 import com.efedotov.vaultly.dto.user.UpdateUserRequest;
 import com.efedotov.vaultly.dto.user.UserProfileDto;
 import com.efedotov.vaultly.security.CustomUserDetails;
@@ -76,4 +80,25 @@ public class UserController {
         return ResponseEntity.ok(salt);
     }
 
+    @PostMapping("/keys/recovery/update")
+    public ResponseEntity<Void> updateRecoveryKeys(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @Valid @RequestBody UpdateRecoveryKeysRequest request) {
+        userService.updateRecoveryKeys(user.getUserId(), request);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/me/recovery-data")
+    public ResponseEntity<RecoveryDataResponse> getRecoveryData(@AuthenticationPrincipal CustomUserDetails user) {
+        RecoveryDataResponse response = userService.getRecoveryData(user.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/keys/update")
+    public ResponseEntity<Void> updateKeys(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @RequestBody UpdateKeysRequest request) {
+        userService.updateKeys(user.getUserId(), request);
+        return ResponseEntity.ok().build();
+    }
 }
