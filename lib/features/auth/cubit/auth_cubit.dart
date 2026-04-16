@@ -513,7 +513,7 @@ class AuthCubit extends Cubit<AuthState> {
           );
 
       final serverSalt = await _userInterface.getUserSalt();
-      if (serverSalt == null || serverSalt.isEmpty) {
+      if (serverSalt.isEmpty) {
         throw Exception('Не удалось получить соль с сервера');
       }
 
