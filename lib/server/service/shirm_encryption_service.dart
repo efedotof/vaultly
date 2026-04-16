@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:pointycastle/asymmetric/oaep.dart';
 import 'package:pointycastle/asymmetric/rsa.dart';
 import 'package:pointycastle/block/aes.dart';
@@ -20,16 +21,22 @@ class ShirmEncryptionService {
     required String keyOwner,
     RSAPrivateKey? privateKey,
     String? originalFileName,
+    bool compress = false,
   }) async {
     final originalBytes = await file.readAsBytes();
 
     try {
+      Uint8List dataToEncrypt = originalBytes;
+      if (compress) {
+        final gzipEncoder = GZipEncoder();
+        dataToEncrypt = Uint8List.fromList(gzipEncoder.encode(originalBytes));
+      }
+
       final secureRandom = _getSecureRandom();
       final aesKey = secureRandom.nextBytes(32);
       final iv = secureRandom.nextBytes(12);
 
-      final encryptedData = _aesGcmEncrypt(originalBytes, aesKey, iv);
-
+      final encryptedData = _aesGcmEncrypt(dataToEncrypt, aesKey, iv);
       final encryptedKey = _rsaOaepEncrypt(aesKey, publicKey);
 
       final header = ShirmpsHeader(creationDate: DateTime.now())
@@ -40,6 +47,10 @@ class ShirmEncryptionService {
         ..metadata = {}
         ..keyOwner = keyOwner
         ..userId = userId;
+
+      if (compress) {
+        header.metadata!['compressed'] = 'true';
+      }
 
       if (privateKey != null) {
         final signatureBytes = _createSignature(originalBytes, privateKey);

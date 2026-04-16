@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:basic_utils/basic_utils.dart';
-
 import 'package:pointycastle/asymmetric/oaep.dart';
 import 'package:pointycastle/asymmetric/rsa.dart';
 import 'package:pointycastle/block/aes.dart';
 import 'package:pointycastle/block/modes/gcm.dart';
+import 'package:archive/archive.dart';
 import 'shirmps_header.dart';
 
 class ShirmDecryptionService {
@@ -68,8 +68,18 @@ class ShirmDecryptionService {
       }
 
       final encryptedData = shpsBytes.sublist(4 + headerLength);
-
       final decryptedData = _aesGcmDecrypt(encryptedData, aesKeyBytes, iv);
+
+      if (header.compressed) {
+        try {
+          final gzipDecoder = GZipDecoder();
+          final decompressed = gzipDecoder.decodeBytes(decryptedData);
+
+          return Uint8List.fromList(decompressed);
+        } catch (e) {
+          throw Exception('Failed to decompress gzip data: $e');
+        }
+      }
 
       return decryptedData;
     } catch (e) {
@@ -113,7 +123,12 @@ class ShirmDecryptionService {
         plaintext,
         0,
       );
-      gcm.doFinal(plaintext, len);
+      final finalised = gcm.doFinal(plaintext, len);
+      final actualLength = len + finalised;
+
+      if (actualLength < plaintext.length) {
+        return Uint8List.sublistView(plaintext, 0, actualLength);
+      }
       return plaintext;
     } catch (e) {
       rethrow;

@@ -76,6 +76,7 @@ dependencies:
   webview_flutter: ^4.13.1
   webview_flutter_android: ^4.11.0
   webview_flutter_wkwebview: ^3.24.3
+  archive: ^4.0.9
 
 
 dev_dependencies:

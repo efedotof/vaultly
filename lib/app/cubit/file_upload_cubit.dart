@@ -51,6 +51,7 @@ Future<void> _encryptFileInIsolate(_EncryptParams params) async {
     keyOwner: params.keyOwner,
     privateKey: privateKey,
     originalFileName: params.originalFileName,
+    compress: true,
   );
 
   await outputFile.writeAsBytes(encryptedBytes);

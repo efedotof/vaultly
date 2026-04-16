@@ -16,8 +16,11 @@ class ShirmpsHeader {
   String? keyOwner;
   String? userId;
 
+  bool compressed;
+
   ShirmpsHeader({DateTime? creationDate})
-    : creationDate = creationDate ?? DateTime.now();
+    : creationDate = creationDate ?? DateTime.now(),
+      compressed = false;
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{
@@ -49,6 +52,8 @@ class ShirmpsHeader {
     header.metadata = (json['metadata'] as Map?)?.cast<String, String>();
     header.keyOwner = json['keyOwner'] as String?;
     header.userId = json['userId'] as String?;
+    header.compressed =
+        header.metadata != null && header.metadata!['compressed'] == 'true';
     return header;
   }
 
@@ -58,12 +63,8 @@ class ShirmpsHeader {
   }
 
   static ShirmpsHeader fromJsonBytes(Uint8List bytes) {
-    try {
-      final jsonString = utf8.decode(bytes);
-      final json = jsonDecode(jsonString) as Map<String, dynamic>;
-      return fromJson(json);
-    } catch (e) {
-      rethrow;
-    }
+    final jsonString = utf8.decode(bytes);
+    final json = jsonDecode(jsonString) as Map<String, dynamic>;
+    return fromJson(json);
   }
 }

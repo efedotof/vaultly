@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:webcrypto/webcrypto.dart' as web;
+import 'package:archive/archive.dart';
 import 'shirmps_header.dart';
 
-class ShirmDecryptionService {
+class ShirmDecryptionServiceWeb {
   static Future<Uint8List> decryptShps(
     Uint8List shpsBytes, {
     required String privateKeyPem,
@@ -39,6 +40,7 @@ class ShirmDecryptionService {
             hash,
           );
           aesKeyBytes = await privateKey.decryptBytes(encryptedAesKey);
+
           break;
         } catch (e) {
           errors.add(Exception('Failed with hash $hash: $e'));
@@ -52,9 +54,19 @@ class ShirmDecryptionService {
       }
 
       final encryptedData = shpsBytes.sublist(4 + headerLength);
-
       final aesKey = await web.AesGcmSecretKey.importRawKey(aesKeyBytes);
       final decryptedData = await aesKey.decryptBytes(encryptedData, iv);
+
+      if (header.compressed) {
+        try {
+          final gzipDecoder = GZipDecoder();
+          final decompressed = gzipDecoder.decodeBytes(decryptedData);
+
+          return Uint8List.fromList(decompressed);
+        } catch (e) {
+          throw Exception('Failed to decompress gzip data: $e');
+        }
+      }
 
       return decryptedData;
     } catch (e) {

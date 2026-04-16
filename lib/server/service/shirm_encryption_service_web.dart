@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:archive/archive.dart';
 import 'package:webcrypto/webcrypto.dart' as web;
 import 'shirmps_header.dart';
 
@@ -12,14 +13,19 @@ class ShirmEncryptionServiceWeb {
     required String keyOwner,
     String? privateKeyPem,
     String? originalFileName,
+    bool compress = false,
   }) async {
+    Uint8List dataToEncrypt = originalBytes;
+    if (compress) {
+      final gzipEncoder = GZipEncoder();
+      dataToEncrypt = Uint8List.fromList(gzipEncoder.encode(originalBytes));
+    }
+
     final aesKey = _generateRandomBytes(32);
     final iv = _generateRandomBytes(12);
 
-    final encryptedData = await _aesGcmEncrypt(originalBytes, aesKey, iv);
-
+    final encryptedData = await _aesGcmEncrypt(dataToEncrypt, aesKey, iv);
     final publicKey = await _importPublicKeyFromPem(publicKeyPem);
-
     final encryptedKey = await publicKey.encryptBytes(aesKey);
 
     final header = ShirmpsHeader(creationDate: DateTime.now())
@@ -30,6 +36,10 @@ class ShirmEncryptionServiceWeb {
       ..metadata = {}
       ..keyOwner = keyOwner
       ..userId = userId;
+
+    if (compress) {
+      header.metadata!['compressed'] = 'true';
+    }
 
     if (privateKeyPem != null) {}
 
