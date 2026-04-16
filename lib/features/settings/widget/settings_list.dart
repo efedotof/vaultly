@@ -9,6 +9,7 @@ import 'confirm_dialog.dart';
 import 'info_row.dart';
 import 'seed_phrase_creation_dialog.dart';
 import 'totp_setup_dialog.dart';
+import 'update_section.dart';
 
 class SettingsList extends StatelessWidget {
   final UserProfileDto profile;
@@ -306,16 +307,6 @@ class SettingsList extends StatelessWidget {
                       onTap: () => _showTotpDisableDialog(context),
                     ),
                   ],
-
-                  if (isTotpEnabled) ...[
-                    const Divider(height: 0, indent: 16, endIndent: 16),
-                    ListTile(
-                      leading: const Icon(Icons.vpn_key_off),
-                      title: const Text('Отключить TOTP'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => _showTotpDisableDialog(context),
-                    ),
-                  ],
                   const Divider(height: 0, indent: 16, endIndent: 16),
                   ListTile(
                     leading: const Icon(Icons.key),
@@ -413,6 +404,9 @@ class SettingsList extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 20),
+
+            const UpdateSection(),
             const SizedBox(height: 32),
 
             FilledButton.icon(

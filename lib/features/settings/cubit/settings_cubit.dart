@@ -16,6 +16,8 @@ import 'package:vaulth_app/server/repository/totp/totp_interface.dart';
 import 'package:vaulth_app/server/repository/user/user_interface.dart';
 import 'package:vaulth_app/server/service/local_file_cache.dart';
 import 'package:vaulth_app/server/service/seed_phrase_service.dart';
+import 'package:vaulth_app/server/service/update/update_info.dart';
+import 'package:vaulth_app/server/service/update/update_service.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 
 part 'settings_state.dart';
@@ -31,6 +33,8 @@ class SettingsCubit extends Cubit<SettingsState> {
   final AuthCubit authCubit;
   final TotpInterface totpInterface;
   final SeedPhraseService seedPhraseService;
+  final UpdateService _updateService;
+
   SettingsCubit({
     required this.userRepository,
     required this.authRepository,
@@ -41,7 +45,9 @@ class SettingsCubit extends Cubit<SettingsState> {
     required this.authCubit,
     required this.totpInterface,
     required this.seedPhraseService,
-  }) : super(const SettingsState.initial());
+    required UpdateService updateService,
+  }) : _updateService = updateService,
+       super(const SettingsState.initial());
 
   TotpSetupResponse? _pendingTotpSetup;
 
@@ -85,6 +91,30 @@ class SettingsCubit extends Cubit<SettingsState> {
 
   Future<String?> getPublicKey() async {
     return await keyManager.getPublicKey();
+  }
+
+  Future<String?> getDevicePublicKey() async {
+    return await keyManager.getDevicePublicKey();
+  }
+
+  Future<String?> getDevicePrivateKeyPEM(String password) async {
+    try {
+      return await keyManager.getDevicePrivateKeyPEM(password);
+    } catch (e) {
+      if (_is403Error(e)) {
+        emit(SettingsState.unauthorized());
+      }
+      emit(
+        SettingsState.error(
+          'Не удалось получить приватный ключ устройства: $e',
+        ),
+      );
+      return null;
+    }
+  }
+
+  Future<void> clearAllKeys() async {
+    await keyManager.clearAllKeys();
   }
 
   Future<void> registerDevice(DeviceRegisterRequest request) async {
@@ -152,50 +182,96 @@ class SettingsCubit extends Cubit<SettingsState> {
 
   Future<void> refreshDevices() async {
     await state.maybeWhen(
-      loaded: (profile, devices, cacheSize) async {
-        try {
-          final newDevices = await deviceRepository.getUserDevices();
-          emit(
-            SettingsState.loaded(
-              profile: profile,
-              devices: newDevices,
-              cacheSizeBytes: cacheSize,
-            ),
-          );
-        } catch (e) {
-          if (_is403Error(e)) {
-            emit(SettingsState.unauthorized());
-            return;
-          }
-          emit(SettingsState.error('Ошибка обновления устройств: $e'));
-          emit(state);
-        }
-      },
+      loaded:
+          (
+            profile,
+            devices,
+            cacheSize,
+            isChecking,
+            isAvailable,
+            isDownloading,
+            updateInfo,
+          ) async {
+            try {
+              final newDevices = await deviceRepository.getUserDevices();
+              emit(
+                SettingsState.loaded(
+                  profile: profile,
+                  devices: newDevices,
+                  cacheSizeBytes: cacheSize,
+                  isCheckingUpdate: isChecking,
+                  isUpdateAvailable: isAvailable,
+                  isDownloading: isDownloading,
+                  updateInfo: updateInfo,
+                ),
+              );
+            } catch (e) {
+              if (_is403Error(e)) {
+                emit(SettingsState.unauthorized());
+                return;
+              }
+              emit(SettingsState.error('Ошибка обновления устройств: $e'));
+              emit(
+                SettingsState.loaded(
+                  profile: profile,
+                  devices: devices,
+                  cacheSizeBytes: cacheSize,
+                  isCheckingUpdate: isChecking,
+                  isUpdateAvailable: isAvailable,
+                  isDownloading: isDownloading,
+                  updateInfo: updateInfo,
+                ),
+              );
+            }
+          },
       orElse: () => loadSettingsData(),
     );
   }
 
   Future<void> refreshProfile() async {
     await state.maybeWhen(
-      loaded: (profile, devices, cacheSize) async {
-        try {
-          final newProfile = await userRepository.getCurrentUserProfile();
-          emit(
-            SettingsState.loaded(
-              profile: newProfile,
-              devices: devices,
-              cacheSizeBytes: cacheSize,
-            ),
-          );
-        } catch (e) {
-          if (_is403Error(e)) {
-            emit(SettingsState.unauthorized());
-            return;
-          }
-          emit(SettingsState.error('Ошибка обновления профиля: $e'));
-          emit(state);
-        }
-      },
+      loaded:
+          (
+            profile,
+            devices,
+            cacheSize,
+            isChecking,
+            isAvailable,
+            isDownloading,
+            updateInfo,
+          ) async {
+            try {
+              final newProfile = await userRepository.getCurrentUserProfile();
+              emit(
+                SettingsState.loaded(
+                  profile: newProfile,
+                  devices: devices,
+                  cacheSizeBytes: cacheSize,
+                  isCheckingUpdate: isChecking,
+                  isUpdateAvailable: isAvailable,
+                  isDownloading: isDownloading,
+                  updateInfo: updateInfo,
+                ),
+              );
+            } catch (e) {
+              if (_is403Error(e)) {
+                emit(SettingsState.unauthorized());
+                return;
+              }
+              emit(SettingsState.error('Ошибка обновления профиля: $e'));
+              emit(
+                SettingsState.loaded(
+                  profile: profile,
+                  devices: devices,
+                  cacheSizeBytes: cacheSize,
+                  isCheckingUpdate: isChecking,
+                  isUpdateAvailable: isAvailable,
+                  isDownloading: isDownloading,
+                  updateInfo: updateInfo,
+                ),
+              );
+            }
+          },
       orElse: () => loadSettingsData(),
     );
   }
@@ -205,15 +281,28 @@ class SettingsCubit extends Cubit<SettingsState> {
     try {
       await fileCache.clearCache();
       await state.maybeWhen(
-        loaded: (profile, devices, _) async {
-          emit(
-            SettingsState.loaded(
-              profile: profile,
-              devices: devices,
-              cacheSizeBytes: 0,
-            ),
-          );
-        },
+        loaded:
+            (
+              profile,
+              devices,
+              cacheSize,
+              isChecking,
+              isAvailable,
+              isDownloading,
+              updateInfo,
+            ) async {
+              emit(
+                SettingsState.loaded(
+                  profile: profile,
+                  devices: devices,
+                  cacheSizeBytes: 0,
+                  isCheckingUpdate: isChecking,
+                  isUpdateAvailable: isAvailable,
+                  isDownloading: isDownloading,
+                  updateInfo: updateInfo,
+                ),
+              );
+            },
         orElse: () {},
       );
     } catch (e) {
@@ -230,69 +319,37 @@ class SettingsCubit extends Cubit<SettingsState> {
 
   Future<void> refreshCacheSize() async {
     await state.maybeWhen(
-      loaded: (profile, devices, _) async {
-        try {
-          final cacheSize = await fileCache.getCacheSize();
-          emit(
-            SettingsState.loaded(
-              profile: profile,
-              devices: devices,
-              cacheSizeBytes: cacheSize,
-            ),
-          );
-        } catch (e) {
-          if (_is403Error(e)) {
-            emit(SettingsState.unauthorized());
-            return;
-          }
-        }
-      },
+      loaded:
+          (
+            profile,
+            devices,
+            cacheSize,
+            isChecking,
+            isAvailable,
+            isDownloading,
+            updateInfo,
+          ) async {
+            try {
+              final newCacheSize = await fileCache.getCacheSize();
+              emit(
+                SettingsState.loaded(
+                  profile: profile,
+                  devices: devices,
+                  cacheSizeBytes: newCacheSize,
+                  isCheckingUpdate: isChecking,
+                  isUpdateAvailable: isAvailable,
+                  isDownloading: isDownloading,
+                  updateInfo: updateInfo,
+                ),
+              );
+            } catch (e) {
+              if (_is403Error(e)) {
+                emit(SettingsState.unauthorized());
+                return;
+              }
+            }
+          },
       orElse: () {},
-    );
-  }
-
-  void _emitLoadingOrLoading(SettingsState previousState) {
-    previousState.maybeWhen(
-      loaded: (_, _, _) => emit(const SettingsState.loading()),
-      orElse: () => emit(const SettingsState.loading()),
-    );
-  }
-
-  Future<void> clearAllKeys() async {
-    await keyManager.clearAllKeys();
-  }
-
-  Future<String?> getDevicePublicKey() async {
-    return await keyManager.getDevicePublicKey();
-  }
-
-  Future<String?> getDevicePrivateKeyPEM(String password) async {
-    try {
-      return await keyManager.getDevicePrivateKeyPEM(password);
-    } catch (e) {
-      if (_is403Error(e)) {
-        emit(SettingsState.unauthorized());
-      }
-      emit(
-        SettingsState.error(
-          'Не удалось получить приватный ключ устройства: $e',
-        ),
-      );
-      return null;
-    }
-  }
-
-  void _emitErrorAndRestore(String message, SettingsState previousState) {
-    emit(SettingsState.error(message));
-    previousState.maybeWhen(
-      loaded: (profile, devices, cacheSize) => emit(
-        SettingsState.loaded(
-          profile: profile,
-          devices: devices,
-          cacheSizeBytes: cacheSize,
-        ),
-      ),
-      orElse: () => emit(const SettingsState.initial()),
     );
   }
 
@@ -353,29 +410,29 @@ class SettingsCubit extends Cubit<SettingsState> {
     }
   }
 
-  void _restoreState(SettingsState previousState) {
-    previousState.maybeWhen(
-      loaded: (profile, devices, cacheSize) => emit(
-        SettingsState.loaded(
-          profile: profile,
-          devices: devices,
-          cacheSizeBytes: cacheSize,
-        ),
-      ),
-      orElse: () => emit(const SettingsState.initial()),
-    );
-  }
-
   void resetTotpStates() {
     _pendingTotpSetup = null;
     state.maybeWhen(
-      loaded: (profile, devices, cacheSize) => emit(
-        SettingsState.loaded(
-          profile: profile,
-          devices: devices,
-          cacheSizeBytes: cacheSize,
-        ),
-      ),
+      loaded:
+          (
+            profile,
+            devices,
+            cacheSize,
+            isChecking,
+            isAvailable,
+            isDownloading,
+            updateInfo,
+          ) => emit(
+            SettingsState.loaded(
+              profile: profile,
+              devices: devices,
+              cacheSizeBytes: cacheSize,
+              isCheckingUpdate: isChecking,
+              isUpdateAvailable: isAvailable,
+              isDownloading: isDownloading,
+              updateInfo: updateInfo,
+            ),
+          ),
       orElse: () {},
     );
   }
@@ -415,7 +472,6 @@ class SettingsCubit extends Cubit<SettingsState> {
         privateKeyEncrypted: encryptedPrivateKey,
         currentPassword: password,
       );
-
       await userRepository.updateKeys(request: updateKeysRequest);
 
       final mnemonic = SeedPhraseService.generateMnemonic();
@@ -426,7 +482,6 @@ class SettingsCubit extends Cubit<SettingsState> {
         edKeyPair.privateKeyBase64,
         password,
       );
-
       final encryptedRsaKey = await SeedPhraseService.encryptRsaKeyWithMnemonic(
         rsaPrivateKeyPem,
         mnemonic,
@@ -451,6 +506,129 @@ class SettingsCubit extends Cubit<SettingsState> {
       emit(SettingsState.error('Ошибка создания seed-фразы: $e'));
       await loadSettingsData();
     }
+  }
+
+  Future<void> checkUpdateAvailability() async {
+    if (state is! _Loaded) return;
+
+    final current = state as _Loaded;
+    if (current.isCheckingUpdate || current.isDownloading) return;
+
+    emit(current.copyWith(isCheckingUpdate: true));
+
+    try {
+      final updateInfo = await _updateService.checkForUpdate();
+      emit(
+        current.copyWith(
+          isCheckingUpdate: false,
+          isUpdateAvailable: updateInfo != null,
+          updateInfo: updateInfo,
+        ),
+      );
+    } catch (e) {
+      emit(current.copyWith(isCheckingUpdate: false));
+      emit(SettingsState.error('Ошибка проверки обновлений: $e'));
+      emit(current.copyWith());
+    }
+  }
+
+  Future<void> downloadAndInstallUpdate() async {
+    if (state is! _Loaded) return;
+
+    final current = state as _Loaded;
+    final updateInfo = current.updateInfo;
+    if (updateInfo == null || current.isDownloading) return;
+
+    emit(current.copyWith(isDownloading: true, isCheckingUpdate: false));
+
+    try {
+      final success = await _updateService.downloadAndInstall(
+        updateInfo.downloadUrl,
+        onProgress: (progress) {},
+      );
+      if (success) {
+        emit(
+          current.copyWith(
+            isDownloading: false,
+            isUpdateAvailable: false,
+            updateInfo: null,
+          ),
+        );
+      } else {
+        emit(current.copyWith(isDownloading: false));
+        emit(SettingsState.error('Не удалось установить обновление'));
+        emit(current.copyWith());
+      }
+    } catch (e) {
+      emit(current.copyWith(isDownloading: false));
+      emit(SettingsState.error('Ошибка установки обновления: $e'));
+      emit(current.copyWith());
+    }
+  }
+
+  void _emitLoadingOrLoading(SettingsState previousState) {
+    previousState.maybeWhen(
+      loaded: (_, _, _, _, _, _, _) => emit(const SettingsState.loading()),
+      orElse: () => emit(const SettingsState.loading()),
+    );
+  }
+
+  void _emitErrorAndRestore(String message, SettingsState previousState) {
+    emit(SettingsState.error(message));
+    previousState.maybeWhen(
+      loaded:
+          (
+            profile,
+            devices,
+            cacheSize,
+            isChecking,
+            isAvailable,
+            isDownloading,
+            updateInfo,
+          ) => emit(
+            SettingsState.loaded(
+              profile: profile,
+              devices: devices,
+              cacheSizeBytes: cacheSize,
+              isCheckingUpdate: isChecking,
+              isUpdateAvailable: isAvailable,
+              isDownloading: isDownloading,
+              updateInfo: updateInfo,
+            ),
+          ),
+      orElse: () => emit(const SettingsState.initial()),
+    );
+  }
+
+  void _restoreState(SettingsState previousState) {
+    previousState.maybeWhen(
+      loaded:
+          (
+            profile,
+            devices,
+            cacheSize,
+            isChecking,
+            isAvailable,
+            isDownloading,
+            updateInfo,
+          ) => emit(
+            SettingsState.loaded(
+              profile: profile,
+              devices: devices,
+              cacheSizeBytes: cacheSize,
+              isCheckingUpdate: isChecking,
+              isUpdateAvailable: isAvailable,
+              isDownloading: isDownloading,
+              updateInfo: updateInfo,
+            ),
+          ),
+      orElse: () => emit(const SettingsState.initial()),
+    );
+  }
+
+  Future<void> refresh() async {
+    loadSettingsData();
+    checkUpdateAvailability();
   }
 
   bool _is403Error(Object e) {

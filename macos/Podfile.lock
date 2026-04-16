@@ -1,4 +1,8 @@
 PODS:
+  - cryptography_flutter_plus (0.2.0):
+    - FlutterMacOS
+  - desktop_updater (0.0.1):
+    - FlutterMacOS
   - device_info_plus (0.0.1):
     - FlutterMacOS
   - file_picker (0.0.1):
@@ -28,6 +32,8 @@ PODS:
     - FlutterMacOS
 
 DEPENDENCIES:
+  - cryptography_flutter_plus (from `Flutter/ephemeral/.symlinks/plugins/cryptography_flutter_plus/macos`)
+  - desktop_updater (from `Flutter/ephemeral/.symlinks/plugins/desktop_updater/macos`)
   - device_info_plus (from `Flutter/ephemeral/.symlinks/plugins/device_info_plus/macos`)
   - file_picker (from `Flutter/ephemeral/.symlinks/plugins/file_picker/macos`)
   - flutter_secure_storage_darwin (from `Flutter/ephemeral/.symlinks/plugins/flutter_secure_storage_darwin/darwin`)
@@ -42,6 +48,10 @@ DEPENDENCIES:
   - webview_flutter_wkwebview (from `Flutter/ephemeral/.symlinks/plugins/webview_flutter_wkwebview/darwin`)
 
 EXTERNAL SOURCES:
+  cryptography_flutter_plus:
+    :path: Flutter/ephemeral/.symlinks/plugins/cryptography_flutter_plus/macos
+  desktop_updater:
+    :path: Flutter/ephemeral/.symlinks/plugins/desktop_updater/macos
   device_info_plus:
     :path: Flutter/ephemeral/.symlinks/plugins/device_info_plus/macos
   file_picker:
@@ -68,6 +78,8 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/webview_flutter_wkwebview/darwin
 
 SPEC CHECKSUMS:
+  cryptography_flutter_plus: b790cf76f050be15566d4ae320574b35cff72d1e
+  desktop_updater: c6cadea9a19511e0b0630183a58e949ad8f99031
   device_info_plus: 1b14eed9bf95428983aed283a8d51cce3d8c4215
   file_picker: e716a70a9fe5fd9e09ebc922d7541464289443af
   flutter_secure_storage_darwin: 557817588b80e60213cbecb573c45c76b788018d

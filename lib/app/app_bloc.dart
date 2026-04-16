@@ -21,6 +21,7 @@ import 'package:vaulth_app/server/service/key_manager_service.dart';
 import 'package:vaulth_app/server/service/key_manager_service_web.dart';
 import 'package:vaulth_app/server/service/local_file_cache.dart';
 import 'package:vaulth_app/server/service/seed_phrase_service.dart';
+import 'package:vaulth_app/server/service/update/update_service.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 
 class AppBloc extends StatefulWidget {
@@ -51,6 +52,7 @@ class _AppBlocState extends State<AppBloc> {
             keyManagerService: keyManagerService,
             authLocalService: context.read<AuthLocalStorage>(),
             userInterface: context.read<UserInterface>(),
+            updateService: context.read<UpdateService>(),
           ),
         ),
         BlocProvider(
@@ -92,6 +94,7 @@ class _AppBlocState extends State<AppBloc> {
             authCubit: context.read<AuthCubit>(),
             totpInterface: context.read<TotpInterface>(),
             seedPhraseService: context.read<SeedPhraseService>(),
+            updateService: context.read<UpdateService>(),
           ),
         ),
         BlocProvider(

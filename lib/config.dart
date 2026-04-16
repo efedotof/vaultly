@@ -6,3 +6,4 @@ String folderkey = "https://vaultly.mnapp.ru:4443/api/folders";
 String userKey = "https://vaultly.mnapp.ru:4443/api/users";
 String tempAccessKey = "https://vaultly.mnapp.ru:4443/tempacces/version132";
 String githubRepoUrl = "https://github.com/efedotof/vaultly.git";
+String appArchiveUrl = "https://github.com/efedotof/vaultly/releases/latest/download/app-archive.json";

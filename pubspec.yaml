@@ -78,7 +78,6 @@ dependencies:
   webview_flutter_wkwebview: ^3.24.3
   archive: ^4.0.9
   desktop_updater: ^1.4.0
-  auto_update: ^0.0.4
 
 
 dev_dependencies:

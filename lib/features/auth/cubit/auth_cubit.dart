@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:bloc/bloc.dart';
@@ -19,6 +20,7 @@ import 'package:vaulth_app/server/repository/user/user_interface.dart';
 import 'package:vaulth_app/server/service/device_id_generator.dart';
 import 'package:vaulth_app/server/service/logger_service.dart';
 import 'package:vaulth_app/server/service/seed_phrase_service.dart';
+import 'package:vaulth_app/server/service/update/update_service.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 
 part 'auth_state.dart';
@@ -31,12 +33,14 @@ class AuthCubit extends Cubit<AuthState> {
     required dynamic keyManagerService,
     required AuthLocalStorage authLocalService,
     required UserInterface userInterface,
-  }) : _userInterface = userInterface,
-       _authinterface = authRepository,
-       _deviceInterface = deviceRepository,
-       _keyManagerService = keyManagerService,
-       _authLocalStorage = authLocalService,
-       super(const AuthState.loading()) {
+    required UpdateService updateService, 
+  })  : _userInterface = userInterface,
+        _authinterface = authRepository,
+        _deviceInterface = deviceRepository,
+        _keyManagerService = keyManagerService,
+        _authLocalStorage = authLocalService,
+        _updateService = updateService, 
+        super(const AuthState.loading()) {
     Future.microtask(() => checkAuthStatus());
   }
 
@@ -47,8 +51,10 @@ class AuthCubit extends Cubit<AuthState> {
   final UserInterface _userInterface;
   final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
   final DeviceIdGenerator _deviceIdGenerator = DeviceIdGenerator();
+  final UpdateService _updateService;
   String? _currentPassword;
   String? get currentPassword => _currentPassword;
+
 
   Future<String> _getDeviceType() async {
     if (kIsWeb) return 'web';
@@ -437,7 +443,7 @@ class AuthCubit extends Cubit<AuthState> {
             );
           }
         }
-
+        unawaited(_updateService.checkForUpdate());
         LoggerService().debug('AuthCubit: token valid, user authenticated');
         emit(AuthState.authenticated(response));
         return;

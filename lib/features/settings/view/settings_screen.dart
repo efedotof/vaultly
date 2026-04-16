@@ -29,7 +29,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _refresh() async {
-    await context.read<SettingsCubit>().loadSettingsData();
+    if (!context.mounted) return;
+    await context.read<SettingsCubit>().refresh();
   }
 
   void _showSnackBar(String message, {required bool isError}) {
@@ -55,7 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             listener: (context, state) {
               state.whenOrNull(
                 error: (message) => _showSnackBar(message, isError: true),
-                loaded: (profile, devices, cacheSizeBytes) {
+                loaded: (profile, devices, cacheSizeBytes, _, _, _, _) {
                   _lastProfile = profile;
                   _lastCacheSize = cacheSizeBytes;
                 },
