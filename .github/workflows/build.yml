@@ -94,7 +94,7 @@ jobs:
         run: dart pub global activate desktop_updater
 
       - name: Create update archive for Windows
-        run: dart run desktop_updater:archive windows --app-name=vaulth_app
+        run: dart pub global run desktop_updater:archive windows --app-name=vaulth_app
 
       - name: Get version from pubspec
         id: version
@@ -146,7 +146,7 @@ jobs:
           fi
 
       - name: Create update archive for macOS
-        run: dart run desktop_updater:archive macos --app-name=vaulth_app
+        run: dart pub global run desktop_updater:archive macos --app-name=vaulth_app
 
       - name: Get version from pubspec
         id: version
