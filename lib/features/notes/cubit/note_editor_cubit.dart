@@ -1,6 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
-
+import 'dart:io' as io;
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -142,13 +141,13 @@ class NoteEditorCubit extends Cubit<NoteEditorState> {
           throw Exception('Не удалось получить ключи шифрования');
         }
 
+        // Создаём временный файл и гарантированно удаляем его
         final tempDir = await getTemporaryDirectory();
-        final tempPlainFile = File(
+        final tempPlainFile = io.File(
           '${tempDir.path}/temp_note_${DateTime.now().millisecondsSinceEpoch}.md',
         );
-        await tempPlainFile.writeAsBytes(bytes);
-
         try {
+          await tempPlainFile.writeAsBytes(bytes);
           encryptedData =
               await native_encrypt.ShirmEncryptionService.encryptFile(
                 tempPlainFile,
@@ -158,7 +157,10 @@ class NoteEditorCubit extends Cubit<NoteEditorState> {
                 privateKey: privateKeyObj,
               );
         } finally {
-          await tempPlainFile.delete();
+          // Удаляем временный файл в любом случае
+          if (await tempPlainFile.exists()) {
+            await tempPlainFile.delete();
+          }
         }
       }
 

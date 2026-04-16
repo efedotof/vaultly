@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:vaulth_app/server/model/file/check_duplicate_request/check_duplicate_request.dart';
@@ -70,41 +69,6 @@ class FileRepository implements FileInterface {
 
       final response = await _dio.post(
         '/upload/shps',
-        data: formData,
-        options: Options(headers: {'Content-Type': 'multipart/form-data'}),
-        onSendProgress: onSendProgress,
-      );
-
-      return FileDto.fromJson(response.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
-  }
-
-  @override
-  Future<FileDto> uploadPublicFile({
-    required File file,
-    String? folderId,
-    ProgressCallback? onSendProgress,
-    String? contentHash,
-  }) async {
-    try {
-      final fileName = file.path.split('/').last;
-      final multipartFile = await MultipartFile.fromFile(
-        file.path,
-        filename: fileName,
-      );
-
-      final formDataMap = {
-        'file': multipartFile,
-        'folderId': folderId,
-        'contentHash': contentHash,
-      };
-
-      final formData = FormData.fromMap(formDataMap);
-
-      final response = await _dio.post(
-        '/upload/public',
         data: formData,
         options: Options(headers: {'Content-Type': 'multipart/form-data'}),
         onSendProgress: onSendProgress,

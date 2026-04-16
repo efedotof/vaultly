@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:vaulth_app/server/model/file/check_duplicate_response/check_duplicate_response.dart';
@@ -18,18 +17,10 @@ abstract class FileInterface {
     String? contentHash,
   });
 
-  Future<FileDto> uploadPublicFile({
-    required File file,
-    String? folderId,
-    ProgressCallback? onSendProgress,
-    String? contentHash,
-  });
-
   Future<PageResponse<FileDto>> getAllFiles({int page = 0, int size = 20});
   Future<PageResponse<FileDto>> getRecentFiles({int page = 0, int size = 10});
 
   Future<Uint8List> downloadShps(String fileId);
-
   Future<Uint8List> downloadDecrypted(String fileId);
   Future<void> deleteFile(String fileId);
 

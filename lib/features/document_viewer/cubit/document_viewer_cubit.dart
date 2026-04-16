@@ -1,11 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, compute;
 import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:vaulth_app/features/auth/cubit/auth_cubit.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
@@ -15,6 +13,9 @@ import 'package:vaulth_app/server/service/logger_service.dart';
 import 'package:vaulth_app/server/service/public_file_decryption_service.dart';
 import 'package:vaulth_app/server/service/shirm_decryption_service_platform.dart';
 import 'package:vaulth_app/server/service/shirmps_header.dart';
+import 'dart:html' as html if (dart.library.io) 'dart:io';
+import 'dart:io' as io;
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 part 'document_viewer_state.dart';
@@ -33,7 +34,7 @@ class _DecryptParams {
 
 Future<void> _decryptShpsInIsolate(_DecryptParams params) async {
   try {
-    final inputFile = File(params.inputPath);
+    final inputFile = io.File(params.inputPath);
     final encryptedBytes = await inputFile.readAsBytes();
 
     final decryptedBytes = await ShirmDecryptionService.decryptShps(
@@ -41,7 +42,7 @@ Future<void> _decryptShpsInIsolate(_DecryptParams params) async {
       privateKeyPem: params.privateKeyPem,
     );
 
-    final outputFile = File(params.outputPath);
+    final outputFile = io.File(params.outputPath);
     await outputFile.writeAsBytes(decryptedBytes);
   } catch (e) {
     rethrow;
@@ -307,7 +308,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
       final tempDecryptedPath = '${tempDir.path}/dec_$timestamp.bin';
 
       try {
-        await File(tempEncryptedPath).writeAsBytes(encryptedBytes);
+        await io.File(tempEncryptedPath).writeAsBytes(encryptedBytes);
         await compute(
           _decryptShpsInIsolate,
           _DecryptParams(
@@ -317,7 +318,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
           ),
         );
 
-        return await File(tempDecryptedPath).readAsBytes();
+        return await io.File(tempDecryptedPath).readAsBytes();
       } finally {
         await _deleteTempFiles([tempEncryptedPath, tempDecryptedPath]);
       }
@@ -328,7 +329,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
     for (final path in paths) {
       if (path != null) {
         try {
-          final f = File(path);
+          final f = io.File(path);
           if (await f.exists()) {
             await f.delete();
           }
@@ -518,67 +519,96 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
     return ContentType.binary;
   }
 
-  Future<void> downloadFile() async {
-    final currentState = state;
-    if (currentState is! _Loaded) {
-      _logger.debug(
-        '[DocumentViewerCubit] downloadFile вызван, но файл не загружен',
-      );
-      return;
-    }
+Future<void> downloadFile() async {
+  final currentState = state;
+  if (currentState is! _Loaded) {
+    _logger.debug(
+      '[DocumentViewerCubit] downloadFile вызван, но файл не загружен',
+    );
+    return;
+  }
 
+
+  if (kIsWeb) {
     try {
-      if (Platform.isAndroid) {
-        final status = await Permission.storage.request();
-        if (!status.isGranted) {
-          throw Exception('Нет разрешения на запись в хранилище');
-        }
-      }
+      final data = currentState.data;
+      final fileName = currentState.fileName;
 
-      Directory downloadsDir;
-      if (Platform.isAndroid) {
-        final extDir = await getExternalStorageDirectory();
-        if (extDir == null) {
-          throw Exception('Не удалось получить доступ к внешнему хранилищу');
-        }
-        final rootPath = extDir.parent.parent.path;
-        downloadsDir = Directory('$rootPath/Download');
-        if (!await downloadsDir.exists()) {
-          await downloadsDir.create(recursive: true);
-        }
-      } else {
-        final dir = await getDownloadsDirectory();
-        if (dir == null) {
-          throw Exception('Не удалось получить папку Downloads');
-        }
-        downloadsDir = dir;
-      }
 
-      String fileName = currentState.fileName;
-      String filePath = '${downloadsDir.path}/$fileName';
-      final file = File(filePath);
+      final blob = html.Blob([data]);
 
-      if (await file.exists()) {
-        final ext = fileName.contains('.')
-            ? fileName.substring(fileName.lastIndexOf('.'))
-            : '';
-        final base = fileName.contains('.')
-            ? fileName.substring(0, fileName.lastIndexOf('.'))
-            : fileName;
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        fileName = '${base}_$timestamp$ext';
-        filePath = '${downloadsDir.path}/$fileName';
-      }
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)
+        ..setAttribute('download', fileName)
+        ..click();
 
-      await File(filePath).writeAsBytes(currentState.data);
-      _logger.info('[DocumentViewerCubit] Файл сохранён в $filePath');
+      html.Url.revokeObjectUrl(url);
+
+      _logger.info('[DocumentViewerCubit] Файл сохранён (Web): $fileName');
     } catch (e, stackTrace) {
       _logger.error(
-        '[DocumentViewerCubit] Ошибка сохранения',
+        '[DocumentViewerCubit] Ошибка сохранения в Web',
         error: e,
         stackTrace: stackTrace,
       );
       rethrow;
     }
+    return;
   }
+
+
+  try {
+    if (io.Platform.isAndroid) {
+      final status = await Permission.storage.request();
+      if (!status.isGranted) {
+        throw Exception('Нет разрешения на запись в хранилище');
+      }
+    }
+
+    io.Directory downloadsDir;
+    if (io.Platform.isAndroid) {
+      final extDir = await getExternalStorageDirectory();
+      if (extDir == null) {
+        throw Exception('Не удалось получить доступ к внешнему хранилищу');
+      }
+      final rootPath = extDir.parent.parent.path;
+      downloadsDir = io.Directory('$rootPath/Download');
+      if (!await downloadsDir.exists()) {
+        await downloadsDir.create(recursive: true);
+      }
+    } else {
+      final dir = await getDownloadsDirectory();
+      if (dir == null) {
+        throw Exception('Не удалось получить папку Downloads');
+      }
+      downloadsDir = dir;
+    }
+
+    String fileName = currentState.fileName;
+    String filePath = '${downloadsDir.path}/$fileName';
+    final file = io.File(filePath);
+
+    if (await file.exists()) {
+      final ext = fileName.contains('.')
+          ? fileName.substring(fileName.lastIndexOf('.'))
+          : '';
+      final base = fileName.contains('.')
+          ? fileName.substring(0, fileName.lastIndexOf('.'))
+          : fileName;
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      fileName = '${base}_$timestamp$ext';
+      filePath = '${downloadsDir.path}/$fileName';
+    }
+
+    await io.File(filePath).writeAsBytes(currentState.data);
+    _logger.info('[DocumentViewerCubit] Файл сохранён в $filePath');
+  } catch (e, stackTrace) {
+    _logger.error(
+      '[DocumentViewerCubit] Ошибка сохранения',
+      error: e,
+      stackTrace: stackTrace,
+    );
+    rethrow;
+  }
+}
 }

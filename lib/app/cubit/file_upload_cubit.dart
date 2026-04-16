@@ -1,21 +1,18 @@
 import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
-import 'dart:ui';
-
+import 'dart:ui' as ui;
 import 'package:bloc/bloc.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, compute, debugPrint;
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:basic_utils/basic_utils.dart';
-
 import 'package:vaulth_app/server/model/file/upload_task/upload_task.dart';
 import 'package:vaulth_app/server/repository/file/file_interface.dart';
 import 'package:vaulth_app/server/service/shirm_encryption_service.dart';
 import 'package:vaulth_app/server/service/shirm_encryption_service_web.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
-
-import 'dart:io' if (dart.library.html) 'dart:html';
+import 'dart:io' as io;
 
 part 'file_upload_state.dart';
 part 'file_upload_cubit.freezed.dart';
@@ -41,8 +38,8 @@ class _EncryptParams {
 }
 
 Future<void> _encryptFileInIsolate(_EncryptParams params) async {
-  final inputFile = File(params.inputPath);
-  final outputFile = File(params.outputPath);
+  final inputFile = io.File(params.inputPath);
+  final outputFile = io.File(params.outputPath);
 
   final publicKey = CryptoUtils.rsaPublicKeyFromPem(params.publicKeyPem);
   final privateKey = CryptoUtils.rsaPrivateKeyFromPem(params.privateKeyPem);
@@ -66,7 +63,7 @@ class _TaskRetryData {
   final String password;
   final String? folderId;
   final bool isPublic;
-  final VoidCallback? onSuccess;
+  final ui.VoidCallback? onSuccess;
 
   _TaskRetryData({
     required this.fileBytes,
@@ -102,7 +99,7 @@ class FileUploadCubit extends Cubit<FileUploadState> {
     required String password,
     String? folderId,
     required bool isPublic,
-    VoidCallback? onSuccess,
+    ui.VoidCallback? onSuccess,
   }) async {
     final taskId = DateTime.now().millisecondsSinceEpoch.toString();
     final task = UploadTask(
@@ -233,12 +230,12 @@ class FileUploadCubit extends Cubit<FileUploadState> {
           originalFileName: fileName,
         );
       } else {
-        final tempDir = Directory.systemTemp;
+        final tempDir = io.Directory.systemTemp;
         final timestamp = DateTime.now().millisecondsSinceEpoch;
         tempInputPath = '${tempDir.path}/input_$timestamp.bin';
         tempEncryptedPath = '${tempDir.path}/encrypted_$timestamp.shps';
 
-        await File(tempInputPath).writeAsBytes(fileBytes);
+        await io.File(tempInputPath).writeAsBytes(fileBytes);
 
         await compute(
           _encryptFileInIsolate,
@@ -253,7 +250,7 @@ class FileUploadCubit extends Cubit<FileUploadState> {
           ),
         );
 
-        final encryptedFile = File(tempEncryptedPath);
+        final encryptedFile = io.File(tempEncryptedPath);
         encryptedBytes = await encryptedFile.readAsBytes();
       }
 
@@ -312,9 +309,9 @@ class FileUploadCubit extends Cubit<FileUploadState> {
   }
 
   Future<void> _deleteTempFile(String? path) async {
-    if (path != null) {
+    if (path != null && !kIsWeb) {
       try {
-        final f = File(path);
+        final f = io.File(path);
         if (await f.exists()) await f.delete();
       } catch (_) {}
     }

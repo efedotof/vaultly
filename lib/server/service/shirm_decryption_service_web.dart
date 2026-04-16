@@ -4,7 +4,7 @@ import 'package:webcrypto/webcrypto.dart' as web;
 import 'package:archive/archive.dart';
 import 'shirmps_header.dart';
 
-class ShirmDecryptionServiceWeb {
+class ShirmDecryptionService {
   static Future<Uint8List> decryptShps(
     Uint8List shpsBytes, {
     required String privateKeyPem,
