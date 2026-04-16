@@ -1,11 +1,44 @@
-name: Build and Release Desktop Apps
+name: Build and Release Desktop and Android Apps
 
 on:
   push:
     tags:
-      - 'v*' 
+      - 'v*'
 
 jobs:
+  build-android:
+    name: Build for Android
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Get version from pubspec
+        id: version
+        run: |
+          version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      - name: Upload APK to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-windows:
     name: Build for Windows
     runs-on: windows-latest
@@ -18,8 +51,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
+          flutter-version: 'stable'
 
       - name: Enable windows support
         run: flutter config --enable-windows-desktop
@@ -62,8 +94,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
+          flutter-version: 'stable'
 
       - name: Enable macos support
         run: flutter config --enable-macos-desktop
