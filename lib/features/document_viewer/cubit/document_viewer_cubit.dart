@@ -13,7 +13,7 @@ import 'package:vaulth_app/server/service/logger_service.dart';
 import 'package:vaulth_app/server/service/public_file_decryption_service.dart';
 import 'package:vaulth_app/server/service/shirm_decryption_service_platform.dart';
 import 'package:vaulth_app/server/service/shirmps_header.dart';
-import 'dart:html' as html if (dart.library.io) 'dart:io';
+import 'file_saver.dart';
 import 'dart:io' as io;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -519,96 +519,84 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
     return ContentType.binary;
   }
 
-Future<void> downloadFile() async {
-  final currentState = state;
-  if (currentState is! _Loaded) {
-    _logger.debug(
-      '[DocumentViewerCubit] downloadFile вызван, но файл не загружен',
-    );
-    return;
-  }
+  Future<void> downloadFile() async {
+    final currentState = state;
+    if (currentState is! _Loaded) {
+      _logger.debug(
+        '[DocumentViewerCubit] downloadFile вызван, но файл не загружен',
+      );
+      return;
+    }
 
+    if (kIsWeb) {
+      try {
+        await saveFileWeb(currentState.data, currentState.fileName);
+        _logger.info(
+          '[DocumentViewerCubit] Файл сохранён (Web): ${currentState.fileName}',
+        );
+      } catch (e, stackTrace) {
+        _logger.error(
+          '[DocumentViewerCubit] Ошибка сохранения в Web',
+          error: e,
+          stackTrace: stackTrace,
+        );
+        rethrow;
+      }
+      return;
+    }
 
-  if (kIsWeb) {
     try {
-      final data = currentState.data;
-      final fileName = currentState.fileName;
+      if (io.Platform.isAndroid) {
+        final status = await Permission.storage.request();
+        if (!status.isGranted) {
+          throw Exception('Нет разрешения на запись в хранилище');
+        }
+      }
 
+      io.Directory downloadsDir;
+      if (io.Platform.isAndroid) {
+        final extDir = await getExternalStorageDirectory();
+        if (extDir == null) {
+          throw Exception('Не удалось получить доступ к внешнему хранилищу');
+        }
+        final rootPath = extDir.parent.parent.path;
+        downloadsDir = io.Directory('$rootPath/Download');
+        if (!await downloadsDir.exists()) {
+          await downloadsDir.create(recursive: true);
+        }
+      } else {
+        final dir = await getDownloadsDirectory();
+        if (dir == null) {
+          throw Exception('Не удалось получить папку Downloads');
+        }
+        downloadsDir = dir;
+      }
 
-      final blob = html.Blob([data]);
+      String fileName = currentState.fileName;
+      String filePath = '${downloadsDir.path}/$fileName';
+      final file = io.File(filePath);
 
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      html.AnchorElement(href: url)
-        ..setAttribute('download', fileName)
-        ..click();
+      if (await file.exists()) {
+        final ext = fileName.contains('.')
+            ? fileName.substring(fileName.lastIndexOf('.'))
+            : '';
+        final base = fileName.contains('.')
+            ? fileName.substring(0, fileName.lastIndexOf('.'))
+            : fileName;
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        fileName = '${base}_$timestamp$ext';
+        filePath = '${downloadsDir.path}/$fileName';
+      }
 
-      html.Url.revokeObjectUrl(url);
-
-      _logger.info('[DocumentViewerCubit] Файл сохранён (Web): $fileName');
+      await io.File(filePath).writeAsBytes(currentState.data);
+      _logger.info('[DocumentViewerCubit] Файл сохранён в $filePath');
     } catch (e, stackTrace) {
       _logger.error(
-        '[DocumentViewerCubit] Ошибка сохранения в Web',
+        '[DocumentViewerCubit] Ошибка сохранения',
         error: e,
         stackTrace: stackTrace,
       );
       rethrow;
     }
-    return;
   }
-
-
-  try {
-    if (io.Platform.isAndroid) {
-      final status = await Permission.storage.request();
-      if (!status.isGranted) {
-        throw Exception('Нет разрешения на запись в хранилище');
-      }
-    }
-
-    io.Directory downloadsDir;
-    if (io.Platform.isAndroid) {
-      final extDir = await getExternalStorageDirectory();
-      if (extDir == null) {
-        throw Exception('Не удалось получить доступ к внешнему хранилищу');
-      }
-      final rootPath = extDir.parent.parent.path;
-      downloadsDir = io.Directory('$rootPath/Download');
-      if (!await downloadsDir.exists()) {
-        await downloadsDir.create(recursive: true);
-      }
-    } else {
-      final dir = await getDownloadsDirectory();
-      if (dir == null) {
-        throw Exception('Не удалось получить папку Downloads');
-      }
-      downloadsDir = dir;
-    }
-
-    String fileName = currentState.fileName;
-    String filePath = '${downloadsDir.path}/$fileName';
-    final file = io.File(filePath);
-
-    if (await file.exists()) {
-      final ext = fileName.contains('.')
-          ? fileName.substring(fileName.lastIndexOf('.'))
-          : '';
-      final base = fileName.contains('.')
-          ? fileName.substring(0, fileName.lastIndexOf('.'))
-          : fileName;
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      fileName = '${base}_$timestamp$ext';
-      filePath = '${downloadsDir.path}/$fileName';
-    }
-
-    await io.File(filePath).writeAsBytes(currentState.data);
-    _logger.info('[DocumentViewerCubit] Файл сохранён в $filePath');
-  } catch (e, stackTrace) {
-    _logger.error(
-      '[DocumentViewerCubit] Ошибка сохранения',
-      error: e,
-      stackTrace: stackTrace,
-    );
-    rethrow;
-  }
-}
 }
