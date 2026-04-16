@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, compute;
+import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:basic_utils/basic_utils.dart';
@@ -385,6 +386,61 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
 
   ContentType _detectContentType(Uint8List data, String fileName) {
     final lowerName = fileName.toLowerCase();
+    debugPrint('Detecting type for: $lowerName');
+    const codeExtensions = [
+      '.dart',
+      '.java',
+      '.kt',
+      '.kts',
+      '.swift',
+      '.c',
+      '.cpp',
+      '.cc',
+      '.cxx',
+      '.h',
+      '.hpp',
+      '.py',
+      '.pyw',
+      '.js',
+      '.mjs',
+      '.ts',
+      '.jsx',
+      '.tsx',
+      '.html',
+      '.htm',
+      '.css',
+      '.scss',
+      '.sass',
+      '.less',
+      '.json',
+      '.xml',
+      '.yaml',
+      '.yml',
+      '.toml',
+      '.sh',
+      '.bat',
+      '.ps1',
+      '.go',
+      '.rs',
+      '.rb',
+      '.php',
+      '.sql',
+      '.r',
+      '.m',
+      '.mm',
+      '.vue',
+      '.svelte',
+      '.gradle',
+      '.properties',
+      '.env',
+      '.gitignore',
+      '.dockerignore',
+    ];
+    for (final ext in codeExtensions) {
+      if (lowerName.endsWith(ext)) {
+        return ContentType.code;
+      }
+    }
 
     if (lowerName.endsWith('.md') || lowerName.endsWith('.markdown')) {
       return ContentType.markdown;

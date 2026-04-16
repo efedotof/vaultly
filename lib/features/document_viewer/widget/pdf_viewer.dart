@@ -35,7 +35,9 @@ class _PdfViewerState extends State<PdfViewer> {
       _path = file.path;
       widget.onTempPath(file.path);
     } catch (_) {}
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override

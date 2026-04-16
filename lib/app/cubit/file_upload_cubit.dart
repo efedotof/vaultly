@@ -24,6 +24,7 @@ class _EncryptParams {
   final String privateKeyPem;
   final String userId;
   final String keyOwner;
+  final String originalFileName;
 
   _EncryptParams({
     required this.inputPath,
@@ -32,6 +33,7 @@ class _EncryptParams {
     required this.privateKeyPem,
     required this.userId,
     required this.keyOwner,
+    required this.originalFileName,
   });
 }
 
@@ -48,6 +50,7 @@ Future<void> _encryptFileInIsolate(_EncryptParams params) async {
     userId: params.userId,
     keyOwner: params.keyOwner,
     privateKey: privateKey,
+    originalFileName: params.originalFileName,
   );
 
   await outputFile.writeAsBytes(encryptedBytes);
@@ -231,6 +234,7 @@ class FileUploadCubit extends Cubit<FileUploadState> {
             privateKeyPem: userPrivateKeyPem,
             userId: userId,
             keyOwner: keyOwner,
+            originalFileName: fileName,
           ),
         );
 

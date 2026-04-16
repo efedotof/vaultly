@@ -512,9 +512,15 @@ class AuthCubit extends Cubit<AuthState> {
             mnemonic,
           );
 
+      final serverSalt = await _userInterface.getUserSalt();
+      if (serverSalt == null || serverSalt.isEmpty) {
+        throw Exception('Не удалось получить соль с сервера');
+      }
+
       await _keyManagerService.storeUserPrivateKeyEncryptedWithPassword(
         rsaPrivateKeyPem,
         newPassword,
+        salt: serverSalt,
       );
       _currentPassword = newPassword;
       await _authLocalStorage.savePassword(newPassword);

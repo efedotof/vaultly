@@ -7,6 +7,7 @@ import 'package:vaulth_app/features/document_viewer/cubit/document_viewer_cubit.
 import 'package:vaulth_app/features/notes/widget/note_editor_screen.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
 
+import 'code_view.dart';
 import 'media_kit_video_player.dart';
 import 'office_viewer.dart';
 import 'pdf_viewer.dart';
@@ -62,6 +63,15 @@ class ContentView extends StatelessWidget {
           ),
         );
 
+      case ContentType.code:
+        return CodeView(
+          data: data,
+          fileName: fileName,
+          isFullscreen: isFullscreen,
+          onToggleFullscreen: onToggleFullscreen,
+          onUserInteraction: onUserInteraction,
+        );
+
       case ContentType.image:
         return Container(
           margin: EdgeInsets.only(top: topMargin),
@@ -90,7 +100,11 @@ class ContentView extends StatelessWidget {
       case ContentType.office:
         return Padding(
           padding: EdgeInsets.only(top: topMargin),
-          child: OfficeViewer(publicUrl: preUrlFile),
+          child: OfficeViewer(
+            data: data,
+            fileName: fileName,
+            publicUrl: preUrlFile,
+          ),
         );
 
       case ContentType.binary:
@@ -193,4 +207,3 @@ class MarkdownPreview extends StatelessWidget {
     );
   }
 }
-

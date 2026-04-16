@@ -19,6 +19,7 @@ class ShirmEncryptionService {
     required String userId,
     required String keyOwner,
     RSAPrivateKey? privateKey,
+    String? originalFileName,
   }) async {
     final originalBytes = await file.readAsBytes();
 
@@ -32,7 +33,7 @@ class ShirmEncryptionService {
       final encryptedKey = _rsaOaepEncrypt(aesKey, publicKey);
 
       final header = ShirmpsHeader(creationDate: DateTime.now())
-        ..originalFileName = file.path.split('/').last
+        ..originalFileName = originalFileName ?? file.path.split('/').last
         ..originalFileSize = originalBytes.length
         ..encryptedKey = base64.encode(encryptedKey)
         ..iv = base64.encode(iv)

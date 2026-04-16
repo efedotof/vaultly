@@ -388,15 +388,15 @@ class SettingsCubit extends Cubit<SettingsState> {
         throw Exception('Неверный пароль или данные повреждены');
       }
 
-      final currentSalt = await keyManager.getUserSalt();
-      if (currentSalt == null) {
-        throw Exception('Соль не найдена');
+      final serverSalt = await userRepository.getUserSalt();
+      if (serverSalt.isEmpty) {
+        throw Exception('Не удалось получить соль с сервера');
       }
 
       await keyManager.storeUserPrivateKeyEncryptedWithPassword(
         rsaPrivateKeyPem,
         password,
-        salt: currentSalt,
+        salt: serverSalt,
       );
 
       final encryptedPrivateKey = await keyManager
@@ -415,6 +415,7 @@ class SettingsCubit extends Cubit<SettingsState> {
         privateKeyEncrypted: encryptedPrivateKey,
         currentPassword: password,
       );
+
       await userRepository.updateKeys(request: updateKeysRequest);
 
       final mnemonic = SeedPhraseService.generateMnemonic();
