@@ -88,12 +88,18 @@ class CodeView extends StatelessWidget {
           }
           return false;
         },
-        child: HighlightView(
-          content,
-          language: language,
-          theme: githubTheme,
-          padding: const EdgeInsets.all(16),
-          textStyle: const TextStyle(fontFamily: 'monospace', fontSize: 14),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.vertical,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: HighlightView(
+              content,
+              language: language,
+              theme: githubTheme,
+              padding: const EdgeInsets.all(16),
+              textStyle: const TextStyle(fontFamily: 'monospace', fontSize: 14),
+            ),
+          ),
         ),
       ),
     );
