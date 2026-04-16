@@ -26,6 +26,17 @@ android {
         }
     }
 
+    afterEvaluate {
+        project.plugins.withId("com.android.library") {
+            extensions.findByType<LibraryExtension>()?.apply {
+                if (namespace == null) {
+                    namespace = "com.example.auto_update"
+                }
+            }
+        }
+    }
+
+
    packagingOptions {
         jniLibs {
             pickFirsts += listOf(

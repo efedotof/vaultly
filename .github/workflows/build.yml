@@ -6,202 +6,202 @@ on:
       - 'v*'
 
 jobs:
-  build-android:
-    name: Build for Android
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    build-android:
+      name: Build for Android
+      runs-on: ubuntu-latest
+      outputs:
+        version: ${{ steps.version.outputs.version }}
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.38.10'
+        - name: Setup Flutter
+          uses: subosito/flutter-action@v2
+          with:
+            flutter-version: '3.38.10'
 
-      - name: Get dependencies
-        run: flutter pub get
+        - name: Get dependencies
+          run: flutter pub get
 
-      - name: Run code generation
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+        - name: Run code generation
+          run: flutter pub run build_runner build --delete-conflicting-outputs
 
-      - name: Create key.properties
-        run: |
-          cat > android/key.properties << 'EOF'
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
-          storeFile=../upload-keystore.jks
-          EOF
+        - name: Create key.properties
+          run: |
+            cat > android/key.properties << 'EOF'
+            storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+            keyPassword=${{ secrets.KEY_PASSWORD }}
+            keyAlias=${{ secrets.KEY_ALIAS }}
+            storeFile=../upload-keystore.p12
+            EOF
 
-      - name: Decode keystore
-        env:
-          ENCODED_STRING: ${{ secrets.KEYSTORE_BASE64 }}
-        run: |
-          echo $ENCODED_STRING > keystore-b64.txt
-          base64 -d keystore-b64.txt > android/upload-keystore.jks
+        - name: Decode keystore
+          env:
+            ENCODED_STRING: ${{ secrets.KEYSTORE_BASE64 }}
+          run: |
+            echo $ENCODED_STRING > keystore-b64.txt
+            base64 -d keystore-b64.txt > android/upload-keystore.p12
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'zulu'
-          java-version: '17'
+        - name: Set up JDK 17
+          uses: actions/setup-java@v4
+          with:
+            distribution: 'temurin'
+            java-version: '17'
 
-      - name: Build signed APK
-        run: flutter build apk --release
+        - name: Build signed APK
+          run: flutter build apk --release
 
-      - name: Get version from pubspec
-        id: version
-        run: |
-          version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
-          echo "version=$version" >> $GITHUB_OUTPUT
+        - name: Get version from pubspec
+          id: version
+          run: |
+            version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
+            echo "version=$version" >> $GITHUB_OUTPUT
 
-      - name: Upload APK to release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: build/app/outputs/flutter-apk/app-release.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        - name: Upload APK to release
+          uses: softprops/action-gh-release@v1
+          with:
+            files: build/app/outputs/flutter-apk/app-release.apk
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-windows:
-    name: Build for Windows
-    runs-on: windows-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    build-windows:
+      name: Build for Windows
+      runs-on: windows-latest
+      outputs:
+        version: ${{ steps.version.outputs.version }}
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.38.10'
+        - name: Setup Flutter
+          uses: subosito/flutter-action@v2
+          with:
+            flutter-version: '3.38.10'
 
-      - name: Enable windows support
-        run: flutter config --enable-windows-desktop
+        - name: Enable windows support
+          run: flutter config --enable-windows-desktop
 
-      - name: Get dependencies
-        run: flutter pub get
+        - name: Get dependencies
+          run: flutter pub get
 
-      - name: Run code generation
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+        - name: Run code generation
+          run: flutter pub run build_runner build --delete-conflicting-outputs
 
-      - name: Build Windows app
-        run: flutter build windows --release
+        - name: Build Windows app
+          run: flutter build windows --release
 
-      - name: Create update archive for Windows
-        run: flutter pub run desktop_updater:archive windows --app-name=vaulth_app
+        - name: Compress Windows build
+          run: |
+            Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath vaulth_app-windows.zip
 
-      - name: Get version from pubspec
-        id: version
-        run: |
-          $version = (Get-Content pubspec.yaml | Select-String 'version: (.+)').Matches.Groups[1].Value
-          echo "version=$version" >> $env:GITHUB_OUTPUT
+        - name: Get version from pubspec
+          id: version
+          run: |
+            $version = (Get-Content pubspec.yaml | Select-String 'version: (.+)').Matches.Groups[1].Value
+            echo "version=$version" >> $env:GITHUB_OUTPUT
 
-      - name: Upload Windows artifacts to release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            dist/${{ steps.version.outputs.version }}-windows/**
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        - name: Upload Windows zip to release
+          uses: softprops/action-gh-release@v1
+          with:
+            files: vaulth_app-windows.zip
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-macos:
-    name: Build for macOS
-    runs-on: macos-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    build-macos:
+      name: Build for macOS
+      runs-on: macos-latest
+      outputs:
+        version: ${{ steps.version.outputs.version }}
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.38.10'
+        - name: Setup Flutter
+          uses: subosito/flutter-action@v2
+          with:
+            flutter-version: '3.38.10'
 
-      - name: Enable macos support
-        run: flutter config --enable-macos-desktop
+        - name: Enable macos support
+          run: flutter config --enable-macos-desktop
 
-      - name: Get dependencies
-        run: flutter pub get
+        - name: Get dependencies
+          run: flutter pub get
 
-      - name: Run code generation
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+        - name: Run code generation
+          run: flutter pub run build_runner build --delete-conflicting-outputs
 
-      - name: Build macOS app
-        run: flutter build macos --release
+        - name: Build macOS app
+          run: flutter build macos --release
 
-      - name: Rename app to vaulth_app.app if needed
-        run: |
-          if [ -d "build/macos/Build/Products/Release/Vaultly.app" ]; then
-            mv build/macos/Build/Products/Release/Vaultly.app build/macos/Build/Products/Release/vaulth_app.app
-          fi
+        - name: Rename app to vaulth_app.app if needed
+          run: |
+            if [ -d "build/macos/Build/Products/Release/Vaultly.app" ]; then
+              mv build/macos/Build/Products/Release/Vaultly.app build/macos/Build/Products/Release/vaulth_app.app
+            fi
 
-      - name: Create update archive for macOS
-        run: flutter pub run desktop_updater:archive macos --app-name=vaulth_app
+        - name: Create DMG for macOS
+          run: |
+            hdiutil create -volname "Vaultly" -srcfolder build/macos/Build/Products/Release/vaulth_app.app -ov -format UDZO vaulth_app-macos.dmg
 
-      - name: Get version from pubspec
-        id: version
-        run: |
-          version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
-          echo "version=$version" >> $GITHUB_OUTPUT
+        - name: Get version from pubspec
+          id: version
+          run: |
+            version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
+            echo "version=$version" >> $GITHUB_OUTPUT
 
-      - name: Upload macOS artifacts to release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            dist/${{ steps.version.outputs.version }}-macos/**
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        - name: Upload macOS DMG to release
+          uses: softprops/action-gh-release@v1
+          with:
+            files: vaulth_app-macos.dmg
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
-  update-app-archive:
-    name: Update app-archive.json
-    runs-on: ubuntu-latest
-    needs: [build-windows, build-macos]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    update-app-archive:
+      name: Update app-archive.json
+      runs-on: ubuntu-latest
+      needs: [build-windows, build-macos]
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
 
-      - name: Generate app-archive.json
-        run: |
-          VERSION="${{ needs.build-windows.outputs.version }}"
-          TAG="${GITHUB_REF#refs/tags/}"
-          cat > app-archive.json << EOF
-          {
-            "appName": "Vaultly",
-            "description": "Your personal digital vault",
-            "items": [
-              {
-                "version": "${VERSION}",
-                "shortVersion": 1,
-                "changes": [
-                  { "type": "feat", "message": "New release ${TAG}" }
-                ],
-                "date": "$(date +%Y-%m-%d)",
-                "mandatory": false,
-                "url": "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${VERSION}-windows/",
-                "platform": "windows"
-              },
-              {
-                "version": "${VERSION}",
-                "shortVersion": 1,
-                "changes": [
-                  { "type": "feat", "message": "New release ${TAG}" }
-                ],
-                "date": "$(date +%Y-%m-%d)",
-                "mandatory": false,
-                "url": "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${VERSION}-macos/",
-                "platform": "macos"
-              }
-            ]
-          }
-          EOF
+        - name: Generate app-archive.json
+          run: |
+            VERSION="${{ needs.build-windows.outputs.version }}"
+            TAG="${GITHUB_REF#refs/tags/}"
+            cat > app-archive.json << EOF
+            {
+              "appName": "Vaultly",
+              "description": "Your personal digital vault",
+              "items": [
+                {
+                  "version": "${VERSION}",
+                  "shortVersion": 1,
+                  "changes": [
+                    { "type": "feat", "message": "New release ${TAG}" }
+                  ],
+                  "date": "$(date +%Y-%m-%d)",
+                  "mandatory": false,
+                  "url": "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/vaulth_app-windows.zip",
+                  "platform": "windows"
+                },
+                {
+                  "version": "${VERSION}",
+                  "shortVersion": 1,
+                  "changes": [
+                    { "type": "feat", "message": "New release ${TAG}" }
+                  ],
+                  "date": "$(date +%Y-%m-%d)",
+                  "mandatory": false,
+                  "url": "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/vaulth_app-macos.dmg",
+                  "platform": "macos"
+                }
+              ]
+            }
+            EOF
 
-      - name: Upload app-archive.json to release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: app-archive.json
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        - name: Upload app-archive.json to release
+          uses: softprops/action-gh-release@v1
+          with:
+            files: app-archive.json
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
