@@ -24,7 +24,16 @@ CREATE TABLE IF NOT EXISTS users (
     storage_limit BIGINT DEFAULT 1073741824,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    salt VARCHAR(255),
+    totp_secret VARCHAR(64),
+    totp_enabled BOOLEAN DEFAULT FALSE,
+    totp_verified_at TIMESTAMP,
+    backup_codes_hash TEXT,
+    recovery_public_key TEXT,
+    recovery_private_key_encrypted TEXT,
+    recovery_salt VARCHAR(255),
+    recovery_encrypted_rsa_key TEXT
 );
 
 CREATE TABLE IF NOT EXISTS user_sessions (
@@ -74,7 +83,8 @@ CREATE TABLE IF NOT EXISTS files (
     is_deleted BOOLEAN DEFAULT FALSE,
     deleted_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_note BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS temp_file_access (
@@ -86,7 +96,8 @@ CREATE TABLE IF NOT EXISTS temp_file_access (
     max_downloads INTEGER,
     downloads_count INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    password VARCHAR(255)
 );
 
 CREATE TABLE IF NOT EXISTS folder_accesses (
@@ -126,6 +137,7 @@ CREATE TABLE IF NOT EXISTS devices (
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    unique_id VARCHAR(255) NOT NULL,
 );
 
 CREATE INDEX idx_users_email ON users(email);
@@ -218,3 +230,6 @@ COMMENT ON TABLE devices IS 'Устройства пользователей д�
 COMMENT ON COLUMN folders.type IS 'Тип папки: DEFAULT, SYSTEM_RECENTLY_DELETED, SYSTEM_TEMP_LINKS, SYSTEM_ROOT, SYSTEM_HIDDEN, CUSTOM';
 COMMENT ON COLUMN devices.public_key IS 'Публичный ключ устройства (для шифрования приватного ключа пользователя)';
 COMMENT ON COLUMN devices.encrypted_private_key IS 'Приватный ключ пользователя, зашифрованный публичным ключом устройства';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_id_identifier ON devices(unique_id);
+CREATE INDEX idx_users_public_key ON users(public_key);
+COMMENT ON COLUMN users.salt IS 'Соль для шифрования приватного ключа пользователя паролем';

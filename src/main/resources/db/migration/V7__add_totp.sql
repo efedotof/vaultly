@@ -1,4 +1,0 @@
-ALTER TABLE users ADD COLUMN totp_secret VARCHAR(64);
-ALTER TABLE users ADD COLUMN totp_enabled BOOLEAN DEFAULT FALSE;
-ALTER TABLE users ADD COLUMN totp_verified_at TIMESTAMP;
-ALTER TABLE users ADD COLUMN backup_codes_hash TEXT;

@@ -1,0 +1,1 @@
+ALTER TABLE file_contents ALTER COLUMN hash DROP NOT NULL;

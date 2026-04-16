@@ -1,23 +1,15 @@
 package com.efedotov.vaultly.model;
 
-import java.time.LocalDateTime;
-import java.util.UUID;
-
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "files")
@@ -26,6 +18,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class File {
+
     @Id
     @GeneratedValue
     private UUID id;
@@ -36,18 +29,13 @@ public class File {
     @Column(name = "original_name")
     private String originalName;
 
-    @Column(name = "s3_key", nullable = false, unique = true)
-    private String s3Key;
-
-    @Column(name = "s3_url")
-    private String s3Url;
-
     private Long size;
 
     private String mimeType;
 
-    @Column(name = "file_hash")
-    private String fileHash;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "file_content_id")
+    private FileContent fileContent;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -84,5 +72,4 @@ public class File {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
-
 }

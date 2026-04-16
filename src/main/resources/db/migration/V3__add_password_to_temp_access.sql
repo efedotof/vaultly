@@ -1,1 +1,0 @@
-ALTER TABLE temp_file_access ADD COLUMN IF NOT EXISTS password VARCHAR(255);

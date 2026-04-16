@@ -21,6 +21,7 @@ import com.efedotov.vaultly.dto.folder.FolderMoveDto;
 import com.efedotov.vaultly.dto.folder.FolderShareDto;
 import com.efedotov.vaultly.dto.folder.FolderUpdateDto;
 import com.efedotov.vaultly.model.File;
+import com.efedotov.vaultly.model.FileContent;
 import com.efedotov.vaultly.model.Folder;
 import com.efedotov.vaultly.model.FolderAccess;
 import com.efedotov.vaultly.model.FolderPassword;
@@ -108,7 +109,10 @@ public class FolderService {
         List<File> files = fileRepository.findByFolderId(folder.getId());
         for (File file : files) {
             try {
-                s3Service.deleteFile(file.getS3Url());
+                FileContent content = file.getFileContent();
+                if (content != null) {
+                    s3Service.deleteFile(content.getS3Url());
+                }
                 fileRepository.delete(file);
             } catch (Exception e) {
                 log.error("Ошибка при удалении файла {} из S3: {}", file.getId(), e.getMessage());
@@ -198,11 +202,11 @@ public class FolderService {
     }
 
     private File copyFile(File originalFile, Folder targetFolder) {
+        FileContent originalContent = originalFile.getFileContent();
         File copiedFile = File.builder()
                 .name(originalFile.getName() + " (копия)")
                 .originalName(originalFile.getOriginalName())
-                .s3Key(originalFile.getS3Key())
-                .s3Url(originalFile.getS3Url())
+                .fileContent(originalContent)
                 .size(originalFile.getSize())
                 .mimeType(originalFile.getMimeType())
                 .user(originalFile.getUser())

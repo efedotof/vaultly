@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.efedotov.vaultly.model.File;
+import com.efedotov.vaultly.model.FileContent;
 
 @Repository
 public interface FileRepository extends JpaRepository<File, UUID> {
@@ -35,4 +36,7 @@ public interface FileRepository extends JpaRepository<File, UUID> {
 
     @Query("SELECT f FROM File f WHERE f.user.id = :userId AND f.isDeleted = false AND f.isNote = true")
     Page<File> findNotesByUserId(@Param("userId") UUID userId, Pageable pageable);
+
+    @Query("SELECT COUNT(f) FROM File f WHERE f.fileContent = :content AND f.isDeleted = false")
+    long countActiveLinksByFileContent(@Param("content") FileContent content);
 }

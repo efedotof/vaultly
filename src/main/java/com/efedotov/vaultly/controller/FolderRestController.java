@@ -268,7 +268,9 @@ public class FolderRestController {
         dto.setOriginalName(file.getOriginalName());
         dto.setSize(file.getSize());
         dto.setMimeType(file.getMimeType());
-        dto.setS3Url(file.getS3Url());
+        if (file.getFileContent() != null) {
+            dto.setS3Url(file.getFileContent().getS3Url());
+        }
         dto.setIsEncrypted(file.getIsEncrypted());
         dto.setIsPublic(file.getIsPublic());
         dto.setCreatedAt(file.getCreatedAt());

@@ -158,7 +158,7 @@ public class TempAccessService {
             tempFileAccessRepository.save(tempAccess);
         }
 
-        byte[] shpsBytes = s3Service.downloadFile(file.getS3Key());
+        byte[] shpsBytes = s3Service.downloadFile(file.getFileContent().getS3Key());
 
         byte[] decryptedData;
         try {
@@ -225,15 +225,12 @@ public class TempAccessService {
         return tempAccess;
     }
 
-    /**
-     * Потоковая расшифровка и отдача файла.
-     */
     @Transactional
     public void streamDecryptedFile(String token, String password, OutputStream outputStream) throws Exception {
         TempFileAccess tempAccess = validateTempLink(token, password);
         File file = tempAccess.getFile();
 
-        try (InputStream shpsStream = s3Service.getObjectStream(file.getS3Key())) {
+        try (InputStream shpsStream = s3Service.getObjectStream(file.getFileContent().getS3Key())) {
             shpsSecurityService.decryptServerEncryptedToStream(shpsStream, outputStream);
         }
 

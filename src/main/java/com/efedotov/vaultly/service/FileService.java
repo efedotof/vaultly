@@ -10,6 +10,7 @@ import java.security.spec.MGF1ParameterSpec;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.crypto.Cipher;
@@ -25,9 +26,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.efedotov.vaultly.dto.file.DecryptionMetadata;
+import com.efedotov.vaultly.dto.file.FileDto;
 import com.efedotov.vaultly.model.File;
+import com.efedotov.vaultly.model.FileContent;
 import com.efedotov.vaultly.model.Folder;
 import com.efedotov.vaultly.model.User;
+import com.efedotov.vaultly.repository.FileContentRepository;
 import com.efedotov.vaultly.repository.FileRepository;
 import com.efedotov.vaultly.repository.FolderRepository;
 import com.efedotov.vaultly.repository.UserRepository;
@@ -49,81 +53,222 @@ public class FileService {
     private final ServerKeyService serverKeyService;
     private final UserKeyService userKeyService;
     private final FolderService folderService;
+    private final FileContentRepository fileContentRepository;
+    private final ShpsEncryptionService shpsEncryptionService;
 
     @Transactional
-    public File createFile(String name, String originalName, String s3Key,
-            String s3Url, Long size, String mimeType,
-            UUID userId, Boolean isEncrypted, Boolean isPublic) {
+    public FileDto uploadShpsFile(MultipartFile file, UUID folderId, boolean isPublic,
+            String contentHash, UUID userId) throws Exception {
+        String originalFilename = file.getOriginalFilename();
 
+        if (contentHash != null && !contentHash.isBlank()) {
+            Optional<FileContent> existing = fileContentRepository
+                    .findByHashAndIsPublic(contentHash, isPublic);
+            if (existing.isPresent()) {
+                File createdFile = createFileLink(userId, existing.get(), originalFilename, folderId);
+                return mapToDto(createdFile);
+            }
+        }
+
+        Path tempFile = Files.createTempFile("shps-upload-", ".shps");
+        try (InputStream inputStream = file.getInputStream()) {
+            Files.copy(inputStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
+
+            ShirmpsHeader header = shpsSecurityService.validateHeaderOnly(tempFile, originalFilename);
+            if (isPublic) {
+                if (!"server".equals(header.getKeyOwner())) {
+                    throw new SecurityException("Public file must be encrypted for server (keyOwner=server)");
+                }
+                shpsSecurityService.validateAndVerifyStreaming(tempFile, userId, originalFilename);
+            } else {
+                if (!"user".equals(header.getKeyOwner())) {
+                    throw new SecurityException("Private file must be encrypted for user (keyOwner=user)");
+                }
+                if (!userId.toString().equals(header.getUserId())) {
+                    throw new SecurityException("Private file belongs to a different user");
+                }
+            }
+
+            String shpsFileName = originalFilename.endsWith(".shps") ? originalFilename : originalFilename + ".shps";
+            String url = s3Service.uploadFileWithMultipart(tempFile, shpsFileName, "application/x-shirmps");
+            String s3Key = s3Service.getObjectKeyFromUrl(url);
+            long actualSize = Files.size(tempFile);
+
+            FileContent content = FileContent.builder()
+                    .hash(contentHash)
+                    .s3Key(s3Key)
+                    .s3Url(url)
+                    .size(actualSize)
+                    .mimeType("application/x-shirmps")
+                    .isPublic(isPublic)
+                    .build();
+            content = fileContentRepository.save(content);
+
+            File createdFile = createFileLink(userId, content, originalFilename, folderId);
+            log.info("SHPS file uploaded: {} (hash: {})", createdFile.getId(), contentHash);
+            return mapToDto(createdFile);
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
+    }
+
+    @Transactional
+    public FileDto uploadPublicFile(MultipartFile file, UUID folderId, String contentHash, UUID userId)
+            throws Exception {
+        String originalFilename = file.getOriginalFilename();
+        long fileSize = file.getSize();
+
+        if (contentHash != null && !contentHash.isBlank()) {
+            Optional<FileContent> existing = fileContentRepository
+                    .findByHashAndIsPublic(contentHash, true);
+            if (existing.isPresent()) {
+                File createdFile = createFileLink(userId, existing.get(), originalFilename, folderId);
+                return mapToDto(createdFile);
+            }
+        }
+
+        java.io.File tempShpsFile = null;
+        try (InputStream plainStream = file.getInputStream()) {
+            tempShpsFile = shpsEncryptionService.encryptForServerToTempFile(
+                    plainStream, fileSize, originalFilename, userId);
+
+            String shpsFileName = originalFilename + ".shps";
+            String url = s3Service.uploadFileWithMultipart(tempShpsFile.toPath(), shpsFileName,
+                    "application/x-shirmps");
+            String s3Key = s3Service.getObjectKeyFromUrl(url);
+            long actualSize = tempShpsFile.length();
+
+            FileContent content = FileContent.builder()
+                    .hash(contentHash)
+                    .s3Key(s3Key)
+                    .s3Url(url)
+                    .size(actualSize)
+                    .mimeType("application/x-shirmps")
+                    .isPublic(true)
+                    .build();
+            content = fileContentRepository.save(content);
+
+            File createdFile = createFileLink(userId, content, originalFilename, folderId);
+            log.info("Public file encrypted and uploaded: {}", createdFile.getId());
+            return mapToDto(createdFile);
+        } finally {
+            if (tempShpsFile != null && tempShpsFile.exists()) {
+                tempShpsFile.delete();
+            }
+        }
+    }
+
+    @Transactional
+    public File createFileLink(UUID userId, FileContent content, String fileName, UUID folderId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден"));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         File file = File.builder()
-                .name(name)
-                .originalName(originalName)
-                .s3Key(s3Key)
-                .s3Url(s3Url)
-                .size(size)
-                .mimeType(mimeType)
+                .name(fileName)
+                .originalName(fileName)
+                .fileContent(content)
                 .user(user)
-                .isEncrypted(isEncrypted)
-                .isPublic(isPublic)
+                .size(content.getSize())
+                .mimeType(content.getMimeType())
+                .isEncrypted(true)
+                .isPublic(content.getIsPublic())
+                .isNote(false)
                 .build();
+
+        if (folderId != null) {
+            Folder folder = folderRepository.findById(folderId)
+                    .orElseThrow(() -> new IllegalArgumentException("Folder not found"));
+            file.setFolder(folder);
+        }
 
         return fileRepository.save(file);
     }
 
+    @Transactional(readOnly = true)
+    public UUID findExistingFileContentId(String hash, Boolean isPublic) {
+        return fileContentRepository.findByHashAndIsPublic(hash, isPublic)
+                .map(FileContent::getId)
+                .orElse(null);
+    }
+
+    @Transactional
+    public File linkExistingFile(UUID userId, UUID fileContentId, String fileName,
+            UUID folderId, Boolean isPublic) {
+        FileContent content = fileContentRepository.findById(fileContentId)
+                .orElseThrow(() -> new IllegalArgumentException("File content not found"));
+
+        if (!content.getIsPublic().equals(isPublic)) {
+            throw new SecurityException("Cannot link public content as private or vice versa");
+        }
+
+        return createFileLink(userId, content, fileName, folderId);
+    }
+
+    @Transactional
+    public File createFileWithContent(String name, String originalName, String s3Key, String s3Url,
+            Long size, String mimeType, UUID userId,
+            Boolean isEncrypted, Boolean isPublic, String contentHash) {
+
+        FileContent content = FileContent.builder()
+                .hash(contentHash)
+                .s3Key(s3Key)
+                .s3Url(s3Url)
+                .size(size)
+                .mimeType(mimeType)
+                .isPublic(isPublic)
+                .build();
+        content = fileContentRepository.save(content);
+
+        return createFileLink(userId, content, name, null);
+    }
+
     @Transactional
     public void deleteFile(UUID fileId, UUID userId) {
-        File file = fileRepository.findById(fileId)
-                .orElseThrow(() -> new IllegalArgumentException("Файл не найден"));
+        File file = fileRepository.findByIdAndUserId(fileId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("File not found"));
 
-        if (!file.getUser().getId().equals(userId)) {
-            throw new SecurityException("У вас нет прав на удаление этого файла");
-        }
-
-        try {
-            s3Service.deleteFile(file.getS3Url());
-            log.info("Файл удалён из S3: {}", file.getS3Key());
-        } catch (Exception e) {
-            log.error("Ошибка при удалении файла из S3: {}", file.getS3Key(), e);
-            throw new RuntimeException("Не удалось удалить файл из хранилища", e);
-        }
+        FileContent content = file.getFileContent();
 
         file.setIsDeleted(true);
         file.setDeletedAt(LocalDateTime.now());
         fileRepository.save(file);
 
+        if (content != null) {
+            long activeLinks = fileRepository.countActiveLinksByFileContent(content);
+            if (activeLinks == 0) {
+                try {
+                    s3Service.deleteFile(content.getS3Url());
+                    log.info("Deleted S3 object: {}", content.getS3Key());
+                } catch (Exception e) {
+                    log.error("Failed to delete S3 object: {}", content.getS3Key(), e);
+                }
+                fileContentRepository.delete(content);
+            }
+        }
+
         User user = file.getUser();
         long newStorageUsed = user.getStorageUsed() - file.getSize();
-        if (newStorageUsed < 0) {
+        if (newStorageUsed < 0)
             newStorageUsed = 0L;
-        }
         user.setStorageUsed(newStorageUsed);
         userRepository.save(user);
-
-        log.info("Файл помечен как удалённый: {}, storageUsed уменьшен на {} байт", fileId, file.getSize());
     }
 
     @Transactional
     public File updateFileFolder(UUID fileId, UUID folderId, UUID userId) {
         File file = fileRepository.findById(fileId)
-                .orElseThrow(() -> new IllegalArgumentException("Файл не найден"));
-
+                .orElseThrow(() -> new IllegalArgumentException("File not found"));
         if (!file.getUser().getId().equals(userId)) {
-            throw new SecurityException("У вас нет прав на изменение этого файла");
+            throw new SecurityException("Access denied");
         }
-
         Folder folder = null;
         if (folderId != null) {
             folder = folderRepository.findById(folderId)
-                    .orElseThrow(() -> new IllegalArgumentException("Папка не найдена"));
-
+                    .orElseThrow(() -> new IllegalArgumentException("Folder not found"));
             if (!folder.getUser().getId().equals(userId)) {
-                throw new SecurityException("Папка принадлежит другому пользователю");
+                throw new SecurityException("Folder belongs to another user");
             }
         }
-
         file.setFolder(folder);
         return fileRepository.save(file);
     }
@@ -131,7 +276,7 @@ public class FileService {
     @Transactional(readOnly = true)
     public File getFileById(UUID fileId, UUID userId) {
         return fileRepository.findByIdAndUserId(fileId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("Файл не найден или доступ запрещен"));
+                .orElseThrow(() -> new IllegalArgumentException("File not found or access denied"));
     }
 
     @Transactional(readOnly = true)
@@ -146,7 +291,6 @@ public class FileService {
 
     public DecryptionMetadata getDecryptionMetadataForUser(UUID fileId, UUID userId) {
         File file = getFileById(fileId, userId);
-
         if (file.getIsPublic()) {
             return createMetadataForPublicFile(file, userId);
         } else {
@@ -155,10 +299,9 @@ public class FileService {
     }
 
     private DecryptionMetadata createMetadataForPublicFile(File file, UUID userId) {
-        try (InputStream s3Stream = s3Service.getObjectStream(file.getS3Key())) {
-
+        String s3Key = file.getFileContent().getS3Key();
+        try (InputStream s3Stream = s3Service.getObjectStream(s3Key)) {
             ShirmpsHeader header = shpsSecurityService.extractHeader(s3Stream);
-
             PrivateKey serverPrivateKey = serverKeyService.getPrivateKey();
             byte[] encryptedAesKey = Base64.getDecoder().decode(header.getEncryptedKey());
 
@@ -169,12 +312,11 @@ public class FileService {
             byte[] aesKeyBytes = rsaCipher.doFinal(encryptedAesKey);
 
             PublicKey userPublicKey = userKeyService.getPublicKey(userId);
-
             rsaCipher.init(Cipher.ENCRYPT_MODE, userPublicKey, oaepParams);
             byte[] reEncryptedKey = rsaCipher.doFinal(aesKeyBytes);
 
             Duration duration = Duration.ofMinutes(10);
-            String presignedUrl = s3Service.generatePresignedUrl(file.getS3Key(), duration);
+            String presignedUrl = s3Service.generatePresignedUrl(s3Key, duration);
 
             DecryptionMetadata metadata = new DecryptionMetadata();
             metadata.setPresignedUrl(presignedUrl);
@@ -183,25 +325,21 @@ public class FileService {
             metadata.setOriginalSize(header.getOriginalFileSize());
             metadata.setMimeType(file.getMimeType());
             metadata.setFileName(file.getOriginalName());
-
             return metadata;
         } catch (Exception e) {
-            log.error("Failed to create decryption metadata for public file {}", file.getId(), e);
             throw new RuntimeException("Failed to prepare file for decryption", e);
         }
     }
 
     private DecryptionMetadata createMetadataForPrivateFile(File file, UUID userId) {
-        try (InputStream s3Stream = s3Service.getObjectStream(file.getS3Key())) {
-
+        String s3Key = file.getFileContent().getS3Key();
+        try (InputStream s3Stream = s3Service.getObjectStream(s3Key)) {
             ShirmpsHeader header = shpsSecurityService.extractHeader(s3Stream);
-
             if (!"user".equals(header.getKeyOwner()) || !userId.toString().equals(header.getUserId())) {
                 throw new SecurityException("Private file does not belong to the current user");
             }
-
             Duration duration = Duration.ofMinutes(10);
-            String presignedUrl = s3Service.generatePresignedUrl(file.getS3Key(), duration);
+            String presignedUrl = s3Service.generatePresignedUrl(s3Key, duration);
 
             DecryptionMetadata metadata = new DecryptionMetadata();
             metadata.setPresignedUrl(presignedUrl);
@@ -210,60 +348,48 @@ public class FileService {
             metadata.setOriginalSize(header.getOriginalFileSize());
             metadata.setMimeType(file.getMimeType());
             metadata.setFileName(file.getOriginalName());
-
             return metadata;
         } catch (Exception e) {
-            log.error("Failed to create decryption metadata for private file {}", file.getId(), e);
             throw new RuntimeException("Failed to prepare file for decryption", e);
         }
     }
 
     public DecryptionMetadata getDecryptionMetadataForTempAccess(UUID fileId, UUID userId) {
         File file = fileRepository.findById(fileId)
-                .orElseThrow(() -> new IllegalArgumentException("Файл не найден"));
+                .orElseThrow(() -> new IllegalArgumentException("File not found"));
         return createMetadataForPublicFile(file, userId);
     }
 
     @Transactional
     public File createNote(MultipartFile shpsFile, UUID folderId, UUID userId) throws Exception {
         String originalFilename = shpsFile.getOriginalFilename();
-        long fileSize = shpsFile.getSize();
-
-        log.info("Creating note: {}, size: {} bytes, user: {}", originalFilename, fileSize, userId);
-
         Path tempFile = Files.createTempFile("note-upload-", ".shps");
         try (InputStream inputStream = shpsFile.getInputStream()) {
             Files.copy(inputStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
-
             ShirmpsHeader header = shpsSecurityService.validateHeaderOnly(tempFile, originalFilename);
-            if (!"user".equals(header.getKeyOwner())) {
-                throw new SecurityException("Note must be encrypted for user (keyOwner=user)");
+            if (!"user".equals(header.getKeyOwner()) || !userId.toString().equals(header.getUserId())) {
+                throw new SecurityException("Invalid note owner");
             }
-            if (!userId.toString().equals(header.getUserId())) {
-                throw new SecurityException("Note belongs to a different user");
-            }
-
             String url = s3Service.uploadFileWithMultipart(tempFile, originalFilename, "application/x-shirmps");
             String s3Key = s3Service.getObjectKeyFromUrl(url);
+            long size = Files.size(tempFile);
 
-            File note = createFile(
-                    originalFilename.replace(".shps", ""),
-                    originalFilename,
-                    s3Key,
-                    url,
-                    Files.size(tempFile),
-                    "text/markdown",
-                    userId,
-                    true,
-                    false);
+            FileContent content = FileContent.builder()
+                    .hash(null)
+                    .s3Key(s3Key)
+                    .s3Url(url)
+                    .size(size)
+                    .mimeType("text/markdown")
+                    .isPublic(false)
+                    .build();
+            content = fileContentRepository.save(content);
+
+            File note = createFileLink(userId, content, originalFilename.replace(".shps", ""), folderId);
             note.setIsNote(true);
             note = fileRepository.save(note);
-
             if (folderId != null) {
                 note = folderService.addFileToFolder(note.getId(), folderId, userId);
             }
-
-            log.info("Note created: {}", note.getId());
             return note;
         } finally {
             Files.deleteIfExists(tempFile);
@@ -273,35 +399,23 @@ public class FileService {
     @Transactional
     public File updateNoteContent(UUID fileId, MultipartFile updatedShpsFile, UUID userId) throws Exception {
         File existingNote = fileRepository.findByIdAndUserId(fileId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("Заметка не найдена или доступ запрещен"));
-
+                .orElseThrow(() -> new IllegalArgumentException("Note not found"));
         if (!existingNote.getIsNote()) {
-            throw new IllegalArgumentException("Файл не является заметкой");
+            throw new IllegalArgumentException("Not a note");
         }
-
         String originalFilename = updatedShpsFile.getOriginalFilename();
-        log.info("Updating note content: {} (id: {})", originalFilename, fileId);
-
         Path tempFile = Files.createTempFile("note-update-", ".shps");
         try (InputStream inputStream = updatedShpsFile.getInputStream()) {
             Files.copy(inputStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
-
             ShirmpsHeader header = shpsSecurityService.validateHeaderOnly(tempFile, originalFilename);
-            if (!"user".equals(header.getKeyOwner())) {
-                throw new SecurityException("Note must be encrypted for user (keyOwner=user)");
+            if (!"user".equals(header.getKeyOwner()) || !userId.toString().equals(header.getUserId())) {
+                throw new SecurityException("Invalid note owner");
             }
-            if (!userId.toString().equals(header.getUserId())) {
-                throw new SecurityException("Note belongs to a different user");
-            }
-
-            String s3Key = existingNote.getS3Key();
+            String s3Key = existingNote.getFileContent().getS3Key();
             s3Service.uploadFileWithMultipart(tempFile, s3Key, originalFilename, "application/x-shirmps");
             existingNote.setSize(Files.size(tempFile));
             existingNote.setOriginalName(originalFilename);
-            File savedNote = fileRepository.save(existingNote);
-
-            log.info("Note content updated: {}", savedNote.getId());
-            return savedNote;
+            return fileRepository.save(existingNote);
         } finally {
             Files.deleteIfExists(tempFile);
         }
@@ -309,9 +423,28 @@ public class FileService {
 
     public Page<File> getUsersNodes(UUID userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("updatedAt").descending());
-
-        Page<File> notesPage = fileRepository.findNotesByUserId(userId, pageable);
-        return notesPage;
+        return fileRepository.findNotesByUserId(userId, pageable);
     }
 
+    private FileDto mapToDto(File file) {
+        FileDto dto = new FileDto();
+        dto.setId(file.getId());
+        dto.setName(file.getName());
+        dto.setOriginalName(file.getOriginalName());
+        dto.setSize(file.getSize());
+        dto.setMimeType(file.getMimeType());
+        if (file.getFileContent() != null) {
+            dto.setS3Url(file.getFileContent().getS3Url());
+        }
+        dto.setIsEncrypted(file.getIsEncrypted());
+        dto.setIsPublic(file.getIsPublic());
+        dto.setIsNote(file.getIsNote());
+        dto.setCreatedAt(file.getCreatedAt());
+        dto.setUpdatedAt(file.getUpdatedAt());
+        if (file.getFolder() != null) {
+            dto.setFolderId(file.getFolder().getId());
+            dto.setFolderName(file.getFolder().getName());
+        }
+        return dto;
+    }
 }

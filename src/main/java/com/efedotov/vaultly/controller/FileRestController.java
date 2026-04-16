@@ -1,8 +1,6 @@
 package com.efedotov.vaultly.controller;
 
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -29,20 +27,21 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.efedotov.vaultly.dto.file.CheckDuplicateRequest;
 import com.efedotov.vaultly.dto.file.DecryptionMetadata;
 import com.efedotov.vaultly.dto.file.FileDto;
+import com.efedotov.vaultly.dto.file.LinkFileRequest;
 import com.efedotov.vaultly.model.File;
 import com.efedotov.vaultly.security.CustomUserDetails;
 import com.efedotov.vaultly.service.FileService;
-import com.efedotov.vaultly.service.FolderService;
 import com.efedotov.vaultly.service.S3Service;
 import com.efedotov.vaultly.service.ServerKeyService;
-import com.efedotov.vaultly.service.ShpsEncryptionService;
 import com.efedotov.vaultly.service.ShpsSecurityService;
 import com.efedotov.vaultly.service.UserKeyService;
 import com.efedotov.vaultly.shirmps.ShirmpsHeader;
@@ -59,8 +58,6 @@ public class FileRestController {
     private final S3Service s3Service;
     private final ShpsSecurityService shpsSecurityService;
     private final FileService fileService;
-    private final FolderService folderService;
-    private final ShpsEncryptionService shpsEncryptionService;
     private final ServerKeyService serverKeyService;
     private final UserKeyService userKeyService;
 
@@ -69,115 +66,22 @@ public class FileRestController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "folderId", required = false) UUID folderId,
             @RequestParam("isPublic") boolean isPublic,
+            @RequestParam(value = "contentHash", required = false) String contentHash,
             @AuthenticationPrincipal CustomUserDetails user) throws Exception {
 
         UUID userId = user.getUserId();
-        String originalFilename = file.getOriginalFilename();
-        long fileSize = file.getSize();
-
-        log.info("REST upload SHPS file: {}, size: {} bytes, isPublic: {}, user: {}",
-                originalFilename, fileSize, isPublic, userId);
-
-        Path tempFile = Files.createTempFile("shps-upload-", ".shps");
-        try (InputStream inputStream = file.getInputStream()) {
-            Files.copy(inputStream, tempFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-
-            ShirmpsHeader header;
-            try {
-                header = shpsSecurityService.validateHeaderOnly(tempFile, originalFilename);
-                log.info("Structure validation passed for file: {}", originalFilename);
-            } catch (Exception e) {
-                log.error("SHPS structure validation failed for file: {}", originalFilename, e);
-                throw new RuntimeException("SHPS structure validation failed: " + e.getMessage(), e);
-            }
-
-            if (isPublic) {
-                if (!"server".equals(header.getKeyOwner())) {
-                    throw new SecurityException("Public file must be encrypted for server (keyOwner=server)");
-                }
-                try {
-                    shpsSecurityService.validateAndVerifyStreaming(tempFile, userId, originalFilename);
-                    log.info("Full validation and signature verification passed for file: {}", originalFilename);
-                } catch (Exception e) {
-                    log.error("SHPS validation failed for file: {}", originalFilename, e);
-                    throw new RuntimeException("SHPS validation failed: " + e.getMessage(), e);
-                }
-            } else {
-                if (!"user".equals(header.getKeyOwner())) {
-                    throw new SecurityException("Private file must be encrypted for user (keyOwner=user)");
-                }
-                if (!userId.toString().equals(header.getUserId())) {
-                    throw new SecurityException("Private file belongs to a different user");
-                }
-                log.info("Private file structure validated, skipping decryption");
-            }
-
-            String shpsFileName = originalFilename.endsWith(".shps") ? originalFilename : originalFilename + ".shps";
-            String url = s3Service.uploadFileWithMultipart(tempFile, shpsFileName, "application/x-shirmps");
-            String s3Key = s3Service.getObjectKeyFromUrl(url);
-
-            File createdFile = fileService.createFile(
-                    originalFilename,
-                    originalFilename,
-                    s3Key,
-                    url,
-                    Files.size(tempFile),
-                    "application/x-shirmps",
-                    userId,
-                    true,
-                    isPublic);
-
-            if (folderId != null) {
-                createdFile = folderService.addFileToFolder(createdFile.getId(), folderId, userId);
-            }
-
-            log.info("SHPS file uploaded successfully: {} (name: {}, public: {})",
-                    createdFile.getId(), originalFilename, isPublic);
-
-            return mapToDto(createdFile);
-        } finally {
-            Files.deleteIfExists(tempFile);
-        }
+        return fileService.uploadShpsFile(file, folderId, isPublic, contentHash, userId);
     }
 
     @PostMapping("/upload/public")
     public FileDto uploadPublicFile(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "folderId", required = false) UUID folderId,
+            @RequestParam(value = "contentHash", required = false) String contentHash,
             @AuthenticationPrincipal CustomUserDetails user) throws Exception {
 
         UUID userId = user.getUserId();
-        String originalFilename = file.getOriginalFilename();
-        long fileSize = file.getSize();
-
-        log.info("REST upload public file: {}, size: {} bytes", originalFilename, fileSize);
-
-        java.io.File tempShpsFile = null;
-        try (InputStream plainStream = file.getInputStream()) {
-            tempShpsFile = shpsEncryptionService.encryptForServerToTempFile(
-                    plainStream, fileSize, originalFilename, userId);
-
-            String shpsFileName = originalFilename + ".shps";
-            String url = s3Service.uploadFileWithMultipart(tempShpsFile.toPath(), shpsFileName,
-                    "application/x-shirmps");
-            String s3Key = s3Service.getObjectKeyFromUrl(url);
-
-            File createdFile = fileService.createFile(
-                    originalFilename, originalFilename, s3Key, url,
-                    tempShpsFile.length(), "application/x-shirmps",
-                    userId, true, true);
-
-            if (folderId != null) {
-                createdFile = folderService.addFileToFolder(createdFile.getId(), folderId, userId);
-            }
-
-            log.info("Public file encrypted and uploaded: {}", createdFile.getId());
-            return mapToDto(createdFile);
-        } finally {
-            if (tempShpsFile != null && tempShpsFile.exists()) {
-                tempShpsFile.delete();
-            }
-        }
+        return fileService.uploadPublicFile(file, folderId, contentHash, userId);
     }
 
     @GetMapping
@@ -222,7 +126,11 @@ public class FileRestController {
                 fileId, file.getOriginalName(), userId);
 
         Duration duration = Duration.ofSeconds(30);
-        String presignedUrl = s3Service.generatePresignedUrl(file.getS3Key(), duration);
+        String s3Key = file.getFileContent() != null ? file.getFileContent().getS3Key() : null;
+        if (s3Key == null) {
+            throw new IllegalStateException("File has no associated content");
+        }
+        String presignedUrl = s3Service.generatePresignedUrl(s3Key, duration);
 
         return ResponseEntity.ok(Map.of("url", presignedUrl));
     }
@@ -238,8 +146,13 @@ public class FileRestController {
             throw new SecurityException("Only public files supported");
         }
 
+        String s3Key = file.getFileContent() != null ? file.getFileContent().getS3Key() : null;
+        if (s3Key == null) {
+            throw new IllegalStateException("File has no associated content");
+        }
+
         ShirmpsHeader header;
-        try (InputStream s3Stream = s3Service.getObjectStream(file.getS3Key())) {
+        try (InputStream s3Stream = s3Service.getObjectStream(s3Key)) {
             header = shpsSecurityService.extractHeader(s3Stream);
         }
 
@@ -249,12 +162,6 @@ public class FileRestController {
                 header.getKeyOwner(), header.getUserId(), header.getOriginalFileSize());
 
         String encryptedKeyBase64 = header.getEncryptedKey();
-        log.info("Encrypted AES key (Base64): length={}, first 20 chars: {}",
-                encryptedKeyBase64 != null ? encryptedKeyBase64.length() : 0,
-                encryptedKeyBase64 != null && encryptedKeyBase64.length() > 20
-                        ? encryptedKeyBase64.substring(0, 20)
-                        : encryptedKeyBase64);
-
         if (encryptedKeyBase64 == null || encryptedKeyBase64.isBlank()) {
             throw new SecurityException("Encrypted AES key is missing in SHPS header");
         }
@@ -268,8 +175,6 @@ public class FileRestController {
         log.info("Decrypting with server public key fingerprint (SHA-256): {}", HexFormat.of().formatHex(fingerprint));
 
         byte[] encryptedAesKey = Base64.getDecoder().decode(encryptedKeyBase64);
-        log.info("Encrypted AES key (decoded): length={} bytes (expected 256 for RSA-2048 OAEP)",
-                encryptedAesKey.length);
 
         Cipher rsaCipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
         OAEPParameterSpec oaepParams = new OAEPParameterSpec(
@@ -279,26 +184,17 @@ public class FileRestController {
         byte[] aesKeyBytes;
         try {
             aesKeyBytes = rsaCipher.doFinal(encryptedAesKey);
-            log.info("AES key successfully decrypted, length: {} bytes", aesKeyBytes.length);
         } catch (BadPaddingException e) {
-            log.error(
-                    "BadPaddingException during AES key decryption. Possible cause: key encrypted for different public key, corrupted header, or wrong keyOwner.");
+            log.error("BadPaddingException during AES key decryption.");
             throw e;
         }
 
         PublicKey userPublicKey = userKeyService.getPublicKey(userId);
-        md = MessageDigest.getInstance("SHA-256");
-        pubEncoded = userPublicKey.getEncoded();
-        fingerprint = md.digest(pubEncoded);
-        log.info("User public key fingerprint: {}", HexFormat.of().formatHex(fingerprint));
-        log.info("User public key algorithm: {}, format: {}", userPublicKey.getAlgorithm(), userPublicKey.getFormat());
-
         rsaCipher.init(Cipher.ENCRYPT_MODE, userPublicKey, oaepParams);
         byte[] reEncryptedKey = rsaCipher.doFinal(aesKeyBytes);
-        log.info("Re-encrypted AES key length: {} bytes", reEncryptedKey.length);
 
         Duration duration = Duration.ofMinutes(10);
-        String presignedUrl = s3Service.generatePresignedUrl(file.getS3Key(), duration);
+        String presignedUrl = s3Service.generatePresignedUrl(s3Key, duration);
 
         DecryptionMetadata metadata = new DecryptionMetadata();
         metadata.setPresignedUrl(presignedUrl);
@@ -357,6 +253,37 @@ public class FileRestController {
         return mapToDto(updatedNote);
     }
 
+    @PostMapping("/check-duplicate")
+    public ResponseEntity<Map<String, Object>> checkDuplicate(
+            @RequestBody CheckDuplicateRequest request,
+            @AuthenticationPrincipal CustomUserDetails user) {
+
+        UUID existingFileContentId = fileService.findExistingFileContentId(
+                request.getHash(), request.getIsPublic());
+        if (existingFileContentId != null) {
+            return ResponseEntity.ok(Map.of(
+                    "exists", true,
+                    "fileContentId", existingFileContentId.toString()));
+        } else {
+            return ResponseEntity.ok(Map.of("exists", false));
+        }
+    }
+
+    @PostMapping("/link")
+    public FileDto linkExistingFile(
+            @RequestBody LinkFileRequest request,
+            @AuthenticationPrincipal CustomUserDetails user) {
+
+        UUID userId = user.getUserId();
+        File file = fileService.linkExistingFile(
+                userId,
+                request.getFileContentId(),
+                request.getFileName(),
+                request.getFolderId(),
+                request.getIsPublic());
+        return mapToDto(file);
+    }
+
     private FileDto mapToDto(File file) {
         FileDto dto = new FileDto();
         dto.setId(file.getId());
@@ -364,7 +291,9 @@ public class FileRestController {
         dto.setOriginalName(file.getOriginalName());
         dto.setSize(file.getSize());
         dto.setMimeType(file.getMimeType());
-        dto.setS3Url(file.getS3Url());
+        if (file.getFileContent() != null) {
+            dto.setS3Url(file.getFileContent().getS3Url());
+        }
         dto.setIsEncrypted(file.getIsEncrypted());
         dto.setIsPublic(file.getIsPublic());
         dto.setIsNote(file.getIsNote());
