@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
+import 'package:vaulth_app/server/model/file/check_duplicate_response/check_duplicate_response.dart';
 import 'package:vaulth_app/server/model/file/decryption_metadata/decryption_metadata.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
 import 'package:vaulth_app/server/model/page_response.dart';
@@ -14,12 +15,14 @@ abstract class FileInterface {
     required String keyOwner,
     required bool isPublic,
     ProgressCallback? onSendProgress,
+    String? contentHash,
   });
 
   Future<FileDto> uploadPublicFile({
     required File file,
     String? folderId,
     ProgressCallback? onSendProgress,
+    String? contentHash,
   });
 
   Future<PageResponse<FileDto>> getAllFiles({int page = 0, int size = 20});
@@ -38,6 +41,7 @@ abstract class FileInterface {
     required String fileName,
     String? folderId,
     ProgressCallback? onSendProgress,
+    String? contentHash,
   });
 
   Future<FileDto> createNote({
@@ -57,4 +61,16 @@ abstract class FileInterface {
   });
 
   Future<PageResponse<FileDto>> getNotes({int page = 0, int size = 20});
+
+  Future<CheckDuplicateResponse> checkDuplicate({
+    required String hash,
+    required bool isPublic,
+  });
+
+  Future<FileDto> linkExistingFile({
+    required String fileContentId,
+    required String fileName,
+    String? folderId,
+    required bool isPublic,
+  });
 }

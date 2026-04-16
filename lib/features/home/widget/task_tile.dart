@@ -36,6 +36,11 @@ class TaskTile extends StatelessWidget {
         statusIcon = Icons.cloud_upload;
         statusColor = Colors.orange;
         break;
+      case UploadStatus.linking:
+        statusText = 'Создание ссылки...';
+        statusIcon = Icons.link;
+        statusColor = Colors.blueGrey;
+        break;
       case UploadStatus.completed:
         statusText = 'Завершено';
         statusIcon = Icons.check_circle;

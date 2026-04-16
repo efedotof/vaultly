@@ -1,18 +1,21 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui';
+
 import 'package:bloc/bloc.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, compute, debugPrint;
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:basic_utils/basic_utils.dart';
-import 'package:path_provider/path_provider.dart';
+
 import 'package:vaulth_app/server/model/file/upload_task/upload_task.dart';
 import 'package:vaulth_app/server/repository/file/file_interface.dart';
 import 'package:vaulth_app/server/service/shirm_encryption_service.dart';
 import 'package:vaulth_app/server/service/shirm_encryption_service_web.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
+
+import 'dart:io' if (dart.library.html) 'dart:html';
 
 part 'file_upload_state.dart';
 part 'file_upload_cubit.freezed.dart';
@@ -88,6 +91,11 @@ class FileUploadCubit extends Cubit<FileUploadState> {
     required this.authLocalStorage,
   }) : super(const FileUploadState.initial());
 
+  String _calculateSha256(Uint8List bytes) {
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
   Future<void> addUploadTask({
     required Uint8List fileBytes,
     required String fileName,
@@ -130,39 +138,45 @@ class FileUploadCubit extends Cubit<FileUploadState> {
         return;
       }
 
+      final contentHash = _calculateSha256(fileBytes);
+
+      final duplicate = await fileRepository.checkDuplicate(
+        hash: contentHash,
+        isPublic: isPublic,
+      );
+
+      if (duplicate.exists && duplicate.fileContentId != null) {
+        _updateTask(task.copyWith(status: UploadStatus.linking, progress: 0.5));
+
+        await fileRepository.linkExistingFile(
+          fileContentId: duplicate.fileContentId!,
+          fileName: fileName,
+          folderId: folderId,
+          isPublic: isPublic,
+        );
+
+        _updateTask(
+          task.copyWith(status: UploadStatus.completed, progress: 1.0),
+        );
+        onSuccess?.call();
+        _removeTask(taskId);
+        return;
+      }
+
       if (isPublic) {
         _updateTask(
           task.copyWith(status: UploadStatus.uploading, progress: 0.1),
         );
 
-        if (kIsWeb) {
-          await fileRepository.uploadPublicFileFromBytes(
-            bytes: fileBytes,
-            fileName: fileName,
-            folderId: folderId,
-            onSendProgress: (sent, total) {
-              _updateTask(task.copyWith(progress: sent / total));
-            },
-          );
-        } else {
-          final tempDir = await getTemporaryDirectory();
-          if (!await tempDir.exists()) {
-            await tempDir.create(recursive: true);
-          }
-          final tempFile = File('${tempDir.path}/upload_$fileName');
-          await tempFile.writeAsBytes(fileBytes);
-          try {
-            await fileRepository.uploadPublicFile(
-              file: tempFile,
-              folderId: folderId,
-              onSendProgress: (sent, total) {
-                _updateTask(task.copyWith(progress: sent / total));
-              },
-            );
-          } finally {
-            await tempFile.delete();
-          }
-        }
+        await fileRepository.uploadPublicFileFromBytes(
+          bytes: fileBytes,
+          fileName: fileName,
+          folderId: folderId,
+          contentHash: contentHash,
+          onSendProgress: (sent, total) {
+            _updateTask(task.copyWith(progress: sent / total));
+          },
+        );
 
         _updateTask(
           task.copyWith(status: UploadStatus.completed, progress: 1.0),
@@ -176,7 +190,7 @@ class FileUploadCubit extends Cubit<FileUploadState> {
         task.copyWith(status: UploadStatus.encrypting, progress: 0.0),
       );
 
-      final keyOwner = 'user';
+      const keyOwner = 'user';
 
       String userPublicKeyPem;
       if (kIsWeb) {
@@ -253,6 +267,7 @@ class FileUploadCubit extends Cubit<FileUploadState> {
         userId: userId,
         keyOwner: keyOwner,
         isPublic: isPublic,
+        contentHash: contentHash,
         onSendProgress: (sent, total) {
           final uploadProgress = 0.2 + (sent / total) * 0.8;
           _updateTask(task.copyWith(progress: uploadProgress));

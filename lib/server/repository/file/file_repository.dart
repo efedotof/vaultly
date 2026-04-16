@@ -1,7 +1,10 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
+import 'package:vaulth_app/server/model/file/check_duplicate_request/check_duplicate_request.dart';
+import 'package:vaulth_app/server/model/file/check_duplicate_response/check_duplicate_response.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
+import 'package:vaulth_app/server/model/file/link_file_request/link_file_request.dart';
 import 'package:vaulth_app/server/model/page_response.dart';
 import 'package:vaulth_app/server/service/key_manager_service.dart';
 import 'package:vaulth_app/server/service/logger_service.dart';
@@ -48,6 +51,7 @@ class FileRepository implements FileInterface {
     required String keyOwner,
     required bool isPublic,
     ProgressCallback? onSendProgress,
+    String? contentHash,
   }) async {
     try {
       final multipartFile = MultipartFile.fromBytes(
@@ -55,11 +59,14 @@ class FileRepository implements FileInterface {
         filename: '$originalFileName.shps',
       );
 
-      final formData = FormData.fromMap({
+      final formDataMap = {
         'file': multipartFile,
         'isPublic': isPublic ? 'true' : 'false',
         'folderId': folderId,
-      });
+        'contentHash': contentHash,
+      };
+
+      final formData = FormData.fromMap(formDataMap);
 
       final response = await _dio.post(
         '/upload/shps',
@@ -79,6 +86,7 @@ class FileRepository implements FileInterface {
     required File file,
     String? folderId,
     ProgressCallback? onSendProgress,
+    String? contentHash,
   }) async {
     try {
       final fileName = file.path.split('/').last;
@@ -87,10 +95,13 @@ class FileRepository implements FileInterface {
         filename: fileName,
       );
 
-      final formData = FormData.fromMap({
+      final formDataMap = {
         'file': multipartFile,
         'folderId': folderId,
-      });
+        'contentHash': contentHash,
+      };
+
+      final formData = FormData.fromMap(formDataMap);
 
       final response = await _dio.post(
         '/upload/public',
@@ -103,6 +114,29 @@ class FileRepository implements FileInterface {
     } on DioException catch (e) {
       throw _handleDioError(e);
     }
+  }
+
+  @override
+  Future<FileDto> uploadPublicFileFromBytes({
+    required Uint8List bytes,
+    required String fileName,
+    String? folderId,
+    ProgressCallback? onSendProgress,
+    String? contentHash,
+  }) async {
+    final multipartFile = MultipartFile.fromBytes(bytes, filename: fileName);
+    final formDataMap = {
+      'file': multipartFile,
+      'folderId': folderId,
+      'contentHash': contentHash,
+    };
+    final formData = FormData.fromMap(formDataMap);
+    final response = await _dio.post(
+      '/upload/public',
+      data: formData,
+      onSendProgress: onSendProgress,
+    );
+    return FileDto.fromJson(response.data);
   }
 
   @override
@@ -210,26 +244,6 @@ class FileRepository implements FileInterface {
   }
 
   @override
-  Future<FileDto> uploadPublicFileFromBytes({
-    required Uint8List bytes,
-    required String fileName,
-    String? folderId,
-    ProgressCallback? onSendProgress,
-  }) async {
-    final multipartFile = MultipartFile.fromBytes(bytes, filename: fileName);
-    final formData = FormData.fromMap({
-      'file': multipartFile,
-      'folderId': folderId,
-    });
-    final response = await _dio.post(
-      '/upload/public',
-      data: formData,
-      onSendProgress: onSendProgress,
-    );
-    return FileDto.fromJson(response.data);
-  }
-
-  @override
   Future<FileDto> createNote({
     required Uint8List encryptedData,
     required String fileName,
@@ -301,6 +315,44 @@ class FileRepository implements FileInterface {
         response.data as Map<String, dynamic>,
         (json) => FileDto.fromJson(json),
       );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<CheckDuplicateResponse> checkDuplicate({
+    required String hash,
+    required bool isPublic,
+  }) async {
+    try {
+      final request = CheckDuplicateRequest(hash: hash, isPublic: isPublic);
+      final response = await _dio.post(
+        '/check-duplicate',
+        data: request.toJson(),
+      );
+      return CheckDuplicateResponse.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<FileDto> linkExistingFile({
+    required String fileContentId,
+    required String fileName,
+    String? folderId,
+    required bool isPublic,
+  }) async {
+    try {
+      final request = LinkFileRequest(
+        fileContentId: fileContentId,
+        fileName: fileName,
+        folderId: folderId,
+        isPublic: isPublic,
+      );
+      final response = await _dio.post('/link', data: request.toJson());
+      return FileDto.fromJson(response.data);
     } on DioException catch (e) {
       throw _handleDioError(e);
     }

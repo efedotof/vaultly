@@ -1,6 +1,6 @@
 part of 'file_upload_cubit.dart';
 
-enum UploadStatus { idle, encrypting, uploading, completed, error }
+enum UploadStatus { idle, encrypting, uploading, linking, completed, error }
 
 @freezed
 abstract class FileUploadState with _$FileUploadState {

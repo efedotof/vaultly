@@ -31,6 +31,11 @@ class TaskTile extends StatelessWidget {
         statusIcon = Icons.lock;
         statusColor = Colors.blue;
         break;
+      case UploadStatus.linking:
+        statusText = 'Создание ссылки...';
+        statusIcon = Icons.link;
+        statusColor = Colors.blueGrey;
+        break;
       case UploadStatus.uploading:
         statusText = 'Отправка ${(task.progress * 100).toStringAsFixed(0)}%';
         statusIcon = Icons.cloud_upload;
