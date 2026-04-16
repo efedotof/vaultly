@@ -1,0 +1,151 @@
+name: Build and Release Desktop Apps
+
+on:
+  push:
+    tags:
+      - 'v*' 
+
+jobs:
+  build-windows:
+    name: Build for Windows
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Enable windows support
+        run: flutter config --enable-windows-desktop
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build Windows app
+        run: flutter build windows --release
+
+      - name: Activate desktop_updater
+        run: dart pub global activate desktop_updater
+
+      - name: Create update archive for Windows
+        run: dart run desktop_updater:archive windows --app-name=vaulth_app
+
+      - name: Get version from pubspec
+        id: version
+        run: |
+          $version = (Get-Content pubspec.yaml | Select-String 'version: (.+)').Matches.Groups[1].Value
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Upload Windows artifacts to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/${{ steps.version.outputs.version }}-windows/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-macos:
+    name: Build for macOS
+    runs-on: macos-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Enable macos support
+        run: flutter config --enable-macos-desktop
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build macOS app
+        run: flutter build macos --release
+
+      - name: Activate desktop_updater
+        run: dart pub global activate desktop_updater
+
+      - name: Rename app to vaulth_app.app if needed
+        run: |
+          if [ -d "build/macos/Build/Products/Release/Vaultly.app" ]; then
+            mv build/macos/Build/Products/Release/Vaultly.app build/macos/Build/Products/Release/vaulth_app.app
+          fi
+
+      - name: Create update archive for macOS
+        run: dart run desktop_updater:archive macos --app-name=vaulth_app
+
+      - name: Get version from pubspec
+        id: version
+        run: |
+          version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      - name: Upload macOS artifacts to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/${{ steps.version.outputs.version }}-macos/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-app-archive:
+    name: Update app-archive.json
+    runs-on: ubuntu-latest
+    needs: [build-windows, build-macos]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate app-archive.json
+        run: |
+          VERSION="${{ needs.build-windows.outputs.version }}"
+          TAG="${GITHUB_REF#refs/tags/}"
+          cat > app-archive.json << EOF
+          {
+            "appName": "Vaultly",
+            "description": "Your personal digital vault",
+            "items": [
+              {
+                "version": "${VERSION}",
+                "shortVersion": 1,
+                "changes": [
+                  { "type": "feat", "message": "New release ${TAG}" }
+                ],
+                "date": "$(date +%Y-%m-%d)",
+                "mandatory": false,
+                "url": "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${VERSION}-windows/",
+                "platform": "windows"
+              },
+              {
+                "version": "${VERSION}",
+                "shortVersion": 1,
+                "changes": [
+                  { "type": "feat", "message": "New release ${TAG}" }
+                ],
+                "date": "$(date +%Y-%m-%d)",
+                "mandatory": false,
+                "url": "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${VERSION}-macos/",
+                "platform": "macos"
+              }
+            ]
+          }
+          EOF
+
+      - name: Upload app-archive.json to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: app-archive.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
