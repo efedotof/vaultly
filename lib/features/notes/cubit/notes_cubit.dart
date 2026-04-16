@@ -24,8 +24,19 @@ class NotesCubit extends Cubit<NotesState> {
       );
       emit(NotesState.loaded(pageResponse.content, pageResponse));
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(const NotesState.unauthorized());
+        return;
+      }
       emit(NotesState.error(e.toString()));
     }
+  }
+
+  bool _is403Error(Object e) {
+    final errorString = e.toString();
+    return errorString.contains('403') ||
+        errorString.contains('status code of 403') ||
+        (e is Exception && errorString.contains('Network error'));
   }
 
   Future<void> refresh() => loadNotes();
@@ -35,6 +46,10 @@ class NotesCubit extends Cubit<NotesState> {
       await fileRepository.deleteFile(noteId);
       await loadNotes();
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(const NotesState.unauthorized());
+        return;
+      }
       emit(NotesState.error(e.toString()));
       await loadNotes();
     }

@@ -9,4 +9,5 @@ class NotesState with _$NotesState {
     PageResponse<FileDto> page,
   ) = _Loaded;
   const factory NotesState.error(String message) = _Error;
+  const factory NotesState.unauthorized() = _Unauthorized;
 }

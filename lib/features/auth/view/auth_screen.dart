@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -25,25 +24,12 @@ class _AuthScreenState extends State<AuthScreen> {
 
   bool _isLoginMode = true;
   bool _isSubmitting = false;
-  bool _showUnauthenticated = false;
-  Timer? _splashTimer;
 
   bool _isPreloadingHome = false;
   bool _isShowingTotpDialog = false;
 
   @override
-  void initState() {
-    super.initState();
-    Future.microtask(() {
-      if (mounted) {
-        context.read<AuthCubit>().checkAuthStatus();
-      }
-    });
-  }
-
-  @override
   void dispose() {
-    _splashTimer?.cancel();
     _usernameController.dispose();
     _passwordController.dispose();
     _firstNameController.dispose();
@@ -85,27 +71,6 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  void _startSplashTimer() {
-    if (_splashTimer != null) return;
-    _splashTimer = Timer(const Duration(seconds: 10), () {
-      if (mounted) {
-        setState(() {
-          _showUnauthenticated = true;
-        });
-      }
-    });
-  }
-
-  void _resetSplashTimer() {
-    _splashTimer?.cancel();
-    _splashTimer = null;
-    if (_showUnauthenticated) {
-      setState(() {
-        _showUnauthenticated = false;
-      });
-    }
-  }
-
   Future<void> _preloadHomeData() async {
     try {
       await context.read<HomeCubit>().loadData();
@@ -143,20 +108,14 @@ class _AuthScreenState extends State<AuthScreen> {
             initial: () {},
             loading: () {},
             authenticated: (_) {
-              _resetSplashTimer();
-              if (mounted) setState(() => _isSubmitting = false);
+              setState(() => _isSubmitting = false);
             },
             unauthenticated: () {
-              if (mounted) setState(() => _isSubmitting = false);
-              if (mounted && !_showUnauthenticated) {
-                _startSplashTimer();
-              }
+              setState(() => _isSubmitting = false);
             },
             error: (message) {
-              if (mounted) {
-                setState(() => _isSubmitting = false);
-                _showSnackBar(message, isError: true);
-              }
+              setState(() => _isSubmitting = false);
+              _showSnackBar(message, isError: true);
             },
             totpRequired: (username, password) {
               if (!_isShowingTotpDialog) {
@@ -174,24 +133,8 @@ class _AuthScreenState extends State<AuthScreen> {
           builder: (context, state) {
             return state.when(
               initial: () => const VaultlySplash(),
-              loading: () {
-                if (_isSubmitting) {
-                  return UnauthenticatedContent(
-                    isLoginMode: _isLoginMode,
-                    onToggleMode: (value) =>
-                        setState(() => _isLoginMode = value),
-                    firstNameController: _firstNameController,
-                    lastNameController: _lastNameController,
-                    usernameController: _usernameController,
-                    passwordController: _passwordController,
-                    isSubmitting: _isSubmitting,
-                    onSubmit: _submit,
-                  );
-                }
-                return const VaultlySplash();
-              },
+              loading: () => const VaultlySplash(),
               authenticated: (authResponse) {
-                _resetSplashTimer();
                 if (!_isPreloadingHome) {
                   _isPreloadingHome = true;
                   WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -201,9 +144,6 @@ class _AuthScreenState extends State<AuthScreen> {
                 return const VaultlySplash();
               },
               unauthenticated: () {
-                if (!_showUnauthenticated) {
-                  return const VaultlySplash();
-                }
                 return UnauthenticatedContent(
                   isLoginMode: _isLoginMode,
                   onToggleMode: (value) => setState(() => _isLoginMode = value),

@@ -85,13 +85,14 @@ class KeyManagerServiceWeb {
 
   Future<void> storeUserPrivateKeyEncryptedWithPassword(
     String privateKeyPem,
-    String password,
-  ) async {
-    final salt = _crypto.generateSalt();
-    final key = await _crypto.deriveKey(password, salt);
-    final encrypted = await _crypto.encrypt(privateKeyPem, key);
+    String password, {
+    String? salt,
+  }) async {
+    final effectiveSalt = salt ?? _crypto.generateSalt();
+    final derivedKey = await _crypto.deriveKey(password, effectiveSalt);
+    final encrypted = await _crypto.encrypt(privateKeyPem, derivedKey);
     await _storage.write(key: _userPrivateKey, value: encrypted);
-    await _storage.write(key: _userSalt, value: salt);
+    await _storage.write(key: _userSalt, value: effectiveSalt);
     _cachedPrivateKeyPem = privateKeyPem;
     LoggerService().debug(
       '[KeyManagerServiceWeb] User private key stored (encrypted with password)',
@@ -278,6 +279,12 @@ class KeyManagerServiceWeb {
     _cachedPrivateKeyPem = null;
     LoggerService().debug('[KeyManagerServiceWeb] All keys cleared');
   }
+
+  Future<String> encryptWithPassword(String plaintext, String password) async {
+    final salt = await getUserSalt() ?? _crypto.generateSalt();
+    final key = await _crypto.deriveKey(password, salt);
+    return await _crypto.encrypt(plaintext, key);
+  }
 }
 
 class _CryptoHelperWeb {
@@ -356,5 +363,4 @@ class _CryptoHelperWeb {
       return null;
     }
   }
-  
 }

@@ -16,4 +16,5 @@ class FolderState with _$FolderState {
   }) = _PasswordRequired;
   const factory FolderState.error(String message) = _Error;
   const factory FolderState.deleted() = _Deleted;
+  const factory FolderState.unauthorized() = _Unauthorized;
 }

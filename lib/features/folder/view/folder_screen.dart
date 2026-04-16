@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vaulth_app/app/cubit/file_upload_cubit.dart';
 import 'package:vaulth_app/features/folder/cubit/folder_cubit.dart';
 import 'package:vaulth_app/features/folder/widget/widget.dart';
+import 'package:vaulth_app/route/app_router.dart';
 import 'package:vaulth_app/server/model/folder/folder_access_dto/folder_access_dto.dart';
 import 'package:vaulth_app/server/model/folder/folder_move_dto/folder_move_dto.dart';
 import 'package:vaulth_app/server/model/folder/folder_share_dto/folder_share_dto.dart';
@@ -807,6 +808,9 @@ class _FolderScreenState extends State<FolderScreen> {
                     if (context.mounted) Navigator.of(context).pop();
                   });
                 },
+                unauthorized: () {
+                  context.replaceRoute(const AuthRoute());
+                },
               );
             },
             builder: (context, state) {
@@ -830,6 +834,8 @@ class _FolderScreenState extends State<FolderScreen> {
                 error: (message) =>
                     ErrorsWidgets(message: message, folderId: widget.folderId),
                 deleted: () => DeletedWidgets(),
+                unauthorized: () =>
+                    const Center(child: CircularProgressIndicator()),
               );
             },
           ),

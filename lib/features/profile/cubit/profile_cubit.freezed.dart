@@ -55,7 +55,7 @@ extension ProfileStatePatterns on ProfileState {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _Initial value)?  initial,TResult Function( _Loading value)?  loading,TResult Function( _Loaded value)?  loaded,TResult Function( _Error value)?  error,TResult Function( _Updating value)?  updating,TResult Function( _UpdateSuccess value)?  updateSuccess,TResult Function( _UpdateError value)?  updateError,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _Initial value)?  initial,TResult Function( _Loading value)?  loading,TResult Function( _Loaded value)?  loaded,TResult Function( _Error value)?  error,TResult Function( _Updating value)?  updating,TResult Function( _UpdateSuccess value)?  updateSuccess,TResult Function( _UpdateError value)?  updateError,TResult Function( _Unauthorized value)?  unauthorized,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
@@ -65,7 +65,8 @@ return loaded(_that);case _Error() when error != null:
 return error(_that);case _Updating() when updating != null:
 return updating(_that);case _UpdateSuccess() when updateSuccess != null:
 return updateSuccess(_that);case _UpdateError() when updateError != null:
-return updateError(_that);case _:
+return updateError(_that);case _Unauthorized() when unauthorized != null:
+return unauthorized(_that);case _:
   return orElse();
 
 }
@@ -83,7 +84,7 @@ return updateError(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _Initial value)  initial,required TResult Function( _Loading value)  loading,required TResult Function( _Loaded value)  loaded,required TResult Function( _Error value)  error,required TResult Function( _Updating value)  updating,required TResult Function( _UpdateSuccess value)  updateSuccess,required TResult Function( _UpdateError value)  updateError,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _Initial value)  initial,required TResult Function( _Loading value)  loading,required TResult Function( _Loaded value)  loaded,required TResult Function( _Error value)  error,required TResult Function( _Updating value)  updating,required TResult Function( _UpdateSuccess value)  updateSuccess,required TResult Function( _UpdateError value)  updateError,required TResult Function( _Unauthorized value)  unauthorized,}){
 final _that = this;
 switch (_that) {
 case _Initial():
@@ -93,7 +94,8 @@ return loaded(_that);case _Error():
 return error(_that);case _Updating():
 return updating(_that);case _UpdateSuccess():
 return updateSuccess(_that);case _UpdateError():
-return updateError(_that);case _:
+return updateError(_that);case _Unauthorized():
+return unauthorized(_that);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -110,7 +112,7 @@ return updateError(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _Initial value)?  initial,TResult? Function( _Loading value)?  loading,TResult? Function( _Loaded value)?  loaded,TResult? Function( _Error value)?  error,TResult? Function( _Updating value)?  updating,TResult? Function( _UpdateSuccess value)?  updateSuccess,TResult? Function( _UpdateError value)?  updateError,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _Initial value)?  initial,TResult? Function( _Loading value)?  loading,TResult? Function( _Loaded value)?  loaded,TResult? Function( _Error value)?  error,TResult? Function( _Updating value)?  updating,TResult? Function( _UpdateSuccess value)?  updateSuccess,TResult? Function( _UpdateError value)?  updateError,TResult? Function( _Unauthorized value)?  unauthorized,}){
 final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
@@ -120,7 +122,8 @@ return loaded(_that);case _Error() when error != null:
 return error(_that);case _Updating() when updating != null:
 return updating(_that);case _UpdateSuccess() when updateSuccess != null:
 return updateSuccess(_that);case _UpdateError() when updateError != null:
-return updateError(_that);case _:
+return updateError(_that);case _Unauthorized() when unauthorized != null:
+return unauthorized(_that);case _:
   return null;
 
 }
@@ -137,7 +140,7 @@ return updateError(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  initial,TResult Function()?  loading,TResult Function( UserProfileDto profile)?  loaded,TResult Function( String message)?  error,TResult Function()?  updating,TResult Function( UserProfileDto profile)?  updateSuccess,TResult Function( String message)?  updateError,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  initial,TResult Function()?  loading,TResult Function( UserProfileDto profile)?  loaded,TResult Function( String message)?  error,TResult Function()?  updating,TResult Function( UserProfileDto profile)?  updateSuccess,TResult Function( String message)?  updateError,TResult Function()?  unauthorized,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
 return initial();case _Loading() when loading != null:
@@ -146,7 +149,8 @@ return loaded(_that.profile);case _Error() when error != null:
 return error(_that.message);case _Updating() when updating != null:
 return updating();case _UpdateSuccess() when updateSuccess != null:
 return updateSuccess(_that.profile);case _UpdateError() when updateError != null:
-return updateError(_that.message);case _:
+return updateError(_that.message);case _Unauthorized() when unauthorized != null:
+return unauthorized();case _:
   return orElse();
 
 }
@@ -164,7 +168,7 @@ return updateError(_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  initial,required TResult Function()  loading,required TResult Function( UserProfileDto profile)  loaded,required TResult Function( String message)  error,required TResult Function()  updating,required TResult Function( UserProfileDto profile)  updateSuccess,required TResult Function( String message)  updateError,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  initial,required TResult Function()  loading,required TResult Function( UserProfileDto profile)  loaded,required TResult Function( String message)  error,required TResult Function()  updating,required TResult Function( UserProfileDto profile)  updateSuccess,required TResult Function( String message)  updateError,required TResult Function()  unauthorized,}) {final _that = this;
 switch (_that) {
 case _Initial():
 return initial();case _Loading():
@@ -173,7 +177,8 @@ return loaded(_that.profile);case _Error():
 return error(_that.message);case _Updating():
 return updating();case _UpdateSuccess():
 return updateSuccess(_that.profile);case _UpdateError():
-return updateError(_that.message);case _:
+return updateError(_that.message);case _Unauthorized():
+return unauthorized();case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -190,7 +195,7 @@ return updateError(_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  initial,TResult? Function()?  loading,TResult? Function( UserProfileDto profile)?  loaded,TResult? Function( String message)?  error,TResult? Function()?  updating,TResult? Function( UserProfileDto profile)?  updateSuccess,TResult? Function( String message)?  updateError,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  initial,TResult? Function()?  loading,TResult? Function( UserProfileDto profile)?  loaded,TResult? Function( String message)?  error,TResult? Function()?  updating,TResult? Function( UserProfileDto profile)?  updateSuccess,TResult? Function( String message)?  updateError,TResult? Function()?  unauthorized,}) {final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
 return initial();case _Loading() when loading != null:
@@ -199,7 +204,8 @@ return loaded(_that.profile);case _Error() when error != null:
 return error(_that.message);case _Updating() when updating != null:
 return updating();case _UpdateSuccess() when updateSuccess != null:
 return updateSuccess(_that.profile);case _UpdateError() when updateError != null:
-return updateError(_that.message);case _:
+return updateError(_that.message);case _Unauthorized() when unauthorized != null:
+return unauthorized();case _:
   return null;
 
 }
@@ -584,5 +590,37 @@ as String,
 
 
 }
+
+/// @nodoc
+
+
+class _Unauthorized implements ProfileState {
+  const _Unauthorized();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Unauthorized);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'ProfileState.unauthorized()';
+}
+
+
+}
+
+
+
 
 // dart format on

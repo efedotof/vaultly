@@ -20,6 +20,7 @@ import 'package:vaulth_app/server/service/file_decryption_service.dart';
 import 'package:vaulth_app/server/service/key_manager_service.dart';
 import 'package:vaulth_app/server/service/key_manager_service_web.dart';
 import 'package:vaulth_app/server/service/local_file_cache.dart';
+import 'package:vaulth_app/server/service/seed_phrase_service.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 
 class AppBloc extends StatefulWidget {
@@ -90,6 +91,7 @@ class _AppBlocState extends State<AppBloc> {
             authStorage: context.read<AuthLocalStorage>(),
             authCubit: context.read<AuthCubit>(),
             totpInterface: context.read<TotpInterface>(),
+            seedPhraseService: context.read<SeedPhraseService>(),
           ),
         ),
         BlocProvider(
@@ -114,8 +116,6 @@ class _AppBlocState extends State<AppBloc> {
           create: (context) =>
               NotesCubit(fileRepository: context.read<FileInterface>()),
         ),
-       
-        // NoteEditorCubit
       ],
       child: widget.child,
     );

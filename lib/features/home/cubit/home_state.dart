@@ -19,4 +19,5 @@ class HomeState with _$HomeState {
   const factory HomeState.fileDeleteError(String message) = _FileDeleteError;
   const factory HomeState.addingFileToFolder() = _AddingFileToFolder;
   const factory HomeState.addFileError(String message) = _AddFileError;
+  const factory HomeState.unauthorized() = _Unauthorized;
 }

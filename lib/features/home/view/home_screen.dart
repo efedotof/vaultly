@@ -9,6 +9,7 @@ import 'package:vaulth_app/features/auth/cubit/auth_cubit.dart';
 import 'package:vaulth_app/features/home/cubit/batch_cache_cubit.dart';
 import 'package:vaulth_app/features/home/cubit/home_cubit.dart';
 import 'package:vaulth_app/features/home/widget/widget.dart';
+import 'package:vaulth_app/route/app_router.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
 import 'package:vaulth_app/server/model/file/upload_task/upload_task.dart';
 
@@ -361,6 +362,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     'Ошибка удаления файла: $message',
                     isError: true,
                   ),
+                  unauthorized: () {
+                    context.replaceRoute(const AuthRoute());
+                  },
                   addFileError: (message) => _showSnackBar(
                     'Ошибка добавления файла: $message',
                     isError: true,
@@ -408,6 +412,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     scrollController: _scrollController,
                   ),
                   addFileError: (message) => ErrorWidgets(message: message),
+                  unauthorized: () =>
+                      const Center(child: CircularProgressIndicator()),
                 );
               },
             ),

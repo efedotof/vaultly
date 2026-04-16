@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:vaulth_app/server/model/auth/auth_response/auth_response.dart';
 import 'package:vaulth_app/server/model/auth/login_request/login_request.dart';
 import 'package:vaulth_app/server/model/auth/logout_request/logout_request.dart';
+import 'package:vaulth_app/server/model/auth/recover_request/recover_request.dart';
 import 'package:vaulth_app/server/model/auth/register_request/register_request.dart';
 import 'package:vaulth_app/server/model/auth/token_validation_request/token_validation_request.dart';
 
@@ -32,6 +33,7 @@ class AuthRepository implements AuthInterface {
     );
   }
 
+  @override
   void setAccessToken(String token) {
     _accessToken = token;
   }
@@ -108,6 +110,26 @@ class AuthRepository implements AuthInterface {
   Exception _handleDioError(DioException e) {
     final message = e.response?.data?['message'] ?? e.message;
     return Exception('Network error: $message');
+  }
+
+  @override
+  Future<AuthResponse> recoverAccess({required RecoverRequest request}) async {
+    try {
+      final response = await _dio.post('/recover', data: request.toJson());
+      final authResponse = AuthResponse.fromJson(
+        response.data as Map<String, dynamic>,
+      );
+      _accessToken = authResponse.accessToken;
+      return authResponse;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        final data = e.response?.data;
+        if (data is Map && data['error'] == 'totp_required') {
+          throw TotpRequiredException(data['message'] ?? 'TOTP code required');
+        }
+      }
+      throw _handleDioError(e);
+    }
   }
 }
 

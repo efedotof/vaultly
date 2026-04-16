@@ -20,6 +20,7 @@ import 'package:vaulth_app/server/repository/user/user_interface.dart';
 import 'package:vaulth_app/server/repository/user/user_repository.dart';
 import 'package:vaulth_app/server/service/key_manager_service.dart';
 import 'package:vaulth_app/server/service/local_file_cache.dart';
+import 'package:vaulth_app/server/service/seed_phrase_service.dart';
 import 'package:vaulth_app/server/service/shirm_encryption_service.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 
@@ -32,6 +33,7 @@ class AppRepository extends StatelessWidget {
       providers: [
         RepositoryProvider(create: (context) => AuthLocalStorage()),
         RepositoryProvider(create: (context) => LocalFileCache()),
+        RepositoryProvider(create: (context) => SeedPhraseService()),
         RepositoryProvider<ServerKeyInterface>(
           create: (context) => ServerKeyRepository(
             baseUrl: serverKey,

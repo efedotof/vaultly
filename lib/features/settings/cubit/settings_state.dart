@@ -19,4 +19,10 @@ class SettingsState with _$SettingsState {
       _TotpEnabled;
   const factory SettingsState.totpDisabling() = _TotpDisabling;
   const factory SettingsState.totpDisabled() = _TotpDisabled;
+  const factory SettingsState.seedGenerating() = _SeedGenerating;
+  const factory SettingsState.seedReady(String mnemonic, List<String> words) =
+      _SeedReady;
+  const factory SettingsState.seedUpdating() = _SeedUpdating;
+  const factory SettingsState.seedUpdated() = _SeedUpdated;
+  const factory SettingsState.unauthorized() = _Unauthorized;
 }

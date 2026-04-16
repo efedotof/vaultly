@@ -10,4 +10,5 @@ class ProfileState with _$ProfileState {
   const factory ProfileState.updateSuccess(UserProfileDto profile) =
       _UpdateSuccess;
   const factory ProfileState.updateError(String message) = _UpdateError;
+  const factory ProfileState.unauthorized() = _Unauthorized;
 }

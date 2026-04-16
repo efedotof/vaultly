@@ -122,13 +122,14 @@ class KeyManagerService {
 
   Future<void> storeUserPrivateKeyEncryptedWithPassword(
     String privateKeyPem,
-    String password,
-  ) async {
-    final salt = crypto.generateSalt();
-    final key = await crypto.deriveKey(password, salt);
+    String password, {
+    String? salt,
+  }) async {
+    final effectiveSalt = salt ?? crypto.generateSalt();
+    final key = await crypto.deriveKey(password, effectiveSalt);
     final encrypted = await crypto.encrypt(privateKeyPem, key);
     await SecureStorageAdapter.write(key: _userPrivateKey, value: encrypted);
-    await SecureStorageAdapter.write(key: _userSalt, value: salt);
+    await SecureStorageAdapter.write(key: _userSalt, value: effectiveSalt);
     _cachedPrivateKey = CryptoUtils.rsaPrivateKeyFromPem(privateKeyPem);
     LoggerService().debug(
       '[KeyManagerService] User private key stored (encrypted with password)',
@@ -438,6 +439,12 @@ class KeyManagerService {
     LoggerService().debug(
       '[KeyManagerService] User keys cleared (device keys preserved)',
     );
+  }
+
+  Future<String> encryptWithPassword(String plaintext, String password) async {
+    final salt = await getUserSalt() ?? crypto.generateSalt();
+    final key = await crypto.deriveKey(password, salt);
+    return await crypto.encrypt(plaintext, key);
   }
 }
 

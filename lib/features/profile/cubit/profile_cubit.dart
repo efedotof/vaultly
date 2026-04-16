@@ -20,6 +20,10 @@ class ProfileCubit extends Cubit<ProfileState> {
 
       emit(ProfileState.loaded(profile));
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(ProfileState.unauthorized());
+        return;
+      }
       emit(ProfileState.error(e.toString()));
     }
   }
@@ -30,6 +34,10 @@ class ProfileCubit extends Cubit<ProfileState> {
       final updatedProfile = await userRepository.updateCurrentUser(request);
       emit(ProfileState.updateSuccess(updatedProfile));
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(ProfileState.unauthorized());
+        return;
+      }
       emit(ProfileState.updateError(e.toString()));
     }
   }
@@ -40,8 +48,19 @@ class ProfileCubit extends Cubit<ProfileState> {
       final profile = await userRepository.getUserProfileById(id);
       emit(ProfileState.loaded(profile));
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(ProfileState.unauthorized());
+        return;
+      }
       emit(ProfileState.error(e.toString()));
     }
+  }
+
+  bool _is403Error(Object e) {
+    final errorString = e.toString();
+    return errorString.contains('403') ||
+        errorString.contains('status code of 403') ||
+        (e is Exception && errorString.contains('Network error'));
   }
 
   void reset() {

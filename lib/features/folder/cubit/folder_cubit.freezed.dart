@@ -55,7 +55,7 @@ extension FolderStatePatterns on FolderState {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _Initial value)?  initial,TResult Function( _Loading value)?  loading,TResult Function( _Loaded value)?  loaded,TResult Function( _PasswordRequired value)?  passwordRequired,TResult Function( _Error value)?  error,TResult Function( _Deleted value)?  deleted,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _Initial value)?  initial,TResult Function( _Loading value)?  loading,TResult Function( _Loaded value)?  loaded,TResult Function( _PasswordRequired value)?  passwordRequired,TResult Function( _Error value)?  error,TResult Function( _Deleted value)?  deleted,TResult Function( _Unauthorized value)?  unauthorized,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
@@ -64,7 +64,8 @@ return loading(_that);case _Loaded() when loaded != null:
 return loaded(_that);case _PasswordRequired() when passwordRequired != null:
 return passwordRequired(_that);case _Error() when error != null:
 return error(_that);case _Deleted() when deleted != null:
-return deleted(_that);case _:
+return deleted(_that);case _Unauthorized() when unauthorized != null:
+return unauthorized(_that);case _:
   return orElse();
 
 }
@@ -82,7 +83,7 @@ return deleted(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _Initial value)  initial,required TResult Function( _Loading value)  loading,required TResult Function( _Loaded value)  loaded,required TResult Function( _PasswordRequired value)  passwordRequired,required TResult Function( _Error value)  error,required TResult Function( _Deleted value)  deleted,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _Initial value)  initial,required TResult Function( _Loading value)  loading,required TResult Function( _Loaded value)  loaded,required TResult Function( _PasswordRequired value)  passwordRequired,required TResult Function( _Error value)  error,required TResult Function( _Deleted value)  deleted,required TResult Function( _Unauthorized value)  unauthorized,}){
 final _that = this;
 switch (_that) {
 case _Initial():
@@ -91,7 +92,8 @@ return loading(_that);case _Loaded():
 return loaded(_that);case _PasswordRequired():
 return passwordRequired(_that);case _Error():
 return error(_that);case _Deleted():
-return deleted(_that);case _:
+return deleted(_that);case _Unauthorized():
+return unauthorized(_that);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -108,7 +110,7 @@ return deleted(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _Initial value)?  initial,TResult? Function( _Loading value)?  loading,TResult? Function( _Loaded value)?  loaded,TResult? Function( _PasswordRequired value)?  passwordRequired,TResult? Function( _Error value)?  error,TResult? Function( _Deleted value)?  deleted,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _Initial value)?  initial,TResult? Function( _Loading value)?  loading,TResult? Function( _Loaded value)?  loaded,TResult? Function( _PasswordRequired value)?  passwordRequired,TResult? Function( _Error value)?  error,TResult? Function( _Deleted value)?  deleted,TResult? Function( _Unauthorized value)?  unauthorized,}){
 final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
@@ -117,7 +119,8 @@ return loading(_that);case _Loaded() when loaded != null:
 return loaded(_that);case _PasswordRequired() when passwordRequired != null:
 return passwordRequired(_that);case _Error() when error != null:
 return error(_that);case _Deleted() when deleted != null:
-return deleted(_that);case _:
+return deleted(_that);case _Unauthorized() when unauthorized != null:
+return unauthorized(_that);case _:
   return null;
 
 }
@@ -134,7 +137,7 @@ return deleted(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  initial,TResult Function()?  loading,TResult Function( String folderId,  List<FileDto> files,  FolderDto? folder)?  loaded,TResult Function( String folderId,  FolderDto? folder,  String? errorMessage)?  passwordRequired,TResult Function( String message)?  error,TResult Function()?  deleted,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  initial,TResult Function()?  loading,TResult Function( String folderId,  List<FileDto> files,  FolderDto? folder)?  loaded,TResult Function( String folderId,  FolderDto? folder,  String? errorMessage)?  passwordRequired,TResult Function( String message)?  error,TResult Function()?  deleted,TResult Function()?  unauthorized,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
 return initial();case _Loading() when loading != null:
@@ -142,7 +145,8 @@ return loading();case _Loaded() when loaded != null:
 return loaded(_that.folderId,_that.files,_that.folder);case _PasswordRequired() when passwordRequired != null:
 return passwordRequired(_that.folderId,_that.folder,_that.errorMessage);case _Error() when error != null:
 return error(_that.message);case _Deleted() when deleted != null:
-return deleted();case _:
+return deleted();case _Unauthorized() when unauthorized != null:
+return unauthorized();case _:
   return orElse();
 
 }
@@ -160,7 +164,7 @@ return deleted();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  initial,required TResult Function()  loading,required TResult Function( String folderId,  List<FileDto> files,  FolderDto? folder)  loaded,required TResult Function( String folderId,  FolderDto? folder,  String? errorMessage)  passwordRequired,required TResult Function( String message)  error,required TResult Function()  deleted,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  initial,required TResult Function()  loading,required TResult Function( String folderId,  List<FileDto> files,  FolderDto? folder)  loaded,required TResult Function( String folderId,  FolderDto? folder,  String? errorMessage)  passwordRequired,required TResult Function( String message)  error,required TResult Function()  deleted,required TResult Function()  unauthorized,}) {final _that = this;
 switch (_that) {
 case _Initial():
 return initial();case _Loading():
@@ -168,7 +172,8 @@ return loading();case _Loaded():
 return loaded(_that.folderId,_that.files,_that.folder);case _PasswordRequired():
 return passwordRequired(_that.folderId,_that.folder,_that.errorMessage);case _Error():
 return error(_that.message);case _Deleted():
-return deleted();case _:
+return deleted();case _Unauthorized():
+return unauthorized();case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -185,7 +190,7 @@ return deleted();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  initial,TResult? Function()?  loading,TResult? Function( String folderId,  List<FileDto> files,  FolderDto? folder)?  loaded,TResult? Function( String folderId,  FolderDto? folder,  String? errorMessage)?  passwordRequired,TResult? Function( String message)?  error,TResult? Function()?  deleted,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  initial,TResult? Function()?  loading,TResult? Function( String folderId,  List<FileDto> files,  FolderDto? folder)?  loaded,TResult? Function( String folderId,  FolderDto? folder,  String? errorMessage)?  passwordRequired,TResult? Function( String message)?  error,TResult? Function()?  deleted,TResult? Function()?  unauthorized,}) {final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
 return initial();case _Loading() when loading != null:
@@ -193,7 +198,8 @@ return loading();case _Loaded() when loaded != null:
 return loaded(_that.folderId,_that.files,_that.folder);case _PasswordRequired() when passwordRequired != null:
 return passwordRequired(_that.folderId,_that.folder,_that.errorMessage);case _Error() when error != null:
 return error(_that.message);case _Deleted() when deleted != null:
-return deleted();case _:
+return deleted();case _Unauthorized() when unauthorized != null:
+return unauthorized();case _:
   return null;
 
 }
@@ -525,6 +531,38 @@ int get hashCode => runtimeType.hashCode;
 @override
 String toString() {
   return 'FolderState.deleted()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class _Unauthorized implements FolderState {
+  const _Unauthorized();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Unauthorized);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'FolderState.unauthorized()';
 }
 
 

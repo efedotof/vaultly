@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gif/gif.dart';
+import 'package:vaulth_app/features/auth/widget/recover_seed_dialog.dart';
 
 class UnauthenticatedContent extends StatefulWidget {
   const UnauthenticatedContent({
@@ -29,6 +30,13 @@ class UnauthenticatedContent extends StatefulWidget {
 
 class _UnauthenticatedContentState extends State<UnauthenticatedContent>
     with TickerProviderStateMixin {
+  void _showRecoverDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => const RecoverSeedDialog(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -169,6 +177,15 @@ class _UnauthenticatedContentState extends State<UnauthenticatedContent>
                       ),
                     ],
                     const SizedBox(height: 28),
+
+                    if (widget.isLoginMode)
+                      TextButton(
+                        onPressed: widget.isSubmitting
+                            ? null
+                            : () => _showRecoverDialog(context),
+                        child: const Text('Восстановить через seed-фразу'),
+                      ),
+                    const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(

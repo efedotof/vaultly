@@ -68,6 +68,10 @@ dependencies:
   flutter_secure_storage_web: ^2.1.0
   flutter_markdown: ^0.7.7+1
   easy_docs_viewer: ^0.0.2-unstable-release
+  pinenacl: ^0.6.0
+  ed25519_hd_key: ^2.3.0
+  bip39: ^1.0.6
+  bip32: ^2.0.0
 
 dev_dependencies:
   flutter_test:

@@ -1,4 +1,7 @@
 import 'package:dio/dio.dart';
+import 'package:vaulth_app/server/model/user/recovery_data_response/recovery_data_response.dart';
+import 'package:vaulth_app/server/model/user/update_keys_request/update_keys_request.dart';
+import 'package:vaulth_app/server/model/user/update_recovery_keys_request/update_recovery_keys_request.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 import 'user_interface.dart';
 import 'package:vaulth_app/server/model/user/update_user_request/update_user_request.dart';
@@ -74,5 +77,31 @@ class UserRepository implements UserInterface {
   Future<String> getUserSalt() async {
     final response = await _dio.get('/me/salt');
     return response.data as String;
+  }
+
+  @override
+  Future<void> updateRecoveryKeys({
+    required UpdateRecoveryKeysRequest request,
+  }) async {
+    try {
+      await _dio.post('/keys/recovery/update', data: request.toJson());
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<RecoveryDataResponse> getRecoveryData() async {
+    final response = await _dio.get('/me/recovery-data');
+    return RecoveryDataResponse.fromJson(response.data);
+  }
+
+  @override
+  Future<void> updateKeys({required UpdateKeysRequest request}) async {
+    try {
+      await _dio.post('/keys/update', data: request.toJson());
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
   }
 }

@@ -55,7 +55,7 @@ extension HomeStatePatterns on HomeState {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _Initial value)?  initial,TResult Function( _Loading value)?  loading,TResult Function( _Loaded value)?  loaded,TResult Function( _Error value)?  error,TResult Function( _CreatingFolder value)?  creatingFolder,TResult Function( _UpdatingFolder value)?  updatingFolder,TResult Function( _DeletingFolder value)?  deletingFolder,TResult Function( _FolderError value)?  folderError,TResult Function( _DeletingFile value)?  deletingFile,TResult Function( _FileDeleteError value)?  fileDeleteError,TResult Function( _AddingFileToFolder value)?  addingFileToFolder,TResult Function( _AddFileError value)?  addFileError,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _Initial value)?  initial,TResult Function( _Loading value)?  loading,TResult Function( _Loaded value)?  loaded,TResult Function( _Error value)?  error,TResult Function( _CreatingFolder value)?  creatingFolder,TResult Function( _UpdatingFolder value)?  updatingFolder,TResult Function( _DeletingFolder value)?  deletingFolder,TResult Function( _FolderError value)?  folderError,TResult Function( _DeletingFile value)?  deletingFile,TResult Function( _FileDeleteError value)?  fileDeleteError,TResult Function( _AddingFileToFolder value)?  addingFileToFolder,TResult Function( _AddFileError value)?  addFileError,TResult Function( _Unauthorized value)?  unauthorized,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
@@ -70,7 +70,8 @@ return folderError(_that);case _DeletingFile() when deletingFile != null:
 return deletingFile(_that);case _FileDeleteError() when fileDeleteError != null:
 return fileDeleteError(_that);case _AddingFileToFolder() when addingFileToFolder != null:
 return addingFileToFolder(_that);case _AddFileError() when addFileError != null:
-return addFileError(_that);case _:
+return addFileError(_that);case _Unauthorized() when unauthorized != null:
+return unauthorized(_that);case _:
   return orElse();
 
 }
@@ -88,7 +89,7 @@ return addFileError(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _Initial value)  initial,required TResult Function( _Loading value)  loading,required TResult Function( _Loaded value)  loaded,required TResult Function( _Error value)  error,required TResult Function( _CreatingFolder value)  creatingFolder,required TResult Function( _UpdatingFolder value)  updatingFolder,required TResult Function( _DeletingFolder value)  deletingFolder,required TResult Function( _FolderError value)  folderError,required TResult Function( _DeletingFile value)  deletingFile,required TResult Function( _FileDeleteError value)  fileDeleteError,required TResult Function( _AddingFileToFolder value)  addingFileToFolder,required TResult Function( _AddFileError value)  addFileError,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _Initial value)  initial,required TResult Function( _Loading value)  loading,required TResult Function( _Loaded value)  loaded,required TResult Function( _Error value)  error,required TResult Function( _CreatingFolder value)  creatingFolder,required TResult Function( _UpdatingFolder value)  updatingFolder,required TResult Function( _DeletingFolder value)  deletingFolder,required TResult Function( _FolderError value)  folderError,required TResult Function( _DeletingFile value)  deletingFile,required TResult Function( _FileDeleteError value)  fileDeleteError,required TResult Function( _AddingFileToFolder value)  addingFileToFolder,required TResult Function( _AddFileError value)  addFileError,required TResult Function( _Unauthorized value)  unauthorized,}){
 final _that = this;
 switch (_that) {
 case _Initial():
@@ -103,7 +104,8 @@ return folderError(_that);case _DeletingFile():
 return deletingFile(_that);case _FileDeleteError():
 return fileDeleteError(_that);case _AddingFileToFolder():
 return addingFileToFolder(_that);case _AddFileError():
-return addFileError(_that);case _:
+return addFileError(_that);case _Unauthorized():
+return unauthorized(_that);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -120,7 +122,7 @@ return addFileError(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _Initial value)?  initial,TResult? Function( _Loading value)?  loading,TResult? Function( _Loaded value)?  loaded,TResult? Function( _Error value)?  error,TResult? Function( _CreatingFolder value)?  creatingFolder,TResult? Function( _UpdatingFolder value)?  updatingFolder,TResult? Function( _DeletingFolder value)?  deletingFolder,TResult? Function( _FolderError value)?  folderError,TResult? Function( _DeletingFile value)?  deletingFile,TResult? Function( _FileDeleteError value)?  fileDeleteError,TResult? Function( _AddingFileToFolder value)?  addingFileToFolder,TResult? Function( _AddFileError value)?  addFileError,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _Initial value)?  initial,TResult? Function( _Loading value)?  loading,TResult? Function( _Loaded value)?  loaded,TResult? Function( _Error value)?  error,TResult? Function( _CreatingFolder value)?  creatingFolder,TResult? Function( _UpdatingFolder value)?  updatingFolder,TResult? Function( _DeletingFolder value)?  deletingFolder,TResult? Function( _FolderError value)?  folderError,TResult? Function( _DeletingFile value)?  deletingFile,TResult? Function( _FileDeleteError value)?  fileDeleteError,TResult? Function( _AddingFileToFolder value)?  addingFileToFolder,TResult? Function( _AddFileError value)?  addFileError,TResult? Function( _Unauthorized value)?  unauthorized,}){
 final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
@@ -135,7 +137,8 @@ return folderError(_that);case _DeletingFile() when deletingFile != null:
 return deletingFile(_that);case _FileDeleteError() when fileDeleteError != null:
 return fileDeleteError(_that);case _AddingFileToFolder() when addingFileToFolder != null:
 return addingFileToFolder(_that);case _AddFileError() when addFileError != null:
-return addFileError(_that);case _:
+return addFileError(_that);case _Unauthorized() when unauthorized != null:
+return unauthorized(_that);case _:
   return null;
 
 }
@@ -152,7 +155,7 @@ return addFileError(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  initial,TResult Function()?  loading,TResult Function( List<FolderDto> folders,  List<FileDto> recentFiles,  List<FileDto> allFiles,  List<FileDto>? cachedFiles)?  loaded,TResult Function( String message)?  error,TResult Function()?  creatingFolder,TResult Function()?  updatingFolder,TResult Function()?  deletingFolder,TResult Function( String message)?  folderError,TResult Function()?  deletingFile,TResult Function( String message)?  fileDeleteError,TResult Function()?  addingFileToFolder,TResult Function( String message)?  addFileError,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  initial,TResult Function()?  loading,TResult Function( List<FolderDto> folders,  List<FileDto> recentFiles,  List<FileDto> allFiles,  List<FileDto>? cachedFiles)?  loaded,TResult Function( String message)?  error,TResult Function()?  creatingFolder,TResult Function()?  updatingFolder,TResult Function()?  deletingFolder,TResult Function( String message)?  folderError,TResult Function()?  deletingFile,TResult Function( String message)?  fileDeleteError,TResult Function()?  addingFileToFolder,TResult Function( String message)?  addFileError,TResult Function()?  unauthorized,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
 return initial();case _Loading() when loading != null:
@@ -166,7 +169,8 @@ return folderError(_that.message);case _DeletingFile() when deletingFile != null
 return deletingFile();case _FileDeleteError() when fileDeleteError != null:
 return fileDeleteError(_that.message);case _AddingFileToFolder() when addingFileToFolder != null:
 return addingFileToFolder();case _AddFileError() when addFileError != null:
-return addFileError(_that.message);case _:
+return addFileError(_that.message);case _Unauthorized() when unauthorized != null:
+return unauthorized();case _:
   return orElse();
 
 }
@@ -184,7 +188,7 @@ return addFileError(_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  initial,required TResult Function()  loading,required TResult Function( List<FolderDto> folders,  List<FileDto> recentFiles,  List<FileDto> allFiles,  List<FileDto>? cachedFiles)  loaded,required TResult Function( String message)  error,required TResult Function()  creatingFolder,required TResult Function()  updatingFolder,required TResult Function()  deletingFolder,required TResult Function( String message)  folderError,required TResult Function()  deletingFile,required TResult Function( String message)  fileDeleteError,required TResult Function()  addingFileToFolder,required TResult Function( String message)  addFileError,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  initial,required TResult Function()  loading,required TResult Function( List<FolderDto> folders,  List<FileDto> recentFiles,  List<FileDto> allFiles,  List<FileDto>? cachedFiles)  loaded,required TResult Function( String message)  error,required TResult Function()  creatingFolder,required TResult Function()  updatingFolder,required TResult Function()  deletingFolder,required TResult Function( String message)  folderError,required TResult Function()  deletingFile,required TResult Function( String message)  fileDeleteError,required TResult Function()  addingFileToFolder,required TResult Function( String message)  addFileError,required TResult Function()  unauthorized,}) {final _that = this;
 switch (_that) {
 case _Initial():
 return initial();case _Loading():
@@ -198,7 +202,8 @@ return folderError(_that.message);case _DeletingFile():
 return deletingFile();case _FileDeleteError():
 return fileDeleteError(_that.message);case _AddingFileToFolder():
 return addingFileToFolder();case _AddFileError():
-return addFileError(_that.message);case _:
+return addFileError(_that.message);case _Unauthorized():
+return unauthorized();case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -215,7 +220,7 @@ return addFileError(_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  initial,TResult? Function()?  loading,TResult? Function( List<FolderDto> folders,  List<FileDto> recentFiles,  List<FileDto> allFiles,  List<FileDto>? cachedFiles)?  loaded,TResult? Function( String message)?  error,TResult? Function()?  creatingFolder,TResult? Function()?  updatingFolder,TResult? Function()?  deletingFolder,TResult? Function( String message)?  folderError,TResult? Function()?  deletingFile,TResult? Function( String message)?  fileDeleteError,TResult? Function()?  addingFileToFolder,TResult? Function( String message)?  addFileError,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  initial,TResult? Function()?  loading,TResult? Function( List<FolderDto> folders,  List<FileDto> recentFiles,  List<FileDto> allFiles,  List<FileDto>? cachedFiles)?  loaded,TResult? Function( String message)?  error,TResult? Function()?  creatingFolder,TResult? Function()?  updatingFolder,TResult? Function()?  deletingFolder,TResult? Function( String message)?  folderError,TResult? Function()?  deletingFile,TResult? Function( String message)?  fileDeleteError,TResult? Function()?  addingFileToFolder,TResult? Function( String message)?  addFileError,TResult? Function()?  unauthorized,}) {final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
 return initial();case _Loading() when loading != null:
@@ -229,7 +234,8 @@ return folderError(_that.message);case _DeletingFile() when deletingFile != null
 return deletingFile();case _FileDeleteError() when fileDeleteError != null:
 return fileDeleteError(_that.message);case _AddingFileToFolder() when addingFileToFolder != null:
 return addingFileToFolder();case _AddFileError() when addFileError != null:
-return addFileError(_that.message);case _:
+return addFileError(_that.message);case _Unauthorized() when unauthorized != null:
+return unauthorized();case _:
   return null;
 
 }
@@ -822,5 +828,37 @@ as String,
 
 
 }
+
+/// @nodoc
+
+
+class _Unauthorized implements HomeState {
+  const _Unauthorized();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Unauthorized);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'HomeState.unauthorized()';
+}
+
+
+}
+
+
+
 
 // dart format on

@@ -5,6 +5,7 @@ import 'package:vaulth_app/app/cubit/file_upload_cubit.dart';
 import 'package:vaulth_app/features/home/widget/upload_overlay.dart';
 import 'package:vaulth_app/features/profile/cubit/profile_cubit.dart';
 import 'package:vaulth_app/features/profile/widget/widget.dart';
+import 'package:vaulth_app/route/app_router.dart';
 import 'package:vaulth_app/server/model/file/upload_task/upload_task.dart';
 
 @RoutePage()
@@ -52,6 +53,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _showSnackBar('Ошибка обновления: $message', isError: true),
                 updateSuccess: (profile) =>
                     _showSnackBar('Профиль обновлён', isError: false),
+                unauthorized: () {
+                  context.replaceRoute(const AuthRoute());
+                },
               );
             },
             builder: (context, state) {
@@ -74,6 +78,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   emailController: _emailController,
                 ),
                 updateError: (message) => ErrorWidgets(message: message),
+                unauthorized: () =>
+                    const Center(child: CircularProgressIndicator()),
               );
             },
           ),

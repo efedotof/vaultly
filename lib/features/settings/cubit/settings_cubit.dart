@@ -7,12 +7,15 @@ import 'package:vaulth_app/server/model/device/device_update_request/device_upda
 import 'package:vaulth_app/server/model/totp/totp_disable_request/totp_disable_request.dart';
 import 'package:vaulth_app/server/model/totp/totp_setup_response/totp_setup_response.dart';
 import 'package:vaulth_app/server/model/totp/totp_verify_request/totp_verify_request.dart';
+import 'package:vaulth_app/server/model/user/update_keys_request/update_keys_request.dart';
+import 'package:vaulth_app/server/model/user/update_recovery_keys_request/update_recovery_keys_request.dart';
 import 'package:vaulth_app/server/model/user/user_profile_dto/user_profile_dto.dart';
 import 'package:vaulth_app/server/repository/auth/auth_interface.dart';
 import 'package:vaulth_app/server/repository/device/device_interface.dart';
 import 'package:vaulth_app/server/repository/totp/totp_interface.dart';
 import 'package:vaulth_app/server/repository/user/user_interface.dart';
 import 'package:vaulth_app/server/service/local_file_cache.dart';
+import 'package:vaulth_app/server/service/seed_phrase_service.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 
 part 'settings_state.dart';
@@ -27,7 +30,7 @@ class SettingsCubit extends Cubit<SettingsState> {
   final AuthLocalStorage authStorage;
   final AuthCubit authCubit;
   final TotpInterface totpInterface;
-
+  final SeedPhraseService seedPhraseService;
   SettingsCubit({
     required this.userRepository,
     required this.authRepository,
@@ -37,6 +40,7 @@ class SettingsCubit extends Cubit<SettingsState> {
     required this.authStorage,
     required this.authCubit,
     required this.totpInterface,
+    required this.seedPhraseService,
   }) : super(const SettingsState.initial());
 
   TotpSetupResponse? _pendingTotpSetup;
@@ -55,6 +59,10 @@ class SettingsCubit extends Cubit<SettingsState> {
         ),
       );
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(SettingsState.unauthorized());
+        return;
+      }
       emit(SettingsState.error(e.toString()));
     }
   }
@@ -67,6 +75,9 @@ class SettingsCubit extends Cubit<SettingsState> {
     try {
       return await keyManager.getPrivateKeyPEM(password);
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(SettingsState.unauthorized());
+      }
       emit(SettingsState.error('Не удалось получить приватный ключ: $e'));
       return null;
     }
@@ -83,6 +94,10 @@ class SettingsCubit extends Cubit<SettingsState> {
       await deviceRepository.registerDevice(request);
       await refreshDevices();
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(SettingsState.unauthorized());
+        return;
+      }
       _emitErrorAndRestore(e.toString(), previousState);
     }
   }
@@ -97,6 +112,10 @@ class SettingsCubit extends Cubit<SettingsState> {
       await deviceRepository.updateDevice(deviceId, request);
       await refreshDevices();
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(SettingsState.unauthorized());
+        return;
+      }
       _emitErrorAndRestore(e.toString(), previousState);
     }
   }
@@ -108,6 +127,10 @@ class SettingsCubit extends Cubit<SettingsState> {
       await deviceRepository.deactivateDevice(deviceId);
       await refreshDevices();
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(SettingsState.unauthorized());
+        return;
+      }
       _emitErrorAndRestore(e.toString(), previousState);
     }
   }
@@ -119,6 +142,10 @@ class SettingsCubit extends Cubit<SettingsState> {
       await deviceRepository.deleteDevice(deviceId);
       await refreshDevices();
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(SettingsState.unauthorized());
+        return;
+      }
       _emitErrorAndRestore(e.toString(), previousState);
     }
   }
@@ -136,6 +163,10 @@ class SettingsCubit extends Cubit<SettingsState> {
             ),
           );
         } catch (e) {
+          if (_is403Error(e)) {
+            emit(SettingsState.unauthorized());
+            return;
+          }
           emit(SettingsState.error('Ошибка обновления устройств: $e'));
           emit(state);
         }
@@ -157,6 +188,10 @@ class SettingsCubit extends Cubit<SettingsState> {
             ),
           );
         } catch (e) {
+          if (_is403Error(e)) {
+            emit(SettingsState.unauthorized());
+            return;
+          }
           emit(SettingsState.error('Ошибка обновления профиля: $e'));
           emit(state);
         }
@@ -182,6 +217,10 @@ class SettingsCubit extends Cubit<SettingsState> {
         orElse: () {},
       );
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(SettingsState.unauthorized());
+        return;
+      }
       emit(SettingsState.error('Ошибка очистки кэша: $e'));
       if (previousState is _Loaded) {
         emit(previousState);
@@ -201,7 +240,12 @@ class SettingsCubit extends Cubit<SettingsState> {
               cacheSizeBytes: cacheSize,
             ),
           );
-        } catch (_) {}
+        } catch (e) {
+          if (_is403Error(e)) {
+            emit(SettingsState.unauthorized());
+            return;
+          }
+        }
       },
       orElse: () {},
     );
@@ -226,6 +270,9 @@ class SettingsCubit extends Cubit<SettingsState> {
     try {
       return await keyManager.getDevicePrivateKeyPEM(password);
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(SettingsState.unauthorized());
+      }
       emit(
         SettingsState.error(
           'Не удалось получить приватный ключ устройства: $e',
@@ -257,6 +304,10 @@ class SettingsCubit extends Cubit<SettingsState> {
       _pendingTotpSetup = response;
       emit(SettingsState.totpSetupReady(response.qrCodeUrl, response.secret));
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(SettingsState.unauthorized());
+        return;
+      }
       emit(SettingsState.error('Ошибка настройки TOTP: $e'));
       _restoreState(previousState);
     }
@@ -275,6 +326,10 @@ class SettingsCubit extends Cubit<SettingsState> {
       await refreshProfile();
       emit(SettingsState.totpEnabled(response.backupCodes));
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(SettingsState.unauthorized());
+        return;
+      }
       emit(SettingsState.error('Неверный код: $e'));
       _restoreState(previousState);
     }
@@ -289,6 +344,10 @@ class SettingsCubit extends Cubit<SettingsState> {
       await refreshProfile();
       emit(const SettingsState.totpDisabled());
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(SettingsState.unauthorized());
+        return;
+      }
       emit(SettingsState.error('Ошибка отключения TOTP: $e'));
       _restoreState(previousState);
     }
@@ -319,5 +378,84 @@ class SettingsCubit extends Cubit<SettingsState> {
       ),
       orElse: () {},
     );
+  }
+
+  Future<void> generateAndUpdateSeedPhrase(String password) async {
+    emit(const SettingsState.seedGenerating());
+    try {
+      final rsaPrivateKeyPem = await keyManager.getPrivateKeyPEM(password);
+      if (rsaPrivateKeyPem == null) {
+        throw Exception('Неверный пароль или данные повреждены');
+      }
+
+      final currentSalt = await keyManager.getUserSalt();
+      if (currentSalt == null) {
+        throw Exception('Соль не найдена');
+      }
+
+      await keyManager.storeUserPrivateKeyEncryptedWithPassword(
+        rsaPrivateKeyPem,
+        password,
+        salt: currentSalt,
+      );
+
+      final encryptedPrivateKey = await keyManager
+          .getUserEncryptedPrivateKeyData();
+      if (encryptedPrivateKey == null) {
+        throw Exception('Не удалось получить зашифрованный приватный ключ');
+      }
+
+      final publicKey = await keyManager.getUserPublicKey();
+      if (publicKey == null || publicKey.isEmpty) {
+        throw Exception('Публичный ключ не найден');
+      }
+
+      final updateKeysRequest = UpdateKeysRequest(
+        publicKey: publicKey,
+        privateKeyEncrypted: encryptedPrivateKey,
+        currentPassword: password,
+      );
+      await userRepository.updateKeys(request: updateKeysRequest);
+
+      final mnemonic = SeedPhraseService.generateMnemonic();
+      final seed = SeedPhraseService.mnemonicToSeed(mnemonic);
+      final edKeyPair = await SeedPhraseService.deriveEd25519KeyPair(seed);
+
+      final encryptedEdPrivateKey = await keyManager.encryptWithPassword(
+        edKeyPair.privateKeyBase64,
+        password,
+      );
+
+      final encryptedRsaKey = await SeedPhraseService.encryptRsaKeyWithMnemonic(
+        rsaPrivateKeyPem,
+        mnemonic,
+      );
+
+      emit(const SettingsState.seedUpdating());
+      final recoveryRequest = UpdateRecoveryKeysRequest(
+        recoveryPublicKey: edKeyPair.publicKeyBase64,
+        recoveryPrivateKeyEncrypted: encryptedEdPrivateKey,
+        recoveryEncryptedRsaKey: encryptedRsaKey,
+        currentPassword: password,
+      );
+      await userRepository.updateRecoveryKeys(request: recoveryRequest);
+
+      final words = mnemonic.split(' ');
+      emit(SettingsState.seedReady(mnemonic, words));
+    } catch (e) {
+      if (_is403Error(e)) {
+        emit(SettingsState.unauthorized());
+        return;
+      }
+      emit(SettingsState.error('Ошибка создания seed-фразы: $e'));
+      await loadSettingsData();
+    }
+  }
+
+  bool _is403Error(Object e) {
+    final errorString = e.toString();
+    return errorString.contains('403') ||
+        errorString.contains('status code of 403') ||
+        (e is Exception && errorString.contains('Network error'));
   }
 }

@@ -59,6 +59,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _lastProfile = profile;
                   _lastCacheSize = cacheSizeBytes;
                 },
+                unauthorized: () {
+                  context.replaceRoute(const AuthRoute());
+                },
               );
             },
           ),
@@ -67,7 +70,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               state.whenOrNull(
                 unauthenticated: () {
                   _showSnackBar('Вы вышли из системы', isError: false);
-                  context.router.replaceAll([const AuthRoute()]);
+                  context.replaceRoute(const AuthRoute());
                 },
               );
             },

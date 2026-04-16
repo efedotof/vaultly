@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vaulth_app/features/notes/cubit/notes_cubit.dart';
 import 'package:vaulth_app/features/notes/widget/note_editor_screen.dart';
 import 'package:vaulth_app/features/notes/widget/note_list_item.dart';
+import 'package:vaulth_app/route/app_router.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
 
 @RoutePage()
@@ -15,36 +16,87 @@ class NotesScreen extends StatelessWidget {
     return BlocBuilder<NotesCubit, NotesState>(
       builder: (context, state) {
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Заметки'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: () => context.read<NotesCubit>().refresh(),
+          body: Stack(
+            children: [
+              BlocListener<NotesCubit, NotesState>(
+                listener: (context, state) {
+                  state.whenOrNull(
+                    unauthorized: () {
+                      context.replaceRoute(const AuthRoute());
+                    },
+                  );
+                },
+                child: state.when(
+                  initial: () => const SizedBox(),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  loaded: (notes, _) => notes.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Нет заметок. Нажмите "+" чтобы создать новую.',
+                          ),
+                        )
+                      : Padding(
+                          padding: EdgeInsets.symmetric(
+                            vertical: MediaQuery.of(context).size.height * 0.12,
+                          ),
+                          child: ListView.builder(
+                            itemCount: notes.length,
+                            itemBuilder: (ctx, index) {
+                              final note = notes[index];
+                              return NoteListItem(
+                                note: note,
+                                onTap: () => _openNoteEditor(context, note),
+                                onDelete: () => _deleteNote(context, note),
+                              );
+                            },
+                          ),
+                        ),
+                  error: (msg) => Center(child: Text('Ошибка: $msg')),
+                  unauthorized: () =>
+                      const Center(child: CircularProgressIndicator()),
+                ),
+              ),
+
+              Positioned(
+                top: MediaQuery.of(context).size.height * 0.046,
+                left: 24.0,
+                right: 24.0,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.95),
+                    borderRadius: BorderRadius.circular(32),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Заметки'),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.refresh),
+                              onPressed: () =>
+                                  context.read<NotesCubit>().refresh(),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ],
-          ),
-          body: state.when(
-            initial: () => const SizedBox(),
-            loading: () => const Center(child: CircularProgressIndicator()),
-            loaded: (notes, _) => notes.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Нет заметок. Нажмите "+" чтобы создать новую.',
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: notes.length,
-                    itemBuilder: (ctx, index) {
-                      final note = notes[index];
-                      return NoteListItem(
-                        note: note,
-                        onTap: () => _openNoteEditor(context, note),
-                        onDelete: () => _deleteNote(context, note),
-                      );
-                    },
-                  ),
-            error: (msg) => Center(child: Text('Ошибка: $msg')),
           ),
           floatingActionButton: Padding(
             padding: const EdgeInsets.only(bottom: 80),

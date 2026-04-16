@@ -44,6 +44,10 @@ class FolderCubit extends Cubit<FolderState> {
         FolderState.loaded(folderId: folderId, files: files, folder: folder),
       );
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(const FolderState.unauthorized());
+        return;
+      }
       if (e.toString().contains('403') || e.toString().contains('401')) {
         emit(FolderState.passwordRequired(folderId: folderId, folder: folder));
       } else {
@@ -80,6 +84,10 @@ class FolderCubit extends Cubit<FolderState> {
         ),
       );
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(const FolderState.unauthorized());
+        return;
+      }
       emit(FolderState.error(e.toString()));
     }
   }
@@ -110,6 +118,10 @@ class FolderCubit extends Cubit<FolderState> {
           await folderRepository.createFolder(request);
           await refresh();
         } catch (e) {
+          if (_is403Error(e)) {
+            emit(const FolderState.unauthorized());
+            return;
+          }
           emit(FolderState.error(e.toString()));
           emit(previousState);
         }
@@ -122,6 +134,10 @@ class FolderCubit extends Cubit<FolderState> {
     try {
       await folderRepository.setFolderPassword(folderId, password);
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(const FolderState.unauthorized());
+        return;
+      }
       emit(FolderState.error(e.toString()));
     }
   }
@@ -136,6 +152,10 @@ class FolderCubit extends Cubit<FolderState> {
           await folderRepository.renameFolder(folderIdToRename, request);
           await refresh();
         } catch (e) {
+          if (_is403Error(e)) {
+            emit(const FolderState.unauthorized());
+            return;
+          }
           emit(FolderState.error(e.toString()));
           emit(previousState);
         }
@@ -157,6 +177,10 @@ class FolderCubit extends Cubit<FolderState> {
             await refresh();
           }
         } catch (e) {
+          if (_is403Error(e)) {
+            emit(const FolderState.unauthorized());
+            return;
+          }
           emit(FolderState.error(e.toString()));
           emit(previousState);
         }
@@ -175,6 +199,10 @@ class FolderCubit extends Cubit<FolderState> {
           await folderRepository.addFileToFolder(folderId, request);
           await refresh();
         } catch (e) {
+          if (_is403Error(e)) {
+            emit(const FolderState.unauthorized());
+            return;
+          }
           emit(FolderState.error(e.toString()));
           emit(previousState);
         }
@@ -192,6 +220,10 @@ class FolderCubit extends Cubit<FolderState> {
           await folderRepository.removeFileFromFolder(folderId, fileId);
           await refresh();
         } catch (e) {
+          if (_is403Error(e)) {
+            emit(const FolderState.unauthorized());
+            return;
+          }
           emit(FolderState.error(e.toString()));
           emit(previousState);
         }
@@ -212,6 +244,10 @@ class FolderCubit extends Cubit<FolderState> {
             await refresh();
           }
         } catch (e) {
+          if (_is403Error(e)) {
+            emit(const FolderState.unauthorized());
+            return;
+          }
           emit(FolderState.error(e.toString()));
           emit(previousState);
         }
@@ -228,6 +264,9 @@ class FolderCubit extends Cubit<FolderState> {
       );
       return result;
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(const FolderState.unauthorized());
+      }
       emit(FolderState.error(e.toString()));
       rethrow;
     }
@@ -244,6 +283,10 @@ class FolderCubit extends Cubit<FolderState> {
             await refresh();
           }
         } catch (e) {
+          if (_is403Error(e)) {
+            emit(const FolderState.unauthorized());
+            return;
+          }
           emit(FolderState.error(e.toString()));
           emit(previousState);
         }
@@ -259,8 +302,18 @@ class FolderCubit extends Cubit<FolderState> {
     try {
       return await folderRepository.checkFolderAccess(folderId, request);
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(const FolderState.unauthorized());
+      }
       emit(FolderState.error(e.toString()));
       return false;
     }
+  }
+
+  bool _is403Error(Object e) {
+    final errorString = e.toString();
+    return errorString.contains('403') ||
+        errorString.contains('status code of 403') ||
+        (e is Exception && errorString.contains('Network error'));
   }
 }

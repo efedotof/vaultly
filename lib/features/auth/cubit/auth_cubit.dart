@@ -7,15 +7,18 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:vaulth_app/server/model/auth/auth_response/auth_response.dart';
 import 'package:vaulth_app/server/model/auth/login_request/login_request.dart';
 import 'package:vaulth_app/server/model/auth/logout_request/logout_request.dart';
+import 'package:vaulth_app/server/model/auth/recover_request/recover_request.dart';
 import 'package:vaulth_app/server/model/auth/register_request/register_request.dart';
 import 'package:vaulth_app/server/model/auth/token_validation_request/token_validation_request.dart';
 import 'package:vaulth_app/server/model/device/device_register_request/device_register_request.dart';
+import 'package:vaulth_app/server/model/user/update_keys_request/update_keys_request.dart';
 import 'package:vaulth_app/server/repository/auth/auth_interface.dart';
 import 'package:vaulth_app/server/repository/auth/auth_repository.dart';
 import 'package:vaulth_app/server/repository/device/device_interface.dart';
 import 'package:vaulth_app/server/repository/user/user_interface.dart';
 import 'package:vaulth_app/server/service/device_id_generator.dart';
 import 'package:vaulth_app/server/service/logger_service.dart';
+import 'package:vaulth_app/server/service/seed_phrase_service.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 
 part 'auth_state.dart';
@@ -33,7 +36,7 @@ class AuthCubit extends Cubit<AuthState> {
        _deviceInterface = deviceRepository,
        _keyManagerService = keyManagerService,
        _authLocalStorage = authLocalService,
-       super(const AuthState.initial()) {
+       super(const AuthState.loading()) {
     Future.microtask(() => checkAuthStatus());
   }
 
@@ -44,7 +47,6 @@ class AuthCubit extends Cubit<AuthState> {
   final UserInterface _userInterface;
   final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
   final DeviceIdGenerator _deviceIdGenerator = DeviceIdGenerator();
-
   String? _currentPassword;
   String? get currentPassword => _currentPassword;
 
@@ -129,7 +131,6 @@ class AuthCubit extends Cubit<AuthState> {
       await _authLocalStorage.saveAuthData(response);
 
       await registerDevice(authResponse: response, userPassword: password);
-      emit(AuthState.authenticated(response));
     } catch (e) {
       LoggerService().error('AuthCubit: registration error', error: e);
       emit(AuthState.error(e.toString()));
@@ -152,6 +153,7 @@ class AuthCubit extends Cubit<AuthState> {
       await _authLocalStorage.saveAuthData(response);
       _currentPassword = password;
       await _authLocalStorage.savePassword(password);
+
       final hasLocalUserKey =
           await _keyManagerService.getUserPublicKey() != null;
       if (!hasLocalUserKey) {
@@ -208,8 +210,13 @@ class AuthCubit extends Cubit<AuthState> {
       final alreadyExists = existingDevices.any(
         (d) => d.uniqueId == uniqueDeviceId,
       );
+
       if (alreadyExists) {
-        LoggerService().debug('Device already registered, skipping');
+        LoggerService().debug(
+          'Device already registered, skipping registration',
+        );
+
+        emit(AuthState.authenticated(authResponse));
         return;
       }
 
@@ -342,11 +349,56 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
+  Future<bool> _attemptAutoLogin(String username, String password) async {
+    try {
+      final request = LoginRequest(username: username, password: password);
+      final response = await _authinterface.login(request);
+      await _authLocalStorage.saveAuthData(response);
+      _currentPassword = password;
+      await _authLocalStorage.savePassword(password);
+
+      final hasLocalUserKey =
+          await _keyManagerService.getUserPublicKey() != null;
+      if (!hasLocalUserKey) {
+        final encryptedKey = await _userInterface.getUserEncryptedPrivateKey();
+        final salt = await _userInterface.getUserSalt();
+        final privateKeyPem = await _keyManagerService
+            .decryptPrivateKeyWithPassword(encryptedKey, salt, password);
+        if (privateKeyPem == null) {
+          throw Exception('Invalid password or corrupted data');
+        }
+        await _keyManagerService.storeUserPrivateKeyEncryptedWithPassword(
+          privateKeyPem,
+          password,
+        );
+        final profile = await _userInterface.getCurrentUserProfile();
+        final publicKeyPem = profile.publicKey;
+        if (publicKeyPem == null || publicKeyPem.isEmpty) {
+          throw Exception('User public key not found in profile');
+        }
+        await _keyManagerService.saveUserPublicKey(publicKeyPem);
+      }
+
+      try {
+        await registerDevice(authResponse: response, userPassword: password);
+      } catch (e) {
+        LoggerService().warning(
+          'Device registration postponed during auto-login',
+          error: e,
+        );
+      }
+
+      return true;
+    } catch (e) {
+      LoggerService().error('Auto-login attempt failed', error: e);
+      return false;
+    }
+  }
+
   Future<void> checkAuthStatus() async {
     LoggerService().debug('AuthCubit: checkAuthStatus started');
-    try {
-      emit(const AuthState.loading());
 
+    try {
       final token = await _authLocalStorage.getAccessToken();
       if (token == null) {
         LoggerService().debug(
@@ -363,7 +415,7 @@ class AuthCubit extends Cubit<AuthState> {
         final userPublicKey = await _keyManagerService.getUserPublicKey();
         if (userPublicKey == null) {
           LoggerService().warning(
-            'AuthCubit: user public key missing, attempting auto-login',
+            'AuthCubit: user public key missing, need auto-login',
           );
           throw Exception('User public key missing');
         }
@@ -388,39 +440,113 @@ class AuthCubit extends Cubit<AuthState> {
 
         LoggerService().debug('AuthCubit: token valid, user authenticated');
         emit(AuthState.authenticated(response));
-      } catch (e) {
+        return;
+      } catch (validationError) {
         LoggerService().warning(
           'AuthCubit: token validation failed, attempting auto-login',
-          error: e,
+          error: validationError,
         );
+      }
 
-        final savedAuth = await _authLocalStorage.loadAuthData();
-        final savedPassword = await _authLocalStorage.getPassword();
+      final savedAuth = await _authLocalStorage.loadAuthData();
+      final savedPassword = await _authLocalStorage.getPassword();
 
-        if (savedAuth != null && savedPassword != null) {
-          try {
-            await login(username: savedAuth.username, password: savedPassword);
+      if (savedAuth != null && savedPassword != null) {
+        final success = await _attemptAutoLogin(
+          savedAuth.username,
+          savedPassword,
+        );
+        if (success) {
+          final freshAuth = await _authLocalStorage.loadAuthData();
+          if (freshAuth != null) {
+            emit(AuthState.authenticated(freshAuth));
             return;
-          } catch (loginError) {
-            LoggerService().error(
-              'AuthCubit: auto-login failed',
-              error: loginError,
-            );
           }
         }
-
-        await _authLocalStorage.clearAuthData();
-        _currentPassword = null;
-        emit(const AuthState.unauthenticated());
+        LoggerService().debug('AuthCubit: auto-login failed, cleaning up');
       }
+
+      await _authLocalStorage.clearAuthData();
+      await _keyManagerService.clearUserKeys();
+      _currentPassword = null;
+      emit(const AuthState.unauthenticated());
     } catch (e) {
       LoggerService().error(
-        'AuthCubit: checkAuthStatus unexpected error',
+        'AuthCubit: checkAuthStatus unexpected error, falling back to unauthenticated',
         error: e,
       );
       await _authLocalStorage.clearAuthData();
+      await _keyManagerService.clearUserKeys();
       _currentPassword = null;
       emit(const AuthState.unauthenticated());
+    }
+  }
+
+  Future<void> recoverAccess({
+    required String mnemonic,
+    required String newPassword,
+  }) async {
+    emit(const AuthState.loading());
+    try {
+      final seed = SeedPhraseService.mnemonicToSeed(mnemonic);
+      final keyPair = await SeedPhraseService.deriveEd25519KeyPair(seed);
+
+      final authRequest = RecoverRequest(publicKey: keyPair.publicKeyBase64);
+      final authResponse = await _authinterface.recoverAccess(
+        request: authRequest,
+      );
+
+      final token = authResponse.accessToken;
+      if (token == null) {
+        throw Exception('Server did not return access token');
+      }
+
+      await _authLocalStorage.saveAuthData(authResponse);
+      _authinterface.setAccessToken(token);
+
+      final recoveryData = await _userInterface.getRecoveryData();
+
+      final rsaPrivateKeyPem =
+          await SeedPhraseService.decryptRsaKeyWithMnemonic(
+            recoveryData.recoveryEncryptedRsaKey,
+            mnemonic,
+          );
+
+      await _keyManagerService.storeUserPrivateKeyEncryptedWithPassword(
+        rsaPrivateKeyPem,
+        newPassword,
+      );
+      _currentPassword = newPassword;
+      await _authLocalStorage.savePassword(newPassword);
+
+      final profile = await _userInterface.getCurrentUserProfile();
+      final publicKeyPem = profile.publicKey;
+      if (publicKeyPem == null || publicKeyPem.isEmpty) {
+        throw Exception('Публичный ключ пользователя не найден в профиле');
+      }
+      await _keyManagerService.saveUserPublicKey(publicKeyPem);
+
+      final encryptedRsaForServer = await _keyManagerService
+          .encryptWithPassword(rsaPrivateKeyPem, newPassword);
+      final updateKeysRequest = UpdateKeysRequest(
+        publicKey: publicKeyPem,
+        privateKeyEncrypted: encryptedRsaForServer,
+        currentPassword: newPassword,
+      );
+      await _userInterface.updateKeys(request: updateKeysRequest);
+
+      try {
+        await registerDevice(
+          authResponse: authResponse,
+          userPassword: newPassword,
+        );
+      } catch (e) {
+        LoggerService().warning('Device registration postponed', error: e);
+      }
+
+      emit(AuthState.authenticated(authResponse));
+    } catch (e) {
+      emit(AuthState.error(e.toString()));
     }
   }
 

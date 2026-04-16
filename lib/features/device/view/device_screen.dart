@@ -135,51 +135,89 @@ class _DeviceScreenState extends State<DeviceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: const Text('Устройства'),
-        elevation: 0,
-        scrolledUnderElevation: 4,
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refresh,
-            tooltip: 'Обновить',
+      body: Stack(
+        children: [
+          BlocConsumer<SettingsCubit, SettingsState>(
+            listener: (context, state) {
+              state.whenOrNull(
+                error: (message) => _showSnackBar(message, isError: true),
+              );
+            },
+            builder: (context, state) {
+              return RefreshIndicator(
+                onRefresh: _refresh,
+                child: state.maybeWhen(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  loaded: (_, devices, _) => Padding(
+                    padding: EdgeInsets.symmetric(
+                      vertical: MediaQuery.of(context).size.height * 0.1,
+                    ),
+                    child: DevicesList(
+                      devices: devices,
+                      onEdit: _showEditDialog,
+                      onDeactivate: _deactivateDevice,
+                      onDelete: _deleteDevice,
+                    ),
+                  ),
+                  error: (message) =>
+                      ErrorWidgets(message: message, onRetry: _refresh),
+                  orElse: () =>
+                      const Center(child: CircularProgressIndicator()),
+                ),
+              );
+            },
+          ),
+          Positioned(
+            top: MediaQuery.of(context).size.height * 0.046,
+            left: 24.0,
+            right: 24.0,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.95),
+                borderRadius: BorderRadius.circular(32),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back_ios),
+                          onPressed: () => context.maybePop(),
+                        ),
+                        const SizedBox(width: 10),
+                        const Text('Устройства'),
+                      ],
+                    ),
+
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.refresh),
+                          onPressed: _refresh,
+                          tooltip: 'Обновить',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
-      ),
-      body: BlocConsumer<SettingsCubit, SettingsState>(
-        listener: (context, state) {
-          state.whenOrNull(
-            error: (message) => _showSnackBar(message, isError: true),
-          );
-        },
-        builder: (context, state) {
-          return RefreshIndicator(
-            onRefresh: _refresh,
-            child: state.when(
-              initial: () => const Center(child: CircularProgressIndicator()),
-              loading: () => const Center(child: CircularProgressIndicator()),
-              loaded: (_, devices, _) => DevicesList(
-                devices: devices,
-                onEdit: _showEditDialog,
-                onDeactivate: _deactivateDevice,
-                onDelete: _deleteDevice,
-              ),
-              error: (message) =>
-                  ErrorWidgets(message: message, onRetry: _refresh),
-              loggedOut: () => const SizedBox.shrink(),
-              totpSetupLoading: () => const SizedBox.shrink(),
-              totpSetupReady: (_, _) => const SizedBox.shrink(),
-              totpVerifying: () => const SizedBox.shrink(),
-              totpEnabled: (_) => const SizedBox.shrink(),
-              totpDisabling: () => const SizedBox.shrink(),
-              totpDisabled: () => const SizedBox.shrink(),
-            ),
-          );
-        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showRegisterDialog,

@@ -60,6 +60,11 @@ class HomeCubit extends Cubit<HomeState> {
       _loadCacheInBackground();
     } catch (e) {
       try {
+        if (_is403Error(e)) {
+          emit(const HomeState.unauthorized());
+          return;
+        }
+
         final cachedMeta = await localFileCache.getAllCachedFileMetadata();
         if (cachedMeta.isNotEmpty) {
           final cachedFileDtos = await _mapCachedMetaToDtoWithPauses(
@@ -89,7 +94,11 @@ class HomeCubit extends Cubit<HomeState> {
       if (currentState is _Loaded) {
         emit(currentState.copyWith(cachedFiles: cachedFileDtos));
       }
-    } catch (_) {
+    } catch (e) {
+      if (_is403Error(e)) {
+        emit(const HomeState.unauthorized());
+        return;
+      }
     }
   }
 
@@ -136,6 +145,10 @@ class HomeCubit extends Cubit<HomeState> {
       await folderRepository.createFolder(request);
       await loadData();
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(const HomeState.unauthorized());
+        return;
+      }
       emit(HomeState.folderError(e.toString()));
       final current = state;
       if (current is _Loaded) {
@@ -153,6 +166,10 @@ class HomeCubit extends Cubit<HomeState> {
       await folderRepository.updateFolder(folderId, request);
       await loadData();
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(const HomeState.unauthorized());
+        return;
+      }
       emit(HomeState.folderError(e.toString()));
       final current = state;
       if (current is _Loaded) emit(current);
@@ -166,6 +183,10 @@ class HomeCubit extends Cubit<HomeState> {
       await folderRepository.updateFolder(folderId, request);
       await loadData();
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(const HomeState.unauthorized());
+        return;
+      }
       emit(HomeState.folderError(e.toString()));
       final current = state;
       if (current is _Loaded) emit(current);
@@ -178,6 +199,10 @@ class HomeCubit extends Cubit<HomeState> {
       await folderRepository.deleteFolder(folderId);
       await loadData();
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(const HomeState.unauthorized());
+        return;
+      }
       emit(HomeState.folderError(e.toString()));
       final current = state;
       if (current is _Loaded) emit(current);
@@ -191,10 +216,21 @@ class HomeCubit extends Cubit<HomeState> {
       await folderRepository.addFileToFolder(folderId, request);
       await loadData();
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(const HomeState.unauthorized());
+        return;
+      }
       emit(HomeState.addFileError(e.toString()));
       final current = state;
       if (current is _Loaded) emit(current);
     }
+  }
+
+  bool _is403Error(Object e) {
+    final errorString = e.toString();
+    return errorString.contains('403') ||
+        errorString.contains('status code of 403') ||
+        (e is Exception && errorString.contains('Network error'));
   }
 
   Future<void> deleteFile(String fileId) async {
@@ -203,6 +239,10 @@ class HomeCubit extends Cubit<HomeState> {
       await fileRepository.deleteFile(fileId);
       await loadData();
     } catch (e) {
+      if (_is403Error(e)) {
+        emit(const HomeState.unauthorized());
+        return;
+      }
       emit(HomeState.fileDeleteError(e.toString()));
       final current = state;
       if (current is _Loaded) {

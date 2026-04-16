@@ -55,7 +55,7 @@ extension SettingsStatePatterns on SettingsState {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _Initial value)?  initial,TResult Function( _Loading value)?  loading,TResult Function( _Loaded value)?  loaded,TResult Function( _Error value)?  error,TResult Function( _LoggedOut value)?  loggedOut,TResult Function( _TotpSetupLoading value)?  totpSetupLoading,TResult Function( _TotpSetupReady value)?  totpSetupReady,TResult Function( _TotpVerifying value)?  totpVerifying,TResult Function( _TotpEnabled value)?  totpEnabled,TResult Function( _TotpDisabling value)?  totpDisabling,TResult Function( _TotpDisabled value)?  totpDisabled,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _Initial value)?  initial,TResult Function( _Loading value)?  loading,TResult Function( _Loaded value)?  loaded,TResult Function( _Error value)?  error,TResult Function( _LoggedOut value)?  loggedOut,TResult Function( _TotpSetupLoading value)?  totpSetupLoading,TResult Function( _TotpSetupReady value)?  totpSetupReady,TResult Function( _TotpVerifying value)?  totpVerifying,TResult Function( _TotpEnabled value)?  totpEnabled,TResult Function( _TotpDisabling value)?  totpDisabling,TResult Function( _TotpDisabled value)?  totpDisabled,TResult Function( _SeedGenerating value)?  seedGenerating,TResult Function( _SeedReady value)?  seedReady,TResult Function( _SeedUpdating value)?  seedUpdating,TResult Function( _SeedUpdated value)?  seedUpdated,TResult Function( _Unauthorized value)?  unauthorized,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
@@ -69,7 +69,12 @@ return totpSetupReady(_that);case _TotpVerifying() when totpVerifying != null:
 return totpVerifying(_that);case _TotpEnabled() when totpEnabled != null:
 return totpEnabled(_that);case _TotpDisabling() when totpDisabling != null:
 return totpDisabling(_that);case _TotpDisabled() when totpDisabled != null:
-return totpDisabled(_that);case _:
+return totpDisabled(_that);case _SeedGenerating() when seedGenerating != null:
+return seedGenerating(_that);case _SeedReady() when seedReady != null:
+return seedReady(_that);case _SeedUpdating() when seedUpdating != null:
+return seedUpdating(_that);case _SeedUpdated() when seedUpdated != null:
+return seedUpdated(_that);case _Unauthorized() when unauthorized != null:
+return unauthorized(_that);case _:
   return orElse();
 
 }
@@ -87,7 +92,7 @@ return totpDisabled(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _Initial value)  initial,required TResult Function( _Loading value)  loading,required TResult Function( _Loaded value)  loaded,required TResult Function( _Error value)  error,required TResult Function( _LoggedOut value)  loggedOut,required TResult Function( _TotpSetupLoading value)  totpSetupLoading,required TResult Function( _TotpSetupReady value)  totpSetupReady,required TResult Function( _TotpVerifying value)  totpVerifying,required TResult Function( _TotpEnabled value)  totpEnabled,required TResult Function( _TotpDisabling value)  totpDisabling,required TResult Function( _TotpDisabled value)  totpDisabled,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _Initial value)  initial,required TResult Function( _Loading value)  loading,required TResult Function( _Loaded value)  loaded,required TResult Function( _Error value)  error,required TResult Function( _LoggedOut value)  loggedOut,required TResult Function( _TotpSetupLoading value)  totpSetupLoading,required TResult Function( _TotpSetupReady value)  totpSetupReady,required TResult Function( _TotpVerifying value)  totpVerifying,required TResult Function( _TotpEnabled value)  totpEnabled,required TResult Function( _TotpDisabling value)  totpDisabling,required TResult Function( _TotpDisabled value)  totpDisabled,required TResult Function( _SeedGenerating value)  seedGenerating,required TResult Function( _SeedReady value)  seedReady,required TResult Function( _SeedUpdating value)  seedUpdating,required TResult Function( _SeedUpdated value)  seedUpdated,required TResult Function( _Unauthorized value)  unauthorized,}){
 final _that = this;
 switch (_that) {
 case _Initial():
@@ -101,7 +106,12 @@ return totpSetupReady(_that);case _TotpVerifying():
 return totpVerifying(_that);case _TotpEnabled():
 return totpEnabled(_that);case _TotpDisabling():
 return totpDisabling(_that);case _TotpDisabled():
-return totpDisabled(_that);case _:
+return totpDisabled(_that);case _SeedGenerating():
+return seedGenerating(_that);case _SeedReady():
+return seedReady(_that);case _SeedUpdating():
+return seedUpdating(_that);case _SeedUpdated():
+return seedUpdated(_that);case _Unauthorized():
+return unauthorized(_that);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -118,7 +128,7 @@ return totpDisabled(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _Initial value)?  initial,TResult? Function( _Loading value)?  loading,TResult? Function( _Loaded value)?  loaded,TResult? Function( _Error value)?  error,TResult? Function( _LoggedOut value)?  loggedOut,TResult? Function( _TotpSetupLoading value)?  totpSetupLoading,TResult? Function( _TotpSetupReady value)?  totpSetupReady,TResult? Function( _TotpVerifying value)?  totpVerifying,TResult? Function( _TotpEnabled value)?  totpEnabled,TResult? Function( _TotpDisabling value)?  totpDisabling,TResult? Function( _TotpDisabled value)?  totpDisabled,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _Initial value)?  initial,TResult? Function( _Loading value)?  loading,TResult? Function( _Loaded value)?  loaded,TResult? Function( _Error value)?  error,TResult? Function( _LoggedOut value)?  loggedOut,TResult? Function( _TotpSetupLoading value)?  totpSetupLoading,TResult? Function( _TotpSetupReady value)?  totpSetupReady,TResult? Function( _TotpVerifying value)?  totpVerifying,TResult? Function( _TotpEnabled value)?  totpEnabled,TResult? Function( _TotpDisabling value)?  totpDisabling,TResult? Function( _TotpDisabled value)?  totpDisabled,TResult? Function( _SeedGenerating value)?  seedGenerating,TResult? Function( _SeedReady value)?  seedReady,TResult? Function( _SeedUpdating value)?  seedUpdating,TResult? Function( _SeedUpdated value)?  seedUpdated,TResult? Function( _Unauthorized value)?  unauthorized,}){
 final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
@@ -132,7 +142,12 @@ return totpSetupReady(_that);case _TotpVerifying() when totpVerifying != null:
 return totpVerifying(_that);case _TotpEnabled() when totpEnabled != null:
 return totpEnabled(_that);case _TotpDisabling() when totpDisabling != null:
 return totpDisabling(_that);case _TotpDisabled() when totpDisabled != null:
-return totpDisabled(_that);case _:
+return totpDisabled(_that);case _SeedGenerating() when seedGenerating != null:
+return seedGenerating(_that);case _SeedReady() when seedReady != null:
+return seedReady(_that);case _SeedUpdating() when seedUpdating != null:
+return seedUpdating(_that);case _SeedUpdated() when seedUpdated != null:
+return seedUpdated(_that);case _Unauthorized() when unauthorized != null:
+return unauthorized(_that);case _:
   return null;
 
 }
@@ -149,7 +164,7 @@ return totpDisabled(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  initial,TResult Function()?  loading,TResult Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes)?  loaded,TResult Function( String message)?  error,TResult Function()?  loggedOut,TResult Function()?  totpSetupLoading,TResult Function( String qrCodeUrl,  String secret)?  totpSetupReady,TResult Function()?  totpVerifying,TResult Function( List<String> backupCodes)?  totpEnabled,TResult Function()?  totpDisabling,TResult Function()?  totpDisabled,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  initial,TResult Function()?  loading,TResult Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes)?  loaded,TResult Function( String message)?  error,TResult Function()?  loggedOut,TResult Function()?  totpSetupLoading,TResult Function( String qrCodeUrl,  String secret)?  totpSetupReady,TResult Function()?  totpVerifying,TResult Function( List<String> backupCodes)?  totpEnabled,TResult Function()?  totpDisabling,TResult Function()?  totpDisabled,TResult Function()?  seedGenerating,TResult Function( String mnemonic,  List<String> words)?  seedReady,TResult Function()?  seedUpdating,TResult Function()?  seedUpdated,TResult Function()?  unauthorized,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
 return initial();case _Loading() when loading != null:
@@ -162,7 +177,12 @@ return totpSetupReady(_that.qrCodeUrl,_that.secret);case _TotpVerifying() when t
 return totpVerifying();case _TotpEnabled() when totpEnabled != null:
 return totpEnabled(_that.backupCodes);case _TotpDisabling() when totpDisabling != null:
 return totpDisabling();case _TotpDisabled() when totpDisabled != null:
-return totpDisabled();case _:
+return totpDisabled();case _SeedGenerating() when seedGenerating != null:
+return seedGenerating();case _SeedReady() when seedReady != null:
+return seedReady(_that.mnemonic,_that.words);case _SeedUpdating() when seedUpdating != null:
+return seedUpdating();case _SeedUpdated() when seedUpdated != null:
+return seedUpdated();case _Unauthorized() when unauthorized != null:
+return unauthorized();case _:
   return orElse();
 
 }
@@ -180,7 +200,7 @@ return totpDisabled();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  initial,required TResult Function()  loading,required TResult Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes)  loaded,required TResult Function( String message)  error,required TResult Function()  loggedOut,required TResult Function()  totpSetupLoading,required TResult Function( String qrCodeUrl,  String secret)  totpSetupReady,required TResult Function()  totpVerifying,required TResult Function( List<String> backupCodes)  totpEnabled,required TResult Function()  totpDisabling,required TResult Function()  totpDisabled,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  initial,required TResult Function()  loading,required TResult Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes)  loaded,required TResult Function( String message)  error,required TResult Function()  loggedOut,required TResult Function()  totpSetupLoading,required TResult Function( String qrCodeUrl,  String secret)  totpSetupReady,required TResult Function()  totpVerifying,required TResult Function( List<String> backupCodes)  totpEnabled,required TResult Function()  totpDisabling,required TResult Function()  totpDisabled,required TResult Function()  seedGenerating,required TResult Function( String mnemonic,  List<String> words)  seedReady,required TResult Function()  seedUpdating,required TResult Function()  seedUpdated,required TResult Function()  unauthorized,}) {final _that = this;
 switch (_that) {
 case _Initial():
 return initial();case _Loading():
@@ -193,7 +213,12 @@ return totpSetupReady(_that.qrCodeUrl,_that.secret);case _TotpVerifying():
 return totpVerifying();case _TotpEnabled():
 return totpEnabled(_that.backupCodes);case _TotpDisabling():
 return totpDisabling();case _TotpDisabled():
-return totpDisabled();case _:
+return totpDisabled();case _SeedGenerating():
+return seedGenerating();case _SeedReady():
+return seedReady(_that.mnemonic,_that.words);case _SeedUpdating():
+return seedUpdating();case _SeedUpdated():
+return seedUpdated();case _Unauthorized():
+return unauthorized();case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -210,7 +235,7 @@ return totpDisabled();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  initial,TResult? Function()?  loading,TResult? Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes)?  loaded,TResult? Function( String message)?  error,TResult? Function()?  loggedOut,TResult? Function()?  totpSetupLoading,TResult? Function( String qrCodeUrl,  String secret)?  totpSetupReady,TResult? Function()?  totpVerifying,TResult? Function( List<String> backupCodes)?  totpEnabled,TResult? Function()?  totpDisabling,TResult? Function()?  totpDisabled,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  initial,TResult? Function()?  loading,TResult? Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes)?  loaded,TResult? Function( String message)?  error,TResult? Function()?  loggedOut,TResult? Function()?  totpSetupLoading,TResult? Function( String qrCodeUrl,  String secret)?  totpSetupReady,TResult? Function()?  totpVerifying,TResult? Function( List<String> backupCodes)?  totpEnabled,TResult? Function()?  totpDisabling,TResult? Function()?  totpDisabled,TResult? Function()?  seedGenerating,TResult? Function( String mnemonic,  List<String> words)?  seedReady,TResult? Function()?  seedUpdating,TResult? Function()?  seedUpdated,TResult? Function()?  unauthorized,}) {final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
 return initial();case _Loading() when loading != null:
@@ -223,7 +248,12 @@ return totpSetupReady(_that.qrCodeUrl,_that.secret);case _TotpVerifying() when t
 return totpVerifying();case _TotpEnabled() when totpEnabled != null:
 return totpEnabled(_that.backupCodes);case _TotpDisabling() when totpDisabling != null:
 return totpDisabling();case _TotpDisabled() when totpDisabled != null:
-return totpDisabled();case _:
+return totpDisabled();case _SeedGenerating() when seedGenerating != null:
+return seedGenerating();case _SeedReady() when seedReady != null:
+return seedReady(_that.mnemonic,_that.words);case _SeedUpdating() when seedUpdating != null:
+return seedUpdating();case _SeedUpdated() when seedUpdated != null:
+return seedUpdated();case _Unauthorized() when unauthorized != null:
+return unauthorized();case _:
   return null;
 
 }
@@ -738,6 +768,208 @@ int get hashCode => runtimeType.hashCode;
 @override
 String toString() {
   return 'SettingsState.totpDisabled()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class _SeedGenerating implements SettingsState {
+  const _SeedGenerating();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SeedGenerating);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'SettingsState.seedGenerating()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class _SeedReady implements SettingsState {
+  const _SeedReady(this.mnemonic, final  List<String> words): _words = words;
+  
+
+ final  String mnemonic;
+ final  List<String> _words;
+ List<String> get words {
+  if (_words is EqualUnmodifiableListView) return _words;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_words);
+}
+
+
+/// Create a copy of SettingsState
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$SeedReadyCopyWith<_SeedReady> get copyWith => __$SeedReadyCopyWithImpl<_SeedReady>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SeedReady&&(identical(other.mnemonic, mnemonic) || other.mnemonic == mnemonic)&&const DeepCollectionEquality().equals(other._words, _words));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,mnemonic,const DeepCollectionEquality().hash(_words));
+
+@override
+String toString() {
+  return 'SettingsState.seedReady(mnemonic: $mnemonic, words: $words)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$SeedReadyCopyWith<$Res> implements $SettingsStateCopyWith<$Res> {
+  factory _$SeedReadyCopyWith(_SeedReady value, $Res Function(_SeedReady) _then) = __$SeedReadyCopyWithImpl;
+@useResult
+$Res call({
+ String mnemonic, List<String> words
+});
+
+
+
+
+}
+/// @nodoc
+class __$SeedReadyCopyWithImpl<$Res>
+    implements _$SeedReadyCopyWith<$Res> {
+  __$SeedReadyCopyWithImpl(this._self, this._then);
+
+  final _SeedReady _self;
+  final $Res Function(_SeedReady) _then;
+
+/// Create a copy of SettingsState
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? mnemonic = null,Object? words = null,}) {
+  return _then(_SeedReady(
+null == mnemonic ? _self.mnemonic : mnemonic // ignore: cast_nullable_to_non_nullable
+as String,null == words ? _self._words : words // ignore: cast_nullable_to_non_nullable
+as List<String>,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class _SeedUpdating implements SettingsState {
+  const _SeedUpdating();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SeedUpdating);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'SettingsState.seedUpdating()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class _SeedUpdated implements SettingsState {
+  const _SeedUpdated();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SeedUpdated);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'SettingsState.seedUpdated()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class _Unauthorized implements SettingsState {
+  const _Unauthorized();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Unauthorized);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'SettingsState.unauthorized()';
 }
 
 
