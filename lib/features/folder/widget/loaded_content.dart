@@ -36,25 +36,13 @@ class LoadedContent extends StatefulWidget {
 class _LoadedContentState extends State<LoadedContent> {
   Future<void> _uploadFileToFolder() async {
     if (!mounted) return;
-    final folderId = widget.folderId;
-    final result = await FilePicker.platform.pickFiles();
+
+    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
     if (result == null || result.files.isEmpty) return;
-
-    final platformFile = result.files.first;
-    final fileName = platformFile.name;
-    Uint8List fileBytes;
-
-    if (kIsWeb) {
-      fileBytes = platformFile.bytes!;
-    } else {
-      final file = File(platformFile.path!);
-      fileBytes = await file.readAsBytes();
-    }
+    if (!mounted) return;
 
     widget.passwordController.clear();
     bool isPublic = widget.isPublicUpload;
-
-    if (!mounted) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -70,14 +58,14 @@ class _LoadedContentState extends State<LoadedContent> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Загрузить файл в папку',
+                  'Загрузить файлы в папку',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Файл: $fileName',
+                  'Выбрано файлов: ${result.files.length}',
                   style: const TextStyle(fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 20),
@@ -85,8 +73,8 @@ class _LoadedContentState extends State<LoadedContent> {
                   controller: widget.passwordController,
                   obscureText: true,
                   decoration: InputDecoration(
-                    labelText: 'Пароль (для приватного файла)',
-                    hintText: 'Оставьте пустым для публичного',
+                    labelText: 'Пароль (для приватных файлов)',
+                    hintText: 'Оставьте пустым для публичных',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -112,7 +100,7 @@ class _LoadedContentState extends State<LoadedContent> {
                       ),
                     ),
                     const Expanded(
-                      child: Text('Публичный файл (без шифрования)'),
+                      child: Text('Публичные файлы (без шифрования)'),
                     ),
                   ],
                 ),
@@ -139,16 +127,32 @@ class _LoadedContentState extends State<LoadedContent> {
     );
 
     if (confirmed != true) return;
+    if (!mounted) return;
+
+    final filesBytes = <Uint8List>[];
+    final fileNames = <String>[];
+
+    for (final platformFile in result.files) {
+      Uint8List bytes;
+      if (kIsWeb) {
+        bytes = platformFile.bytes!;
+      } else {
+        final file = File(platformFile.path!);
+        bytes = await file.readAsBytes();
+      }
+      filesBytes.add(bytes);
+      fileNames.add(platformFile.name);
+    }
 
     if (!mounted) return;
 
-    context.read<FileUploadCubit>().addUploadTask(
-      fileBytes: fileBytes,
-      fileName: fileName,
+    context.read<FileUploadCubit>().addMultipleUploadTasks(
+      filesBytes: filesBytes,
+      fileNames: fileNames,
       password: widget.passwordController.text.trim(),
-      folderId: folderId,
+      folderId: widget.folderId,
       isPublic: isPublic,
-      onSuccess: () {
+      onAllSuccess: () {
         if (!mounted) return;
         context.read<FolderCubit>().refresh();
       },

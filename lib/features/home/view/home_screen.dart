@@ -155,39 +155,47 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _uploadFile() async {
-    final result = await FilePicker.platform.pickFiles();
-    if (result == null || result.files.isEmpty) return;
+ Future<void> _uploadFile() async {
+  final result = await FilePicker.platform.pickFiles(
+    allowMultiple: true,
+  );
+  if (result == null || result.files.isEmpty) return;
 
-    final platformFile = result.files.first;
-    final fileName = platformFile.name;
-    Uint8List fileBytes;
+  final isPublic = await _showTypeDialog();
+  if (isPublic == null) return;
 
+  final password = await _showPasswordDialog();
+  if (password == null) return;
+
+  if (!mounted) return;
+
+  final filesBytes = <Uint8List>[];
+  final fileNames = <String>[];
+
+  for (final platformFile in result.files) {
+    Uint8List bytes;
     if (kIsWeb) {
-      fileBytes = platformFile.bytes!;
+      bytes = platformFile.bytes!;
     } else {
       final file = File(platformFile.path!);
-      fileBytes = await file.readAsBytes();
+      bytes = await file.readAsBytes();
     }
-
-    final isPublic = await _showTypeDialog();
-    if (isPublic == null) return;
-
-    final password = await _showPasswordDialog();
-    if (password == null) return;
-
-    if (!mounted) return;
-
-    context.read<FileUploadCubit>().addUploadTask(
-      fileBytes: fileBytes,
-      fileName: fileName,
-      password: password,
-      isPublic: isPublic,
-      onSuccess: () {
-        context.read<HomeCubit>().refresh();
-      },
-    );
+    filesBytes.add(bytes);
+    fileNames.add(platformFile.name);
   }
+
+  if (!mounted) return;
+
+  context.read<FileUploadCubit>().addMultipleUploadTasks(
+    filesBytes: filesBytes,
+    fileNames: fileNames,
+    password: password,
+    isPublic: isPublic,
+    onAllSuccess: () {  
+      context.read<HomeCubit>().refresh();
+    },
+  );
+}
 
   Future<bool?> _showTypeDialog() async {
     return showDialog<bool>(
