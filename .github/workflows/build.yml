@@ -117,17 +117,17 @@ jobs:
           }
 
       - name: Pack Windows with Velopack
-          run: |
-            vpk pack --packId "Vaultly" `
-              --packVersion "${{ steps.version.outputs.clean_version }}" `
-              --packDir "build/windows/x64/runner/Release" `
-              --outputDir "./artifacts" `
-              --mainExe "vaulth_app.exe" `
-              --icon "build/windows/x64/runner/Release/app.ico"
+        run: |
+          vpk pack --packId "Vaultly" `
+            --packVersion "${{ steps.version.outputs.clean_version }}" `
+            --packDir "build/windows/x64/runner/Release" `
+            --outputDir "./artifacts" `
+            --mainExe "vaulth_app.exe" `
+            --icon "build/windows/x64/runner/Release/app.ico"
 
       - name: Generate releases.json
-          run: |
-            vpk releases --packDir "./artifacts" --outputDir "./artifacts"
+        run: |
+          vpk releases --packDir "./artifacts" --outputDir "./artifacts"
 
       - name: Upload Windows artifacts to release
         uses: softprops/action-gh-release@v1
