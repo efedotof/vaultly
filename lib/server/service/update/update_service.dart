@@ -31,10 +31,9 @@ class UpdateService implements IUpdateService {
     if (Platform.isAndroid) {
       return AndroidUpdateService(githubRepoUrl: githubRepoUrl);
     } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-      // Используем Velopack
-      const velopackUpdateUrl =
-          'https://github.com/efedotof/vaultly/releases/latest/download/releases.json';
-      return VelopackUpdateService(updateUrl: velopackUpdateUrl);
+      const velopackBaseUrl =
+          'https://github.com/efedotof/vaultly/releases/latest/download/';
+      return VelopackUpdateService(baseUrl: velopackBaseUrl);
     } else {
       return _NoOpUpdateService();
     }

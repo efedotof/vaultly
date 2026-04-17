@@ -5,9 +5,9 @@ import 'update_service.dart';
 import 'update_info.dart';
 
 class VelopackUpdateService implements IUpdateService {
-  final String updateUrl;
+  final String baseUrl;
 
-  VelopackUpdateService({required this.updateUrl});
+  VelopackUpdateService({required this.baseUrl});
 
   @override
   Future<UpdateInfo?> checkForUpdate() async {
@@ -15,14 +15,10 @@ class VelopackUpdateService implements IUpdateService {
       return null;
     }
     try {
-      final available = await isUpdateAvailable(url: updateUrl);
+      final available = await isUpdateAvailable(url: baseUrl);
       if (!available) return null;
 
-      return UpdateInfo(
-        version: 'unknown',
-        downloadUrl: updateUrl,
-        fileSize: 0,
-      );
+      return UpdateInfo(version: 'unknown', downloadUrl: baseUrl, fileSize: 0);
     } catch (e) {
       debugPrint('Velopack checkForUpdates error: $e');
       return null;
@@ -38,7 +34,7 @@ class VelopackUpdateService implements IUpdateService {
       return false;
     }
     try {
-      await updateAndRestart(url: updateUrl);
+      await updateAndRestart(url: baseUrl);
       return true;
     } catch (e) {
       debugPrint('Velopack updateAndRestart error: $e');
