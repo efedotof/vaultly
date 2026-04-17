@@ -8,6 +8,7 @@ import 'package:vaulth_app/app/app_initializer.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:vaulth_app/app/app_modal.dart';
 import 'package:vaulth_app/theme/theme_app/theme_cubit.dart';
+import 'package:velopack_flutter/velopack_flutter.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
@@ -17,6 +18,7 @@ import 'theme/theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await RustLib.init();
   final LoggerService logger = LoggerService();
   await logger.init();
   MediaKit.ensureInitialized();
