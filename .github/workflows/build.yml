@@ -168,12 +168,6 @@ jobs:
       - name: Build macOS app (release)
         run: flutter build macos --release
 
-      - name: Rename app to vaulth_app.app
-        run: |
-          if [ -d "build/macos/Build/Products/Release/Vaultly.app" ]; then
-            mv build/macos/Build/Products/Release/Vaultly.app build/macos/Build/Products/Release/vaulth_app.app
-          fi
-
       - name: Install .NET SDK
         uses: actions/setup-dotnet@v4
         with:
@@ -182,18 +176,23 @@ jobs:
       - name: Install Velopack CLI
         run: dotnet tool install --global vpk
 
-      - name: Inject auto‑update into .app via Velopack
+      - name: Inject Velopack into .app
         run: |
           vpk pack \
             --packId "Vaultly" \
             --packVersion "${{ steps.version.outputs.clean_version }}" \
-            --packDir "build/macos/Build/Products/Release/vaulth_app.app" \
+            --packDir "build/macos/Build/Products/Release" \
+            --mainExe "Vaultly.app" \
             --outputDir "./velopack_packages"
+
+      - name: Rename app for DMG (optional)
+        run: |
+          mv build/macos/Build/Products/Release/Vaultly.app build/macos/Build/Products/Release/vaulth_app.app
 
       - name: Install create-dmg
         run: brew install create-dmg
 
-      - name: Create DMG from updated app (now with auto‑update support)
+      - name: Create DMG from updated app
         run: |
           create-dmg \
             --volname "Vaultly ${{ steps.version.outputs.clean_version }}" \
