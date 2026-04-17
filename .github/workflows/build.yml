@@ -118,7 +118,7 @@ jobs:
 
       - name: Pack Windows with Velopack
         run: |
-          vpk pack --name "Vaultly" --version "${{ steps.version.outputs.clean_version }}" --platform "windows-x64" --output "./artifacts" --input "build/windows/x64/runner/Release" --icon "build/windows/x64/runner/Release/app.ico"
+          vpk pack --packId "Vaultly" --packVersion "${{ steps.version.outputs.clean_version }}" --packDir "build/windows/x64/runner/Release" --outputDir "./artifacts" --icon "build/windows/x64/runner/Release/app.ico"
 
       - name: Upload Windows artifacts to release
         uses: softprops/action-gh-release@v1
@@ -181,7 +181,7 @@ jobs:
 
       - name: Pack macOS with Velopack
         run: |
-          vpk pack --name "Vaultly" --version "${{ steps.version.outputs.clean_version }}" --platform "osx-x64" --output "./artifacts" --input "build/macos/Build/Products/Release"
+          vpk pack --packId "Vaultly" --packVersion "${{ steps.version.outputs.clean_version }}" --packDir "build/macos/Build/Products/Release" --outputDir "./artifacts"
 
       - name: Upload macOS artifacts to release
         uses: softprops/action-gh-release@v1
