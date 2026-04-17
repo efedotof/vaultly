@@ -155,7 +155,7 @@ jobs:
             files: vaulth_app-macos.dmg
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
+
         - name: Generate app-archive.json
           run: |
             RAW_VERSION="${{ needs.build-windows.outputs.version }}"
@@ -194,14 +194,13 @@ jobs:
             EOF
 
         - name: Create hashes.json
-              run: echo '{}' > hashes.json
+          run: echo '{}' > hashes.json
 
         - name: Upload app-archive.json and hashes.json to release
-              uses: softprops/action-gh-release@v1
-              with:
-                files: |
-                  app-archive.json
-                  hashes.json
-              env:
-                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+          uses: softprops/action-gh-release@v1
+          with:
+            files: |
+              app-archive.json
+              hashes.json
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
