@@ -190,6 +190,7 @@ class SettingsCubit extends Cubit<SettingsState> {
             isChecking,
             isAvailable,
             isDownloading,
+            downloadProgress,
             updateInfo,
           ) async {
             try {
@@ -202,6 +203,7 @@ class SettingsCubit extends Cubit<SettingsState> {
                   isCheckingUpdate: isChecking,
                   isUpdateAvailable: isAvailable,
                   isDownloading: isDownloading,
+                  downloadProgress: downloadProgress,
                   updateInfo: updateInfo,
                 ),
               );
@@ -219,6 +221,7 @@ class SettingsCubit extends Cubit<SettingsState> {
                   isCheckingUpdate: isChecking,
                   isUpdateAvailable: isAvailable,
                   isDownloading: isDownloading,
+                  downloadProgress: downloadProgress,
                   updateInfo: updateInfo,
                 ),
               );
@@ -238,6 +241,7 @@ class SettingsCubit extends Cubit<SettingsState> {
             isChecking,
             isAvailable,
             isDownloading,
+            downloadProgress,
             updateInfo,
           ) async {
             try {
@@ -250,6 +254,7 @@ class SettingsCubit extends Cubit<SettingsState> {
                   isCheckingUpdate: isChecking,
                   isUpdateAvailable: isAvailable,
                   isDownloading: isDownloading,
+                  downloadProgress: downloadProgress,
                   updateInfo: updateInfo,
                 ),
               );
@@ -267,6 +272,7 @@ class SettingsCubit extends Cubit<SettingsState> {
                   isCheckingUpdate: isChecking,
                   isUpdateAvailable: isAvailable,
                   isDownloading: isDownloading,
+                  downloadProgress: downloadProgress,
                   updateInfo: updateInfo,
                 ),
               );
@@ -289,6 +295,7 @@ class SettingsCubit extends Cubit<SettingsState> {
               isChecking,
               isAvailable,
               isDownloading,
+              downloadProgress,
               updateInfo,
             ) async {
               emit(
@@ -299,6 +306,7 @@ class SettingsCubit extends Cubit<SettingsState> {
                   isCheckingUpdate: isChecking,
                   isUpdateAvailable: isAvailable,
                   isDownloading: isDownloading,
+                  downloadProgress: downloadProgress,
                   updateInfo: updateInfo,
                 ),
               );
@@ -327,6 +335,7 @@ class SettingsCubit extends Cubit<SettingsState> {
             isChecking,
             isAvailable,
             isDownloading,
+            downloadProgress,
             updateInfo,
           ) async {
             try {
@@ -339,6 +348,7 @@ class SettingsCubit extends Cubit<SettingsState> {
                   isCheckingUpdate: isChecking,
                   isUpdateAvailable: isAvailable,
                   isDownloading: isDownloading,
+                  downloadProgress: downloadProgress,
                   updateInfo: updateInfo,
                 ),
               );
@@ -421,6 +431,7 @@ class SettingsCubit extends Cubit<SettingsState> {
             isChecking,
             isAvailable,
             isDownloading,
+            downloadProgress,
             updateInfo,
           ) => emit(
             SettingsState.loaded(
@@ -430,6 +441,7 @@ class SettingsCubit extends Cubit<SettingsState> {
               isCheckingUpdate: isChecking,
               isUpdateAvailable: isAvailable,
               isDownloading: isDownloading,
+              downloadProgress: downloadProgress,
               updateInfo: updateInfo,
             ),
           ),
@@ -534,17 +546,21 @@ class SettingsCubit extends Cubit<SettingsState> {
 
   Future<void> downloadAndInstallUpdate() async {
     if (state is! _Loaded) return;
-
     final current = state as _Loaded;
     final updateInfo = current.updateInfo;
     if (updateInfo == null || current.isDownloading) return;
 
-    emit(current.copyWith(isDownloading: true, isCheckingUpdate: false));
+    emit(current.copyWith(isDownloading: true, downloadProgress: 0.0));
 
     try {
       final success = await _updateService.downloadAndInstall(
         updateInfo.downloadUrl,
-        onProgress: (progress) {},
+        onProgress: (progress) {
+          if (state is _Loaded) {
+            final s = state as _Loaded;
+            emit(s.copyWith(downloadProgress: progress));
+          }
+        },
       );
       if (success) {
         emit(
@@ -552,23 +568,22 @@ class SettingsCubit extends Cubit<SettingsState> {
             isDownloading: false,
             isUpdateAvailable: false,
             updateInfo: null,
+            downloadProgress: 0.0,
           ),
         );
       } else {
-        emit(current.copyWith(isDownloading: false));
+        emit(current.copyWith(isDownloading: false, downloadProgress: 0.0));
         emit(SettingsState.error('Не удалось установить обновление'));
-        emit(current.copyWith());
       }
     } catch (e) {
-      emit(current.copyWith(isDownloading: false));
-      emit(SettingsState.error('Ошибка установки обновления: $e'));
-      emit(current.copyWith());
+      emit(current.copyWith(isDownloading: false, downloadProgress: 0.0));
+      emit(SettingsState.error('Ошибка установки: $e'));
     }
   }
 
   void _emitLoadingOrLoading(SettingsState previousState) {
     previousState.maybeWhen(
-      loaded: (_, _, _, _, _, _, _) => emit(const SettingsState.loading()),
+      loaded: (_, _, _, _, _, _, _, _) => emit(const SettingsState.loading()),
       orElse: () => emit(const SettingsState.loading()),
     );
   }
@@ -584,6 +599,7 @@ class SettingsCubit extends Cubit<SettingsState> {
             isChecking,
             isAvailable,
             isDownloading,
+            downloadProgress,
             updateInfo,
           ) => emit(
             SettingsState.loaded(
@@ -593,6 +609,7 @@ class SettingsCubit extends Cubit<SettingsState> {
               isCheckingUpdate: isChecking,
               isUpdateAvailable: isAvailable,
               isDownloading: isDownloading,
+              downloadProgress: downloadProgress,
               updateInfo: updateInfo,
             ),
           ),
@@ -610,6 +627,7 @@ class SettingsCubit extends Cubit<SettingsState> {
             isChecking,
             isAvailable,
             isDownloading,
+            downloadProgress,
             updateInfo,
           ) => emit(
             SettingsState.loaded(
@@ -619,6 +637,7 @@ class SettingsCubit extends Cubit<SettingsState> {
               isCheckingUpdate: isChecking,
               isUpdateAvailable: isAvailable,
               isDownloading: isDownloading,
+              downloadProgress: downloadProgress,
               updateInfo: updateInfo,
             ),
           ),

@@ -56,7 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             listener: (context, state) {
               state.whenOrNull(
                 error: (message) => _showSnackBar(message, isError: true),
-                loaded: (profile, devices, cacheSizeBytes, _, _, _, _) {
+                loaded: (profile, devices, cacheSizeBytes, _, _, _, _, _) {
                   _lastProfile = profile;
                   _lastCacheSize = cacheSizeBytes;
                 },

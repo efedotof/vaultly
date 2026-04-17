@@ -13,7 +13,41 @@ class UpdateSection extends StatelessWidget {
     return BlocBuilder<SettingsCubit, SettingsState>(
       buildWhen: (previous, current) {
         return current.maybeWhen(
-          loaded: (_, _, _, isChecking, isAvailable, isDownloading, _) => true,
+          loaded:
+              (
+                _,
+                _,
+                _,
+                isChecking,
+                isAvailable,
+                isDownloading,
+                downloadProgress,
+                _,
+              ) {
+                final prevLoaded = previous.maybeWhen(
+                  loaded:
+                      (
+                        _,
+                        _,
+                        _,
+                        pIsChecking,
+                        pIsAvailable,
+                        pIsDownloading,
+                        pProgress,
+                        _,
+                      ) => (
+                        pIsChecking,
+                        pIsAvailable,
+                        pIsDownloading,
+                        pProgress,
+                      ),
+                  orElse: () => (false, false, false, 0.0),
+                );
+                return isChecking != prevLoaded.$1 ||
+                    isAvailable != prevLoaded.$2 ||
+                    isDownloading != prevLoaded.$3 ||
+                    downloadProgress != prevLoaded.$4;
+              },
           orElse: () => false,
         );
       },
@@ -27,6 +61,7 @@ class UpdateSection extends StatelessWidget {
                 isChecking,
                 isAvailable,
                 isDownloading,
+                downloadProgress,
                 updateInfo,
               ) {
                 return Card(
@@ -69,17 +104,32 @@ class UpdateSection extends StatelessWidget {
                             ],
                           ),
                         ] else if (isDownloading) ...[
-                          const Row(
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
+                              const Row(
+                                children: [
+                                  SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  SizedBox(width: 12),
+                                  Text('Загрузка обновления...'),
+                                ],
                               ),
-                              SizedBox(width: 12),
-                              Text('Загрузка обновления...'),
+                              if (downloadProgress > 0) ...[
+                                const SizedBox(height: 12),
+                                LinearProgressIndicator(
+                                  value: downloadProgress,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${(downloadProgress * 100).toStringAsFixed(1)}%',
+                                ),
+                              ],
                             ],
                           ),
                         ] else if (isAvailable && updateInfo != null) ...[

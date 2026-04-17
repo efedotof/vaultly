@@ -149,7 +149,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
                 child: state.maybeWhen(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  loaded: (_, devices, _, _, _, _, _) => Padding(
+                  loaded: (_, devices, _, _, _, _, _, _) => Padding(
                     padding: EdgeInsets.symmetric(
                       vertical: MediaQuery.of(context).size.height * 0.1,
                     ),

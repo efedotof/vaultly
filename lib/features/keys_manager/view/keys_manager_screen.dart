@@ -171,7 +171,7 @@ class _KeysManagerScreenState extends State<KeysManagerScreen> {
                 child: state.maybeWhen(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  loaded: (_, _, _, _, _, _, _) => Padding(
+                  loaded: (_, _, _, _, _, _, _, _) => Padding(
                     padding: EdgeInsets.symmetric(
                       vertical: MediaQuery.of(context).size.height * 0.1,
                     ),

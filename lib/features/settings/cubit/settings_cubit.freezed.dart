@@ -164,12 +164,12 @@ return unauthorized(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  initial,TResult Function()?  loading,TResult Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes,  bool isCheckingUpdate,  bool isUpdateAvailable,  bool isDownloading,  UpdateInfo? updateInfo)?  loaded,TResult Function( String message)?  error,TResult Function()?  loggedOut,TResult Function()?  totpSetupLoading,TResult Function( String qrCodeUrl,  String secret)?  totpSetupReady,TResult Function()?  totpVerifying,TResult Function( List<String> backupCodes)?  totpEnabled,TResult Function()?  totpDisabling,TResult Function()?  totpDisabled,TResult Function()?  seedGenerating,TResult Function( String mnemonic,  List<String> words)?  seedReady,TResult Function()?  seedUpdating,TResult Function()?  seedUpdated,TResult Function()?  unauthorized,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  initial,TResult Function()?  loading,TResult Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes,  bool isCheckingUpdate,  bool isUpdateAvailable,  bool isDownloading,  double downloadProgress,  UpdateInfo? updateInfo)?  loaded,TResult Function( String message)?  error,TResult Function()?  loggedOut,TResult Function()?  totpSetupLoading,TResult Function( String qrCodeUrl,  String secret)?  totpSetupReady,TResult Function()?  totpVerifying,TResult Function( List<String> backupCodes)?  totpEnabled,TResult Function()?  totpDisabling,TResult Function()?  totpDisabled,TResult Function()?  seedGenerating,TResult Function( String mnemonic,  List<String> words)?  seedReady,TResult Function()?  seedUpdating,TResult Function()?  seedUpdated,TResult Function()?  unauthorized,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
 return initial();case _Loading() when loading != null:
 return loading();case _Loaded() when loaded != null:
-return loaded(_that.profile,_that.devices,_that.cacheSizeBytes,_that.isCheckingUpdate,_that.isUpdateAvailable,_that.isDownloading,_that.updateInfo);case _Error() when error != null:
+return loaded(_that.profile,_that.devices,_that.cacheSizeBytes,_that.isCheckingUpdate,_that.isUpdateAvailable,_that.isDownloading,_that.downloadProgress,_that.updateInfo);case _Error() when error != null:
 return error(_that.message);case _LoggedOut() when loggedOut != null:
 return loggedOut();case _TotpSetupLoading() when totpSetupLoading != null:
 return totpSetupLoading();case _TotpSetupReady() when totpSetupReady != null:
@@ -200,12 +200,12 @@ return unauthorized();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  initial,required TResult Function()  loading,required TResult Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes,  bool isCheckingUpdate,  bool isUpdateAvailable,  bool isDownloading,  UpdateInfo? updateInfo)  loaded,required TResult Function( String message)  error,required TResult Function()  loggedOut,required TResult Function()  totpSetupLoading,required TResult Function( String qrCodeUrl,  String secret)  totpSetupReady,required TResult Function()  totpVerifying,required TResult Function( List<String> backupCodes)  totpEnabled,required TResult Function()  totpDisabling,required TResult Function()  totpDisabled,required TResult Function()  seedGenerating,required TResult Function( String mnemonic,  List<String> words)  seedReady,required TResult Function()  seedUpdating,required TResult Function()  seedUpdated,required TResult Function()  unauthorized,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  initial,required TResult Function()  loading,required TResult Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes,  bool isCheckingUpdate,  bool isUpdateAvailable,  bool isDownloading,  double downloadProgress,  UpdateInfo? updateInfo)  loaded,required TResult Function( String message)  error,required TResult Function()  loggedOut,required TResult Function()  totpSetupLoading,required TResult Function( String qrCodeUrl,  String secret)  totpSetupReady,required TResult Function()  totpVerifying,required TResult Function( List<String> backupCodes)  totpEnabled,required TResult Function()  totpDisabling,required TResult Function()  totpDisabled,required TResult Function()  seedGenerating,required TResult Function( String mnemonic,  List<String> words)  seedReady,required TResult Function()  seedUpdating,required TResult Function()  seedUpdated,required TResult Function()  unauthorized,}) {final _that = this;
 switch (_that) {
 case _Initial():
 return initial();case _Loading():
 return loading();case _Loaded():
-return loaded(_that.profile,_that.devices,_that.cacheSizeBytes,_that.isCheckingUpdate,_that.isUpdateAvailable,_that.isDownloading,_that.updateInfo);case _Error():
+return loaded(_that.profile,_that.devices,_that.cacheSizeBytes,_that.isCheckingUpdate,_that.isUpdateAvailable,_that.isDownloading,_that.downloadProgress,_that.updateInfo);case _Error():
 return error(_that.message);case _LoggedOut():
 return loggedOut();case _TotpSetupLoading():
 return totpSetupLoading();case _TotpSetupReady():
@@ -235,12 +235,12 @@ return unauthorized();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  initial,TResult? Function()?  loading,TResult? Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes,  bool isCheckingUpdate,  bool isUpdateAvailable,  bool isDownloading,  UpdateInfo? updateInfo)?  loaded,TResult? Function( String message)?  error,TResult? Function()?  loggedOut,TResult? Function()?  totpSetupLoading,TResult? Function( String qrCodeUrl,  String secret)?  totpSetupReady,TResult? Function()?  totpVerifying,TResult? Function( List<String> backupCodes)?  totpEnabled,TResult? Function()?  totpDisabling,TResult? Function()?  totpDisabled,TResult? Function()?  seedGenerating,TResult? Function( String mnemonic,  List<String> words)?  seedReady,TResult? Function()?  seedUpdating,TResult? Function()?  seedUpdated,TResult? Function()?  unauthorized,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  initial,TResult? Function()?  loading,TResult? Function( UserProfileDto profile,  List<DeviceResponse> devices,  int cacheSizeBytes,  bool isCheckingUpdate,  bool isUpdateAvailable,  bool isDownloading,  double downloadProgress,  UpdateInfo? updateInfo)?  loaded,TResult? Function( String message)?  error,TResult? Function()?  loggedOut,TResult? Function()?  totpSetupLoading,TResult? Function( String qrCodeUrl,  String secret)?  totpSetupReady,TResult? Function()?  totpVerifying,TResult? Function( List<String> backupCodes)?  totpEnabled,TResult? Function()?  totpDisabling,TResult? Function()?  totpDisabled,TResult? Function()?  seedGenerating,TResult? Function( String mnemonic,  List<String> words)?  seedReady,TResult? Function()?  seedUpdating,TResult? Function()?  seedUpdated,TResult? Function()?  unauthorized,}) {final _that = this;
 switch (_that) {
 case _Initial() when initial != null:
 return initial();case _Loading() when loading != null:
 return loading();case _Loaded() when loaded != null:
-return loaded(_that.profile,_that.devices,_that.cacheSizeBytes,_that.isCheckingUpdate,_that.isUpdateAvailable,_that.isDownloading,_that.updateInfo);case _Error() when error != null:
+return loaded(_that.profile,_that.devices,_that.cacheSizeBytes,_that.isCheckingUpdate,_that.isUpdateAvailable,_that.isDownloading,_that.downloadProgress,_that.updateInfo);case _Error() when error != null:
 return error(_that.message);case _LoggedOut() when loggedOut != null:
 return loggedOut();case _TotpSetupLoading() when totpSetupLoading != null:
 return totpSetupLoading();case _TotpSetupReady() when totpSetupReady != null:
@@ -329,7 +329,7 @@ String toString() {
 
 
 class _Loaded implements SettingsState {
-  const _Loaded({required this.profile, required final  List<DeviceResponse> devices, this.cacheSizeBytes = 0, this.isCheckingUpdate = false, this.isUpdateAvailable = false, this.isDownloading = false, this.updateInfo}): _devices = devices;
+  const _Loaded({required this.profile, required final  List<DeviceResponse> devices, this.cacheSizeBytes = 0, this.isCheckingUpdate = false, this.isUpdateAvailable = false, this.isDownloading = false, this.downloadProgress = 0.0, this.updateInfo}): _devices = devices;
   
 
  final  UserProfileDto profile;
@@ -344,6 +344,7 @@ class _Loaded implements SettingsState {
 @JsonKey() final  bool isCheckingUpdate;
 @JsonKey() final  bool isUpdateAvailable;
 @JsonKey() final  bool isDownloading;
+@JsonKey() final  double downloadProgress;
  final  UpdateInfo? updateInfo;
 
 /// Create a copy of SettingsState
@@ -356,16 +357,16 @@ _$LoadedCopyWith<_Loaded> get copyWith => __$LoadedCopyWithImpl<_Loaded>(this, _
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Loaded&&(identical(other.profile, profile) || other.profile == profile)&&const DeepCollectionEquality().equals(other._devices, _devices)&&(identical(other.cacheSizeBytes, cacheSizeBytes) || other.cacheSizeBytes == cacheSizeBytes)&&(identical(other.isCheckingUpdate, isCheckingUpdate) || other.isCheckingUpdate == isCheckingUpdate)&&(identical(other.isUpdateAvailable, isUpdateAvailable) || other.isUpdateAvailable == isUpdateAvailable)&&(identical(other.isDownloading, isDownloading) || other.isDownloading == isDownloading)&&(identical(other.updateInfo, updateInfo) || other.updateInfo == updateInfo));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Loaded&&(identical(other.profile, profile) || other.profile == profile)&&const DeepCollectionEquality().equals(other._devices, _devices)&&(identical(other.cacheSizeBytes, cacheSizeBytes) || other.cacheSizeBytes == cacheSizeBytes)&&(identical(other.isCheckingUpdate, isCheckingUpdate) || other.isCheckingUpdate == isCheckingUpdate)&&(identical(other.isUpdateAvailable, isUpdateAvailable) || other.isUpdateAvailable == isUpdateAvailable)&&(identical(other.isDownloading, isDownloading) || other.isDownloading == isDownloading)&&(identical(other.downloadProgress, downloadProgress) || other.downloadProgress == downloadProgress)&&(identical(other.updateInfo, updateInfo) || other.updateInfo == updateInfo));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,profile,const DeepCollectionEquality().hash(_devices),cacheSizeBytes,isCheckingUpdate,isUpdateAvailable,isDownloading,updateInfo);
+int get hashCode => Object.hash(runtimeType,profile,const DeepCollectionEquality().hash(_devices),cacheSizeBytes,isCheckingUpdate,isUpdateAvailable,isDownloading,downloadProgress,updateInfo);
 
 @override
 String toString() {
-  return 'SettingsState.loaded(profile: $profile, devices: $devices, cacheSizeBytes: $cacheSizeBytes, isCheckingUpdate: $isCheckingUpdate, isUpdateAvailable: $isUpdateAvailable, isDownloading: $isDownloading, updateInfo: $updateInfo)';
+  return 'SettingsState.loaded(profile: $profile, devices: $devices, cacheSizeBytes: $cacheSizeBytes, isCheckingUpdate: $isCheckingUpdate, isUpdateAvailable: $isUpdateAvailable, isDownloading: $isDownloading, downloadProgress: $downloadProgress, updateInfo: $updateInfo)';
 }
 
 
@@ -376,7 +377,7 @@ abstract mixin class _$LoadedCopyWith<$Res> implements $SettingsStateCopyWith<$R
   factory _$LoadedCopyWith(_Loaded value, $Res Function(_Loaded) _then) = __$LoadedCopyWithImpl;
 @useResult
 $Res call({
- UserProfileDto profile, List<DeviceResponse> devices, int cacheSizeBytes, bool isCheckingUpdate, bool isUpdateAvailable, bool isDownloading, UpdateInfo? updateInfo
+ UserProfileDto profile, List<DeviceResponse> devices, int cacheSizeBytes, bool isCheckingUpdate, bool isUpdateAvailable, bool isDownloading, double downloadProgress, UpdateInfo? updateInfo
 });
 
 
@@ -393,7 +394,7 @@ class __$LoadedCopyWithImpl<$Res>
 
 /// Create a copy of SettingsState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? profile = null,Object? devices = null,Object? cacheSizeBytes = null,Object? isCheckingUpdate = null,Object? isUpdateAvailable = null,Object? isDownloading = null,Object? updateInfo = freezed,}) {
+@pragma('vm:prefer-inline') $Res call({Object? profile = null,Object? devices = null,Object? cacheSizeBytes = null,Object? isCheckingUpdate = null,Object? isUpdateAvailable = null,Object? isDownloading = null,Object? downloadProgress = null,Object? updateInfo = freezed,}) {
   return _then(_Loaded(
 profile: null == profile ? _self.profile : profile // ignore: cast_nullable_to_non_nullable
 as UserProfileDto,devices: null == devices ? _self._devices : devices // ignore: cast_nullable_to_non_nullable
@@ -401,7 +402,8 @@ as List<DeviceResponse>,cacheSizeBytes: null == cacheSizeBytes ? _self.cacheSize
 as int,isCheckingUpdate: null == isCheckingUpdate ? _self.isCheckingUpdate : isCheckingUpdate // ignore: cast_nullable_to_non_nullable
 as bool,isUpdateAvailable: null == isUpdateAvailable ? _self.isUpdateAvailable : isUpdateAvailable // ignore: cast_nullable_to_non_nullable
 as bool,isDownloading: null == isDownloading ? _self.isDownloading : isDownloading // ignore: cast_nullable_to_non_nullable
-as bool,updateInfo: freezed == updateInfo ? _self.updateInfo : updateInfo // ignore: cast_nullable_to_non_nullable
+as bool,downloadProgress: null == downloadProgress ? _self.downloadProgress : downloadProgress // ignore: cast_nullable_to_non_nullable
+as double,updateInfo: freezed == updateInfo ? _self.updateInfo : updateInfo // ignore: cast_nullable_to_non_nullable
 as UpdateInfo?,
   ));
 }

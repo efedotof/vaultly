@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:vaulth_app/server/service/logger_service.dart';
 import 'update_service.dart';
 import 'update_info.dart';
@@ -15,8 +16,8 @@ class AndroidUpdateService implements IUpdateService {
   final LoggerService _logger = LoggerService();
 
   AndroidUpdateService({required this.githubRepoUrl})
-      : _githubUser = _extractUserFromUrl(githubRepoUrl),
-        _repoName = _extractRepoFromUrl(githubRepoUrl);
+    : _githubUser = _extractUserFromUrl(githubRepoUrl),
+      _repoName = _extractRepoFromUrl(githubRepoUrl);
 
   static String _extractUserFromUrl(String url) {
     final uri = Uri.parse(url);
@@ -72,7 +73,9 @@ class AndroidUpdateService implements IUpdateService {
     }
 
     try {
-      _logger.debug('Checking for updates from GitHub: $_githubUser/$_repoName');
+      _logger.debug(
+        'Checking for updates from GitHub: $_githubUser/$_repoName',
+      );
       final latestRelease = await _fetchLatestRelease();
       if (latestRelease == null) return null;
 
@@ -101,28 +104,28 @@ class AndroidUpdateService implements IUpdateService {
     void Function(double progress)? onProgress,
   }) async {
     if (!Platform.isAndroid) return false;
-
-    final dir = await getExternalStorageDirectory();
-    if (dir == null) {
-      _logger.error('Cannot get external storage directory');
-      return false;
+    if (await Permission.requestInstallPackages.isDenied) {
+      final status = await Permission.requestInstallPackages.request();
+      if (!status.isGranted) {
+        _logger.warning('Разрешение на установку не получено');
+        return false;
+      }
     }
 
+    final dir = await getExternalStorageDirectory();
+    if (dir == null) return false;
     final fileName = downloadUrl.split('/').last;
     final filePath = '${dir.path}/$fileName';
-    final dio = Dio();
 
+    final dio = Dio();
     try {
       await dio.download(
         downloadUrl,
         filePath,
         onReceiveProgress: (received, total) {
-          if (total > 0 && onProgress != null) {
-            onProgress(received / total);
-          }
+          if (total > 0 && onProgress != null) onProgress(received / total);
         },
       );
-
       final result = await OpenFilex.open(filePath);
       return result.type == ResultType.done;
     } catch (e) {

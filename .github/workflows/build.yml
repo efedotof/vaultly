@@ -166,7 +166,9 @@ jobs:
 
         - name: Generate app-archive.json
           run: |
-            VERSION="${{ needs.build-windows.outputs.version }}"
+            # Извлекаем чистую версию (без +build)
+            RAW_VERSION="${{ needs.build-windows.outputs.version }}"
+            CLEAN_VERSION="${RAW_VERSION%%+*}"  
             TAG="${GITHUB_REF#refs/tags/}"
             cat > app-archive.json << EOF
             {
@@ -174,7 +176,7 @@ jobs:
               "description": "Your personal digital vault",
               "items": [
                 {
-                  "version": "${VERSION}",
+                  "version": "${CLEAN_VERSION}",
                   "shortVersion": 1,
                   "changes": [
                     { "type": "feat", "message": "New release ${TAG}" }
@@ -185,7 +187,7 @@ jobs:
                   "platform": "windows"
                 },
                 {
-                  "version": "${VERSION}",
+                  "version": "${CLEAN_VERSION}",
                   "shortVersion": 1,
                   "changes": [
                     { "type": "feat", "message": "New release ${TAG}" }
