@@ -124,11 +124,7 @@ jobs:
             --outputDir "./artifacts" `
             --mainExe "vaulth_app.exe" `
             --icon "build/windows/x64/runner/Release/app.ico" `
-            --outputReleases "./artifacts/releases.win.json"
-
-      - name: Generate releases for win channel
-        run: |
-          vpk generate-releases --packDir "./artifacts" --outputDir "./artifacts" --channel win
+            --channel win
 
       - name: Upload Windows artifacts to release
         uses: softprops/action-gh-release@v1
@@ -270,11 +266,7 @@ jobs:
             --packVersion "${{ steps.version.outputs.clean_version }}" \
             --packDir "build/macos/Build/Products/Release/vaulth_app.app" \
             --outputDir "./artifacts" \
-            --outputReleases "./artifacts/releases.osx.json"
-
-      - name: Generate releases for osx channel
-        run: |
-          vpk generate-releases --packDir "./artifacts" --outputDir "./artifacts" --channel osx
+            --channel osx
 
       - name: Upload Velopack artifacts to release
         uses: softprops/action-gh-release@v1
