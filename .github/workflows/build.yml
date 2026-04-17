@@ -176,7 +176,7 @@ jobs:
       - name: Install Velopack CLI
         run: dotnet tool install --global vpk
 
-      - name: Pack app with Velopack (generates .nupkg with auto‑update support)
+      - name: Inject auto‑update into .app via Velopack
         run: |
           vpk pack \
             --packId "Vaultly" \
@@ -184,31 +184,10 @@ jobs:
             --packDir "build/macos/Build/Products/Release/vaulth_app.app" \
             --outputDir "./velopack_packages"
 
-      - name: Extract .app from Velopack .nupkg
-        run: |
-          mkdir -p ./updated_app
-          # Находим полный .nupkg (содержит сам .app)
-          nupkg_file=$(ls ./velopack_packages/Vaultly-${{ steps.version.outputs.clean_version }}-full.nupkg 2>/dev/null || ls ./velopack_packages/*.nupkg | head -1)
-          if [ -z "$nupkg_file" ]; then
-            echo "No .nupkg file found!"
-            exit 1
-          fi
-          unzip -q "$nupkg_file" -d ./updated_app
-          # После распаковки .app может быть в корне или в подпапке
-          if [ -d "./updated_app/vaulth_app.app" ]; then
-            echo "Found vaulth_app.app"
-          elif [ -d "./updated_app/Vaultly.app" ]; then
-            mv ./updated_app/Vaultly.app ./updated_app/vaulth_app.app
-          else
-            echo "Could not find .app in extracted nupkg"
-            ls -la ./updated_app
-            exit 1
-          fi
-
       - name: Install create-dmg
         run: brew install create-dmg
 
-      - name: Create DMG from updated app (with auto‑update support)
+      - name: Create DMG from updated app (now with auto‑update support)
         run: |
           create-dmg \
             --volname "Vaultly ${{ steps.version.outputs.clean_version }}" \
@@ -219,7 +198,7 @@ jobs:
             --hide-extension "vaulth_app.app" \
             --app-drop-link 600 185 \
             "Vaultly-${{ steps.version.outputs.clean_version }}.dmg" \
-            "./updated_app/vaulth_app.app"
+            "build/macos/Build/Products/Release/vaulth_app.app"
 
       - name: Upload DMG to release
         uses: softprops/action-gh-release@v1
@@ -227,7 +206,6 @@ jobs:
           files: Vaultly-${{ steps.version.outputs.clean_version }}.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 
   build-macos-velopack:
     name: Build macOS Velopack (auto-update)
