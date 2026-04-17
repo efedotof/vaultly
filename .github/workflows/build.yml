@@ -64,7 +64,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ======================== WINDOWS (Velopack) ========================
   build-windows:
     name: Build for Windows (Velopack)
     runs-on: windows-latest
@@ -91,7 +90,7 @@ jobs:
       - name: Build Windows app (release)
         run: flutter build windows --release
 
-      - name: Install .NET SDK (required for Velopack CLI)
+      - name: Install .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.x'
@@ -99,16 +98,27 @@ jobs:
       - name: Install Velopack CLI
         run: dotnet tool install --global vpk
 
-      - name: Get version from pubspec
+      - name: Get version from pubspec (clean)
         id: version
         shell: bash
         run: |
-          version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
-          echo "version=$version" >> $GITHUB_OUTPUT
+          raw_version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
+          clean_version="${raw_version%%+*}"
+          echo "clean_version=$clean_version" >> $GITHUB_OUTPUT
+          echo "Raw: $raw_version -> Clean: $clean_version"  # отладка
+
+      - name: Copy icon for Velopack
+        run: |
+          if (Test-Path "windows/runner/resources/app_icon.ico") {
+            Copy-Item "windows/runner/resources/app_icon.ico" -Destination "build/windows/x64/runner/Release/app.ico"
+            Write-Host "Icon copied successfully"
+          } else {
+            Write-Host "::warning::Icon not found at windows/runner/resources/app_icon.ico"
+          }
 
       - name: Pack Windows with Velopack
         run: |
-          vpk pack -u Vaultly -v ${{ steps.version.outputs.version }} -p windows-x64 -o ./artifacts -i build/windows/x64/runner/Release
+          vpk pack -u Vaultly -v ${{ steps.version.outputs.clean_version }} -p windows-x64 -o ./artifacts -i build/windows/x64/runner/Release --icon build/windows/x64/runner/Release/app.ico
 
       - name: Upload Windows artifacts to release
         uses: softprops/action-gh-release@v1
@@ -120,7 +130,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ======================== macOS (Velopack) ========================
   build-macos:
     name: Build for macOS (Velopack)
     runs-on: macos-latest
@@ -153,7 +162,11 @@ jobs:
             mv build/macos/Build/Products/Release/Vaultly.app build/macos/Build/Products/Release/vaulth_app.app
           fi
 
-      - name: Install .NET SDK (required for Velopack CLI)
+      - name: Create icon for Velopack (.icns)
+        run: |
+          iconutil -c icns macos/Runner/Assets.xcassets/AppIcon.appiconset -o build/macos/Build/Products/Release/app.icns
+
+      - name: Install .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.x'
@@ -161,16 +174,18 @@ jobs:
       - name: Install Velopack CLI
         run: dotnet tool install --global vpk
 
-      - name: Get version from pubspec
+      - name: Get version from pubspec (clean)
         id: version
         shell: bash
         run: |
-          version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
-          echo "version=$version" >> $GITHUB_OUTPUT
+          raw_version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
+          clean_version="${raw_version%%+*}"
+          echo "clean_version=$clean_version" >> $GITHUB_OUTPUT
+          echo "Raw: $raw_version -> Clean: $clean_version"
 
       - name: Pack macOS with Velopack
         run: |
-          vpk pack -u Vaultly -v ${{ steps.version.outputs.version }} -p osx-x64 -o ./artifacts -i build/macos/Build/Products/Release/vaulth_app.app
+          vpk pack -u Vaultly -v ${{ steps.version.outputs.clean_version }} -p osx-x64 -o ./artifacts -i build/macos/Build/Products/Release --icon build/macos/Build/Products/Release/app.icns
 
       - name: Upload macOS artifacts to release
         uses: softprops/action-gh-release@v1
