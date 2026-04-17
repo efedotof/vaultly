@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:vaulth_app/server/service/logger_service.dart';
 import 'update_info.dart';
 import 'update_service_android.dart';
-import 'update_service_desktop.dart';
+import 'update_service_velopack.dart';
 
 abstract class IUpdateService {
   Future<UpdateInfo?> checkForUpdate();
@@ -17,25 +17,24 @@ class UpdateService implements IUpdateService {
   final IUpdateService _platformService;
   final LoggerService _logger = LoggerService();
 
-  UpdateService({
-    required String githubRepoUrl,
-    required String appArchiveUrl,
-  }) : _platformService = _createPlatformService(
-          githubRepoUrl: githubRepoUrl,
-          appArchiveUrl: appArchiveUrl,
-        );
+  UpdateService({required String githubRepoUrl, required String appArchiveUrl})
+    : _platformService = _createPlatformService(
+        githubRepoUrl: githubRepoUrl,
+        appArchiveUrl: appArchiveUrl,
+      );
 
   static IUpdateService _createPlatformService({
     required String githubRepoUrl,
     required String appArchiveUrl,
   }) {
-    if (kIsWeb) {
-      return _NoOpUpdateService();
-    }
+    if (kIsWeb) return _NoOpUpdateService();
     if (Platform.isAndroid) {
       return AndroidUpdateService(githubRepoUrl: githubRepoUrl);
     } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-      return DesktopUpdateService(appArchiveUrl: appArchiveUrl);
+      // Используем Velopack
+      const velopackUpdateUrl =
+          'https://github.com/efedotof/vaultly/releases/latest/download/releases.json';
+      return VelopackUpdateService(updateUrl: velopackUpdateUrl);
     } else {
       return _NoOpUpdateService();
     }

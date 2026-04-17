@@ -77,8 +77,8 @@ dependencies:
   webview_flutter_android: ^4.11.0
   webview_flutter_wkwebview: ^3.24.3
   archive: ^4.0.9
-  desktop_updater: ^1.4.0
   package_info_plus: ^9.0.1
+  velopack_flutter: ^0.1.0
 
 
 dev_dependencies:
