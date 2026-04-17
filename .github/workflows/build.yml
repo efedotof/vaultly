@@ -130,11 +130,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-macos:
-    name: Build for macOS (Velopack)
+  build-macos-dmg:
+    name: Build macOS DMG (manual install)
     runs-on: macos-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -153,6 +151,14 @@ jobs:
       - name: Run code generation
         run: flutter pub run build_runner build --delete-conflicting-outputs
 
+      - name: Get version from pubspec (clean)
+        id: version
+        shell: bash
+        run: |
+          raw_version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
+          clean_version="${raw_version%%+*}"
+          echo "clean_version=$clean_version" >> $GITHUB_OUTPUT
+
       - name: Build macOS app (release)
         run: flutter build macos --release
 
@@ -165,7 +171,7 @@ jobs:
       - name: Install create-dmg
         run: brew install create-dmg
 
-      - name: Create DMG for manual installation
+      - name: Create DMG
         run: |
           create-dmg \
             --volname "Vaultly ${{ steps.version.outputs.clean_version }}" \
@@ -178,13 +184,34 @@ jobs:
             "Vaultly-${{ steps.version.outputs.clean_version }}.dmg" \
             "build/macos/Build/Products/Release/vaulth_app.app"
 
-      - name: Install .NET SDK
-        uses: actions/setup-dotnet@v4
+      - name: Upload DMG to release
+        uses: softprops/action-gh-release@v1
         with:
-          dotnet-version: '8.x'
+          files: Vaultly-${{ steps.version.outputs.clean_version }}.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install Velopack CLI
-        run: dotnet tool install --global vpk
+
+  build-macos-velopack:
+    name: Build macOS Velopack (auto-update)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.10'
+
+      - name: Enable macOS support
+        run: flutter config --enable-macos-desktop
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Run code generation
+        run: flutter pub run build_runner build --delete-conflicting-outputs
 
       - name: Get version from pubspec (clean)
         id: version
@@ -193,17 +220,36 @@ jobs:
           raw_version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
           clean_version="${raw_version%%+*}"
           echo "clean_version=$clean_version" >> $GITHUB_OUTPUT
-          echo "Raw: $raw_version -> Clean: $clean_version"
 
-      - name: Pack macOS with Velopack
+      - name: Build macOS app (release)
+        run: flutter build macos --release
+
+      - name: Rename app to vaulth_app.app for consistency
         run: |
-          vpk pack --packId "Vaultly" --packVersion "${{ steps.version.outputs.clean_version }}" --packDir "build/macos/Build/Products/Release/vaulth_app.app" --outputDir "./artifacts"
+          if [ -d "build/macos/Build/Products/Release/Vaultly.app" ]; then
+            mv build/macos/Build/Products/Release/Vaultly.app build/macos/Build/Products/Release/vaulth_app.app
+          fi
 
-      - name: Upload macOS artifacts to release
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: Install Velopack CLI
+        run: dotnet tool install --global vpk
+
+      - name: Pack with Velopack
+        run: |
+          vpk pack \
+            --packId "Vaultly" \
+            --packVersion "${{ steps.version.outputs.clean_version }}" \
+            --packDir "build/macos/Build/Products/Release/vaulth_app.app" \
+            --outputDir "./artifacts"
+
+      - name: Upload Velopack artifacts to release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            Vaultly-${{ steps.version.outputs.clean_version }}.dmg
             ./artifacts/*.nupkg
             ./artifacts/releases.json
         env:
