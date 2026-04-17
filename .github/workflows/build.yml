@@ -182,6 +182,23 @@ jobs:
       - name: Pack macOS with Velopack
         run: |
           vpk pack --packId "Vaultly" --packVersion "${{ steps.version.outputs.clean_version }}" --packDir "build/macos/Build/Products/Release/vaulth_app.app" --outputDir "./artifacts"
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Create DMG for manual installation
+        run: |
+          create-dmg \
+            --volname "Vaultly ${{ steps.version.outputs.clean_version }}" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --icon "vaulth_app.app" 175 190 \
+            --hide-extension "vaulth_app.app" \
+            --app-drop-link 600 185 \
+            "./artifacts/Vaultly-${{ steps.version.outputs.clean_version }}.dmg" \
+            "./artifacts/vaulth_app.app"
+
       - name: Upload macOS artifacts to release
         uses: softprops/action-gh-release@v1
         with:
