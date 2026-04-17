@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,20 +14,28 @@ import 'route/app_router.dart';
 import 'server/service/logger_service.dart';
 import 'theme/theme.dart';
 
+import 'is_desktop.dart' if (dart.library.html) 'is_desktop_stub.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await RustLib.init();
+
+  if (isDesktop()) {
+    await RustLib.init();
+  }
+
   final LoggerService logger = LoggerService();
   await logger.init();
   MediaKit.ensureInitialized();
   final appModal = AppModel(prefs: await SharedPreferences.getInstance());
+
   if (!kIsWeb) {
-    if (Platform.isAndroid) {
+    if (defaultTargetPlatform == TargetPlatform.android) {
       WebViewPlatform.instance = AndroidWebViewPlatform();
-    } else if (Platform.isIOS) {
+    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
       WebViewPlatform.instance = WebKitWebViewPlatform();
     }
   }
+
   runApp(AppInitializer(appModel: appModal, child: VaultlyApp()));
 }
 

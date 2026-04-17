@@ -81,10 +81,13 @@ class UpdateSection extends StatelessWidget {
                               color: Theme.of(context).colorScheme.primary,
                             ),
                             const SizedBox(width: 12),
-                            Text(
-                              'Обновление приложения',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            Expanded(
+                              child: Text(
+                                'Обновление приложения',
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                                softWrap: true,
+                              ),
                             ),
                           ],
                         ),
