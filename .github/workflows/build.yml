@@ -64,7 +64,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-windows:
+    build-windows:
     name: Build for Windows (Velopack)
     runs-on: windows-latest
     outputs:
@@ -105,7 +105,7 @@ jobs:
           raw_version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
           clean_version="${raw_version%%+*}"
           echo "clean_version=$clean_version" >> $GITHUB_OUTPUT
-          echo "Raw: $raw_version -> Clean: $clean_version"  # отладка
+          echo "Raw: $raw_version -> Clean: $clean_version"
 
       - name: Copy icon for Velopack
         run: |
@@ -118,7 +118,7 @@ jobs:
 
       - name: Pack Windows with Velopack
         run: |
-          vpk pack -u Vaultly -v ${{ steps.version.outputs.clean_version }} -p windows-x64 -o ./artifacts -i build/windows/x64/runner/Release --icon build/windows/x64/runner/Release/app.ico
+          vpk pack --name "Vaultly" --version "${{ steps.version.outputs.clean_version }}" --platform "windows-x64" --output "./artifacts" --input "build/windows/x64/runner/Release" --icon "build/windows/x64/runner/Release/app.ico"
 
       - name: Upload Windows artifacts to release
         uses: softprops/action-gh-release@v1
@@ -162,10 +162,6 @@ jobs:
             mv build/macos/Build/Products/Release/Vaultly.app build/macos/Build/Products/Release/vaulth_app.app
           fi
 
-      - name: Create icon for Velopack (.icns)
-        run: |
-          iconutil -c icns macos/Runner/Assets.xcassets/AppIcon.appiconset -o build/macos/Build/Products/Release/app.icns
-
       - name: Install .NET SDK
         uses: actions/setup-dotnet@v4
         with:
@@ -185,7 +181,7 @@ jobs:
 
       - name: Pack macOS with Velopack
         run: |
-          vpk pack -u Vaultly -v ${{ steps.version.outputs.clean_version }} -p osx-x64 -o ./artifacts -i build/macos/Build/Products/Release --icon build/macos/Build/Products/Release/app.icns
+          vpk pack -u Vaultly -v ${{ steps.version.outputs.clean_version }} -p osx-x64 -o ./artifacts -i build/macos/Build/Products/Release
 
       - name: Upload macOS artifacts to release
         uses: softprops/action-gh-release@v1
