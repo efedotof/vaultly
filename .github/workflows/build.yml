@@ -123,7 +123,8 @@ jobs:
             --packDir "build/windows/x64/runner/Release" `
             --outputDir "./artifacts" `
             --mainExe "vaulth_app.exe" `
-            --icon "build/windows/x64/runner/Release/app.ico"
+            --icon "build/windows/x64/runner/Release/app.ico" `
+            --outputReleases "./artifacts/releases.win.json"
 
       - name: Generate releases for win channel
         run: |
@@ -268,7 +269,8 @@ jobs:
             --packId "Vaultly" \
             --packVersion "${{ steps.version.outputs.clean_version }}" \
             --packDir "build/macos/Build/Products/Release/vaulth_app.app" \
-            --outputDir "./artifacts"
+            --outputDir "./artifacts" \
+            --outputReleases "./artifacts/releases.osx.json"
 
       - name: Generate releases for osx channel
         run: |
