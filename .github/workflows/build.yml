@@ -181,8 +181,7 @@ jobs:
           vpk pack \
             --packId "Vaultly" \
             --packVersion "${{ steps.version.outputs.clean_version }}" \
-            --packDir "build/macos/Build/Products/Release" \
-            --mainExe "Vaultly.app" \
+            --packDir "build/macos/Build/Products/Release/Vaultly.app" \
             --outputDir "./velopack_packages"
 
       - name: Rename app for DMG (optional)
