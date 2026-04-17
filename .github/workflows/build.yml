@@ -125,9 +125,9 @@ jobs:
             --mainExe "vaulth_app.exe" `
             --icon "build/windows/x64/runner/Release/app.ico"
 
-      - name: Generate releases.json
+      - name: Generate releases for win channel
         run: |
-          vpk releases --packDir "./artifacts" --outputDir "./artifacts"
+          vpk generate-releases --packDir "./artifacts" --outputDir "./artifacts" --channel win
 
       - name: Upload Windows artifacts to release
         uses: softprops/action-gh-release@v1
@@ -135,7 +135,7 @@ jobs:
           files: |
             ./artifacts/*.exe
             ./artifacts/*.nupkg
-            ./artifacts/releases.json
+            ./artifacts/releases.win.json   
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -269,16 +269,16 @@ jobs:
             --packVersion "${{ steps.version.outputs.clean_version }}" \
             --packDir "build/macos/Build/Products/Release/vaulth_app.app" \
             --outputDir "./artifacts"
-    
-      - name: Generate releases.json
+
+      - name: Generate releases for osx channel
         run: |
-          vpk releases --packDir "./artifacts" --outputDir "./artifacts"
+          vpk generate-releases --packDir "./artifacts" --outputDir "./artifacts" --channel osx
 
       - name: Upload Velopack artifacts to release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             ./artifacts/*.nupkg
-            ./artifacts/releases.json
+            ./artifacts/releases.osx.json  
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
