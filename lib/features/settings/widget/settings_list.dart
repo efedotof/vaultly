@@ -2,9 +2,12 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vaulth_app/features/auth/widget/totp_code_dialog.dart';
+import 'package:vaulth_app/features/document_viewer/widget/code_view.dart';
 import 'package:vaulth_app/features/settings/cubit/settings_cubit.dart';
 import 'package:vaulth_app/route/app_router.dart';
 import 'package:vaulth_app/server/model/user/user_profile_dto/user_profile_dto.dart';
+import 'package:vaulth_app/theme/theme_app/theme_cubit.dart';
+import 'package:vaulth_app/theme/theme_code/code_highlight_theme_cubit.dart';
 import 'confirm_dialog.dart';
 import 'info_row.dart';
 import 'seed_phrase_creation_dialog.dart';
@@ -136,6 +139,33 @@ class SettingsList extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => const SeedPhraseCreationDialog(),
+    );
+  }
+
+  void _showThemePickerDialog(BuildContext context, String currentTheme) {
+    final themeNames = CodeView.themeMap.keys.toList();
+
+    showDialog(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Выберите тему'),
+        children: themeNames.map((themeName) {
+          return SimpleDialogOption(
+            onPressed: () {
+              context.read<CodeHighlightThemeCubit>().setTheme(themeName);
+              Navigator.pop(context);
+            },
+            child: Row(
+              children: [
+                if (themeName == currentTheme)
+                  const Icon(Icons.check, size: 20),
+                const SizedBox(width: 8),
+                Text(themeName),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -272,7 +302,68 @@ class SettingsList extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  children: [
+                    BlocBuilder<ThemeCubit, ThemeState>(
+                      builder: (context, state) {
+                        return SwitchListTile(
+                          secondary: Icon(
+                            state.isDark ? Icons.dark_mode : Icons.light_mode,
+                          ),
+                          title: const Text('Тема приложения'),
+                          subtitle: Text(
+                            state.isDark ? 'Тёмная тема' : 'Светлая тема',
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          value: state.isDark,
+                          onChanged: (value) {
+                            context.read<ThemeCubit>().setThemeBrightness(
+                              value ? Brightness.dark : Brightness.light,
+                            );
+                          },
+                        );
+                      },
+                    ),
 
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child:
+                          BlocBuilder<
+                            CodeHighlightThemeCubit,
+                            CodeHighlightThemeState
+                          >(
+                            builder: (context, state) {
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.code),
+                                title: const Text('Тема подсветки'),
+                                subtitle: Text(state.themeName),
+                                trailing: const Icon(Icons.arrow_drop_down),
+                                onTap: () => _showThemePickerDialog(
+                                  context,
+                                  state.themeName,
+                                ),
+                              );
+                            },
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
             Card(
               elevation: 4,
               shape: RoundedRectangleBorder(

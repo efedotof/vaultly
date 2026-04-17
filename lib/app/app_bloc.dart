@@ -23,11 +23,16 @@ import 'package:vaulth_app/server/service/local_file_cache.dart';
 import 'package:vaulth_app/server/service/seed_phrase_service.dart';
 import 'package:vaulth_app/server/service/update/update_service.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
+import 'package:vaulth_app/theme/theme_app/theme_cubit.dart';
+import 'package:vaulth_app/theme/interface/theme_interface.dart';
+import 'package:vaulth_app/theme/theme_code/code_highlight_theme_cubit.dart';
+
+import 'app_modal.dart';
 
 class AppBloc extends StatefulWidget {
-  const AppBloc({super.key, required this.child});
+  const AppBloc({super.key, required this.child, required this.appModel});
   final Widget child;
-
+  final AppModel appModel;
   @override
   State<AppBloc> createState() => _AppBlocState();
 }
@@ -45,6 +50,13 @@ class _AppBlocState extends State<AppBloc> {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
+        BlocProvider(
+          create: (context) =>
+              ThemeCubit(themeInterface: context.read<ThemeInterface>()),
+        ),
+        BlocProvider(
+          create: (context) => CodeHighlightThemeCubit(widget.appModel.prefs),
+        ),
         BlocProvider(
           create: (context) => AuthCubit(
             authRepository: context.read<AuthInterface>(),

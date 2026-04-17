@@ -124,6 +124,9 @@ class _NoteEditorViewState extends State<NoteEditorView> {
                 controller: _nameController,
                 decoration: const InputDecoration(
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
                   hintText: 'Название заметки',
                 ),
                 style: const TextStyle(

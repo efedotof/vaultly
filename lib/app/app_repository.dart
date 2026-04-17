@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:vaulth_app/app/app_modal.dart';
 import 'package:vaulth_app/config.dart';
 import 'package:vaulth_app/server/repository/auth/auth_interface.dart';
 import 'package:vaulth_app/server/repository/auth/auth_repository.dart';
@@ -24,18 +25,29 @@ import 'package:vaulth_app/server/service/seed_phrase_service.dart';
 import 'package:vaulth_app/server/service/shirm_encryption_service.dart';
 import 'package:vaulth_app/server/service/update/update_service.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
+import 'package:vaulth_app/theme/interface/theme_interface.dart';
+import 'package:vaulth_app/theme/interface/theme_repository.dart';
 
 class AppRepository extends StatelessWidget {
-  const AppRepository({super.key, required this.child});
+  const AppRepository({super.key, required this.child, required this.appModal});
   final Widget child;
+  final AppModel appModal;
   @override
   Widget build(BuildContext context) {
     return MultiRepositoryProvider(
       providers: [
+        RepositoryProvider<ThemeInterface>(
+          create: (context) => ThemeRepository(preferences: appModal.prefs),
+        ),
         RepositoryProvider(create: (context) => AuthLocalStorage()),
         RepositoryProvider(create: (context) => LocalFileCache()),
         RepositoryProvider(create: (context) => SeedPhraseService()),
-         RepositoryProvider(create: (context) => UpdateService(githubRepoUrl: githubRepoUrl, appArchiveUrl: appArchiveUrl)),
+        RepositoryProvider(
+          create: (context) => UpdateService(
+            githubRepoUrl: githubRepoUrl,
+            appArchiveUrl: appArchiveUrl,
+          ),
+        ),
         RepositoryProvider<ServerKeyInterface>(
           create: (context) => ServerKeyRepository(
             baseUrl: serverKey,
