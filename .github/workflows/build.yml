@@ -131,7 +131,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-macos-dmg:
-    name: Build macOS DMG (manual install)
+    name: Build macOS DMG (with auto‑update support)
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -162,16 +162,53 @@ jobs:
       - name: Build macOS app (release)
         run: flutter build macos --release
 
-      - name: Rename app to vaulth_app.app if needed
+      - name: Rename app to vaulth_app.app
         run: |
           if [ -d "build/macos/Build/Products/Release/Vaultly.app" ]; then
             mv build/macos/Build/Products/Release/Vaultly.app build/macos/Build/Products/Release/vaulth_app.app
           fi
 
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: Install Velopack CLI
+        run: dotnet tool install --global vpk
+
+      - name: Pack app with Velopack (generates .nupkg with auto‑update support)
+        run: |
+          vpk pack \
+            --packId "Vaultly" \
+            --packVersion "${{ steps.version.outputs.clean_version }}" \
+            --packDir "build/macos/Build/Products/Release/vaulth_app.app" \
+            --outputDir "./velopack_packages"
+
+      - name: Extract .app from Velopack .nupkg
+        run: |
+          mkdir -p ./updated_app
+          # Находим полный .nupkg (содержит сам .app)
+          nupkg_file=$(ls ./velopack_packages/Vaultly-${{ steps.version.outputs.clean_version }}-full.nupkg 2>/dev/null || ls ./velopack_packages/*.nupkg | head -1)
+          if [ -z "$nupkg_file" ]; then
+            echo "No .nupkg file found!"
+            exit 1
+          fi
+          unzip -q "$nupkg_file" -d ./updated_app
+          # После распаковки .app может быть в корне или в подпапке
+          if [ -d "./updated_app/vaulth_app.app" ]; then
+            echo "Found vaulth_app.app"
+          elif [ -d "./updated_app/Vaultly.app" ]; then
+            mv ./updated_app/Vaultly.app ./updated_app/vaulth_app.app
+          else
+            echo "Could not find .app in extracted nupkg"
+            ls -la ./updated_app
+            exit 1
+          fi
+
       - name: Install create-dmg
         run: brew install create-dmg
 
-      - name: Create DMG
+      - name: Create DMG from updated app (with auto‑update support)
         run: |
           create-dmg \
             --volname "Vaultly ${{ steps.version.outputs.clean_version }}" \
@@ -182,7 +219,7 @@ jobs:
             --hide-extension "vaulth_app.app" \
             --app-drop-link 600 185 \
             "Vaultly-${{ steps.version.outputs.clean_version }}.dmg" \
-            "build/macos/Build/Products/Release/vaulth_app.app"
+            "./updated_app/vaulth_app.app"
 
       - name: Upload DMG to release
         uses: softprops/action-gh-release@v1
