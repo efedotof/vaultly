@@ -130,81 +130,95 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-macos:
-    name: Build for macOS (Velopack)
-    runs-on: macos-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    build-macos:
+      name: Build for macOS (Velopack)
+      runs-on: macos-latest
+      outputs:
+        version: ${{ steps.version.outputs.version }}
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.38.10'
+        - name: Setup Flutter
+          uses: subosito/flutter-action@v2
+          with:
+            flutter-version: '3.38.10'
 
-      - name: Enable macOS support
-        run: flutter config --enable-macos-desktop
+        - name: Enable macOS support
+          run: flutter config --enable-macos-desktop
 
-      - name: Get dependencies
-        run: flutter pub get
+        - name: Get dependencies
+          run: flutter pub get
 
-      - name: Run code generation
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+        - name: Run code generation
+          run: flutter pub run build_runner build --delete-conflicting-outputs
 
-      - name: Build macOS app (release)
-        run: flutter build macos --release
+        - name: Build macOS app (release)
+          run: flutter build macos --release
 
-      - name: Rename app to vaulth_app.app if needed
-        run: |
-          if [ -d "build/macos/Build/Products/Release/Vaultly.app" ]; then
-            mv build/macos/Build/Products/Release/Vaultly.app build/macos/Build/Products/Release/vaulth_app.app
-          fi
+        - name: Rename app to vaulth_app.app if needed
+          run: |
+            if [ -d "build/macos/Build/Products/Release/Vaultly.app" ]; then
+              mv build/macos/Build/Products/Release/Vaultly.app build/macos/Build/Products/Release/vaulth_app.app
+            fi
 
-      - name: Install .NET SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.x'
+        - name: Install .NET SDK
+          uses: actions/setup-dotnet@v4
+          with:
+            dotnet-version: '8.x'
 
-      - name: Install Velopack CLI
-        run: dotnet tool install --global vpk
+        - name: Install Velopack CLI
+          run: dotnet tool install --global vpk
 
-      - name: Get version from pubspec (clean)
-        id: version
-        shell: bash
-        run: |
-          raw_version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
-          clean_version="${raw_version%%+*}"
-          echo "clean_version=$clean_version" >> $GITHUB_OUTPUT
-          echo "Raw: $raw_version -> Clean: $clean_version"
+        - name: Get version from pubspec (clean)
+          id: version
+          shell: bash
+          run: |
+            raw_version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
+            clean_version="${raw_version%%+*}"
+            echo "clean_version=$clean_version" >> $GITHUB_OUTPUT
+            echo "Raw: $raw_version -> Clean: $clean_version"
 
-      - name: Pack macOS with Velopack
-        run: |
-          vpk pack --packId "Vaultly" --packVersion "${{ steps.version.outputs.clean_version }}" --packDir "build/macos/Build/Products/Release/vaulth_app.app" --outputDir "./artifacts"
+        - name: Pack macOS with Velopack
+          run: |
+            vpk pack --packId "Vaultly" --packVersion "${{ steps.version.outputs.clean_version }}" --packDir "build/macos/Build/Products/Release/vaulth_app.app" --outputDir "./artifacts"
 
-      - name: Install create-dmg
-        run: brew install create-dmg
+        - name: List artifacts after vpk pack
+          run: ls -la ./artifacts/
 
-      - name: Create DMG for manual installation
-        run: |
-          create-dmg \
-            --volname "Vaultly ${{ steps.version.outputs.clean_version }}" \
-            --window-pos 200 120 \
-            --window-size 800 400 \
-            --icon-size 100 \
-            --icon "vaulth_app.app" 175 190 \
-            --hide-extension "vaulth_app.app" \
-            --app-drop-link 600 185 \
-            "./artifacts/Vaultly-${{ steps.version.outputs.clean_version }}.dmg" \
-            "./artifacts/vaulth_app.app"
+        - name: Rename .app to vaulth_app.app (if needed)
+          run: |
+            if [ -d "./artifacts/Vaultly.app" ]; then
+              mv ./artifacts/Vaultly.app ./artifacts/vaulth_app.app
+            elif [ -d "./artifacts/vaulth_app.app" ]; then
+              echo "Already named vaulth_app.app"
+            else
+              echo "::error::No .app found in artifacts!"
+              exit 1
+            fi
 
-      - name: Upload macOS artifacts to release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            ./artifacts/*.dmg
-            ./artifacts/*.nupkg
-            ./artifacts/releases.json
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        - name: Install create-dmg
+          run: brew install create-dmg
+
+        - name: Create DMG for manual installation
+          run: |
+            create-dmg \
+              --volname "Vaultly ${{ steps.version.outputs.clean_version }}" \
+              --window-pos 200 120 \
+              --window-size 800 400 \
+              --icon-size 100 \
+              --icon "vaulth_app.app" 175 190 \
+              --hide-extension "vaulth_app.app" \
+              --app-drop-link 600 185 \
+              "./artifacts/Vaultly-${{ steps.version.outputs.clean_version }}.dmg" \
+              "./artifacts/vaulth_app.app"
+
+        - name: Upload macOS artifacts to release
+          uses: softprops/action-gh-release@v1
+          with:
+            files: |
+              ./artifacts/*.dmg
+              ./artifacts/*.nupkg
+              ./artifacts/releases.json
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
