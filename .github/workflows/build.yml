@@ -176,7 +176,7 @@ jobs:
       - name: Install Velopack CLI
         run: dotnet tool install --global vpk
 
-      - name: Inject Velopack into .app
+      - name: Pack with Velopack (this creates a proper .app with Update.app)
         run: |
           vpk pack \
             --packId "Vaultly" \
@@ -184,14 +184,37 @@ jobs:
             --packDir "build/macos/Build/Products/Release/Vaultly.app" \
             --outputDir "./velopack_packages"
 
-      - name: Rename app for DMG (optional)
+      - name: Locate Velopack-processed .app
+        id: find_app
         run: |
-          mv build/macos/Build/Products/Release/Vaultly.app build/macos/Build/Products/Release/vaulth_app.app
+          # Обычно vpk кладёт готовый .app в подпапку portable/Vaultly.app
+          PROCESSED_APP=$(find ./velopack_packages -name "Vaultly.app" -type d | head -1)
+          if [ -z "$PROCESSED_APP" ]; then
+            echo "❌ Could not find processed .app in velopack_packages"
+            ls -R ./velopack_packages
+            exit 1
+          fi
+          echo "PROCESSED_APP=$PROCESSED_APP" >> $GITHUB_ENV
+          echo "✅ Found processed app at: $PROCESSED_APP"
+
+      - name: Verify Update.app exists
+        run: |
+          if [ ! -d "$PROCESSED_APP/Contents/Frameworks/Update.app" ]; then
+            echo "❌ Update.app is missing in processed app!"
+            ls "$PROCESSED_APP/Contents/Frameworks/"
+            exit 1
+          fi
+          echo "✅ Update.app found"
+
+      - name: Rename processed app to vaulth_app.app
+        run: |
+          mv "$PROCESSED_APP" ./vaulth_app.app
+          echo "✅ Renamed to vaulth_app.app"
 
       - name: Install create-dmg
         run: brew install create-dmg
 
-      - name: Create DMG from updated app
+      - name: Create DMG
         run: |
           create-dmg \
             --volname "Vaultly ${{ steps.version.outputs.clean_version }}" \
@@ -202,7 +225,7 @@ jobs:
             --hide-extension "vaulth_app.app" \
             --app-drop-link 600 185 \
             "Vaultly-${{ steps.version.outputs.clean_version }}.dmg" \
-            "build/macos/Build/Products/Release/vaulth_app.app"
+            "vaulth_app.app"
 
       - name: Upload DMG to release
         uses: softprops/action-gh-release@v1
