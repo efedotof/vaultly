@@ -136,115 +136,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-macos-dmg:
-    name: Build macOS DMG (with auto‑update support)
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.38.10'
-
-      - name: Enable macOS support
-        run: flutter config --enable-macos-desktop
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Run code generation
-        run: flutter pub run build_runner build --delete-conflicting-outputs
-
-      - name: Get version from pubspec (clean)
-        id: version
-        shell: bash
-        run: |
-          raw_version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
-          clean_version="${raw_version%%+*}"
-          echo "clean_version=$clean_version" >> $GITHUB_OUTPUT
-
-      - name: Build macOS app (release)
-        run: flutter build macos --release
-
-      - name: Install .NET SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.x'
-
-      - name: Install Velopack CLI
-        run: dotnet tool install --global vpk
-
-      # 🔑 КЛЮЧЕВОЙ ШАГ: встраиваем Velopack bootstrapper в .app
-      - name: Inject Velopack bootstrapper into .app
-        run: |
-          vpk build macos \
-            --packId "Vaultly" \
-            --packVersion "${{ steps.version.outputs.clean_version }}" \
-            --packDir "build/macos/Build/Products/Release/Vaultly.app" \
-            --mainExe "Vaultly" \
-            --outputDir "./velopack_build"
-
-      # Теперь в папке ./velopack_build должен лежать готовый .app с Update.app
-      - name: Locate bootstrapped .app
-        id: find_app
-        run: |
-          BOOTSTRAPPED_APP=$(find ./velopack_build -name "*.app" -type d | head -1)
-          if [ -z "$BOOTSTRAPPED_APP" ]; then
-            echo "❌ Could not find bootstrapped .app"
-            ls -R ./velopack_build
-            exit 1
-          fi
-          echo "BOOTSTRAPPED_APP=$BOOTSTRAPPED_APP" >> $GITHUB_ENV
-          echo "✅ Found bootstrapped app: $BOOTSTRAPPED_APP"
-
-      - name: Verify Update.app exists
-        run: |
-          if [ ! -d "$BOOTSTRAPPED_APP/Contents/Frameworks/Update.app" ]; then
-            echo "❌ Update.app still missing!"
-            ls "$BOOTSTRAPPED_APP/Contents/Frameworks/" || true
-            exit 1
-          fi
-          echo "✅ Update.app found"
-
-      # Опционально: создаём установщик .pkg и portable .zip (для отладки)
-      - name: Pack with Velopack (for distribution artifacts)
-        run: |
-          vpk pack \
-            --packId "Vaultly" \
-            --packVersion "${{ steps.version.outputs.clean_version }}" \
-            --packDir "$BOOTSTRAPPED_APP" \
-            --outputDir "./velopack_packages"
-
-      - name: Rename bootstrapped app to vaulth_app.app
-        run: |
-          mv "$BOOTSTRAPPED_APP" ./vaulth_app.app
-          echo "✅ Renamed to vaulth_app.app"
-
-      - name: Install create-dmg
-        run: brew install create-dmg
-
-      - name: Create DMG
-        run: |
-          create-dmg \
-            --volname "Vaultly ${{ steps.version.outputs.clean_version }}" \
-            --window-pos 200 120 \
-            --window-size 800 400 \
-            --icon-size 100 \
-            --icon "vaulth_app.app" 175 190 \
-            --hide-extension "vaulth_app.app" \
-            --app-drop-link 600 185 \
-            "Vaultly-${{ steps.version.outputs.clean_version }}.dmg" \
-            "vaulth_app.app"
-
-      - name: Upload DMG to release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: Vaultly-${{ steps.version.outputs.clean_version }}.dmg
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   build-macos-velopack:
     name: Build macOS Velopack (auto-update)
     runs-on: macos-latest
@@ -305,6 +196,7 @@ jobs:
         with:
           files: |
             ./artifacts/*.nupkg
-            ./artifacts/releases.osx.json  
+            ./artifacts/releases.osx.json
+            ./artifacts/*.pkg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
