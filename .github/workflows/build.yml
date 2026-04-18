@@ -176,106 +176,7 @@ jobs:
       - name: Install Velopack CLI
         run: dotnet tool install --global vpk
 
-      - name: Pack with Velopack (creates portable .zip with processed .app)
-        run: |
-          vpk pack \
-            --packId "Vaultly" \
-            --packVersion "${{ steps.version.outputs.clean_version }}" \
-            --packDir "build/macos/Build/Products/Release/Vaultly.app" \
-            --outputDir "./velopack_packages"
-
-      - name: Extract processed .app from portable zip
-        run: |
-          # Находим zip-архив
-          ZIP_FILE=$(ls ./velopack_packages/*-Portable.zip | head -1)
-          echo "Found portable zip: $ZIP_FILE"
-          # Распаковываем в текущую директорию
-          unzip -q "$ZIP_FILE" -d ./extracted_app
-          # Ищем .app внутри
-          PROCESSED_APP=$(find ./extracted_app -name "*.app" -type d | head -1)
-          if [ -z "$PROCESSED_APP" ]; then
-            echo "❌ No .app found in extracted zip"
-            ls -R ./extracted_app
-            exit 1
-          fi
-          echo "PROCESSED_APP=$PROCESSED_APP" >> $GITHUB_ENV
-          echo "✅ Found processed app: $PROCESSED_APP"
-
-      - name: Verify Update.app exists
-        run: |
-          if [ ! -d "$PROCESSED_APP/Contents/Frameworks/Update.app" ]; then
-            echo "❌ Update.app is missing!"
-            ls "$PROCESSED_APP/Contents/Frameworks/" || true
-            exit 1
-          fi
-          echo "✅ Update.app found"
-
-      - name: Rename processed app to vaulth_app.app
-        run: |
-          mv "$PROCESSED_APP" ./vaulth_app.app
-          echo "✅ Renamed to vaulth_app.app"
-
-      - name: Install create-dmg
-        run: brew install create-dmg
-
-      - name: Create DMG
-        run: |
-          create-dmg \
-            --volname "Vaultly ${{ steps.version.outputs.clean_version }}" \
-            --window-pos 200 120 \
-            --window-size 800 400 \
-            --icon-size 100 \
-            --icon "vaulth_app.app" 175 190 \
-            --hide-extension "vaulth_app.app" \
-            --app-drop-link 600 185 \
-            "Vaultly-${{ steps.version.outputs.clean_version }}.dmg" \
-            "vaulth_app.app"
-
-      - name: Upload DMG to release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: Vaultly-${{ steps.version.outputs.clean_version }}.dmg
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  build-macos-dmg:
-    name: Build macOS DMG (with auto‑update support)
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.38.10'
-
-      - name: Enable macOS support
-        run: flutter config --enable-macos-desktop
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Run code generation
-        run: flutter pub run build_runner build --delete-conflicting-outputs
-
-      - name: Get version from pubspec (clean)
-        id: version
-        shell: bash
-        run: |
-          raw_version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
-          clean_version="${raw_version%%+*}"
-          echo "clean_version=$clean_version" >> $GITHUB_OUTPUT
-
-      - name: Build macOS app (release)
-        run: flutter build macos --release
-
-      - name: Install .NET SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.x'
-
-      - name: Install Velopack CLI
-        run: dotnet tool install --global vpk
-
+      # 🔑 КЛЮЧЕВОЙ ШАГ: встраиваем Velopack bootstrapper в .app
       - name: Inject Velopack bootstrapper into .app
         run: |
           vpk build macos \
@@ -285,6 +186,7 @@ jobs:
             --mainExe "Vaultly" \
             --outputDir "./velopack_build"
 
+      # Теперь в папке ./velopack_build должен лежать готовый .app с Update.app
       - name: Locate bootstrapped .app
         id: find_app
         run: |
@@ -306,6 +208,7 @@ jobs:
           fi
           echo "✅ Update.app found"
 
+      # Опционально: создаём установщик .pkg и portable .zip (для отладки)
       - name: Pack with Velopack (for distribution artifacts)
         run: |
           vpk pack \
