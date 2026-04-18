@@ -176,7 +176,7 @@ jobs:
       - name: Install Velopack CLI
         run: dotnet tool install --global vpk
 
-      - name: Pack with Velopack (this creates a proper .app with Update.app)
+      - name: Pack with Velopack (creates portable .zip with processed .app)
         run: |
           vpk pack \
             --packId "Vaultly" \
@@ -184,24 +184,28 @@ jobs:
             --packDir "build/macos/Build/Products/Release/Vaultly.app" \
             --outputDir "./velopack_packages"
 
-      - name: Locate Velopack-processed .app
-        id: find_app
+      - name: Extract processed .app from portable zip
         run: |
-          # Обычно vpk кладёт готовый .app в подпапку portable/Vaultly.app
-          PROCESSED_APP=$(find ./velopack_packages -name "Vaultly.app" -type d | head -1)
+          # Находим zip-архив
+          ZIP_FILE=$(ls ./velopack_packages/*-Portable.zip | head -1)
+          echo "Found portable zip: $ZIP_FILE"
+          # Распаковываем в текущую директорию
+          unzip -q "$ZIP_FILE" -d ./extracted_app
+          # Ищем .app внутри
+          PROCESSED_APP=$(find ./extracted_app -name "*.app" -type d | head -1)
           if [ -z "$PROCESSED_APP" ]; then
-            echo "❌ Could not find processed .app in velopack_packages"
-            ls -R ./velopack_packages
+            echo "❌ No .app found in extracted zip"
+            ls -R ./extracted_app
             exit 1
           fi
           echo "PROCESSED_APP=$PROCESSED_APP" >> $GITHUB_ENV
-          echo "✅ Found processed app at: $PROCESSED_APP"
+          echo "✅ Found processed app: $PROCESSED_APP"
 
       - name: Verify Update.app exists
         run: |
           if [ ! -d "$PROCESSED_APP/Contents/Frameworks/Update.app" ]; then
-            echo "❌ Update.app is missing in processed app!"
-            ls "$PROCESSED_APP/Contents/Frameworks/"
+            echo "❌ Update.app is missing!"
+            ls "$PROCESSED_APP/Contents/Frameworks/" || true
             exit 1
           fi
           echo "✅ Update.app found"
