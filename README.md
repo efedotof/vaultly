@@ -1,92 +1,47 @@
-# shirm_crypto
+# 🧬 shirm_crypto_c – нативная реализация шифрования SHIRMPS на чистом C
 
-A new Flutter FFI plugin project.
+Эта ветка содержит полную реализацию Flutter FFI-плагина `shirm_crypto` на **языке C** с использованием OpenSSL и zlib. Код оптимизирован для высокой производительности и минимальных накладных расходов при работе с криптографией.
 
-## Getting Started
+## 🔐 Возможности
 
-This project is a starting point for a Flutter
-[FFI plugin](https://flutter.dev/to/ffi-package),
-a specialized package that includes native code directly invoked with Dart FFI.
+- **Шифрование файлов** (AES-256-GCM + RSA-OAEP)
+- **Сжатие GZIP** (опционально)
+- **Цифровая подпись** (RSA-PSS) для проверки целостности
+- **Потоковая обработка** с callback-уведомлениями о прогрессе
+- Поддержка платформ: **macOS**, **Windows**, **Android**
 
-## Project structure
+## 📦 Зависимости
 
-This template uses the following structure:
+- OpenSSL (libcrypto, libssl)
+- zlib
 
-* `src`: Contains the native source code, and a CmakeFile.txt file for building
-  that source code into a dynamic library.
+## 🛠️ Сборка и использование
 
-* `lib`: Contains the Dart code that defines the API of the plugin, and which
-  calls into the native code using `dart:ffi`.
+Плагин полностью совместим с Flutter FFI и собирается стандартными средствами:
 
-* platform folders (`android`, `ios`, `windows`, etc.): Contains the build files
-  for building and bundling the native code library with the platform application.
+- **macOS**: CocoaPods (см. `macos/shirm_crypto.podspec`)
+- **Windows**: CMake (см. `windows/CMakeLists.txt`)
+- **Android**: Gradle + CMake (см. `android/build.gradle`)
 
-## Building and bundling native code
+Привязки Dart генерируются через `ffigen`:
 
-The `pubspec.yaml` specifies FFI plugins as follows:
-
-```yaml
-  plugin:
-    platforms:
-      some_platform:
-        ffiPlugin: true
-```
-
-This configuration invokes the native build for the various target platforms
-and bundles the binaries in Flutter applications using these FFI plugins.
-
-This can be combined with dartPluginClass, such as when FFI is used for the
-implementation of one platform in a federated plugin:
-
-```yaml
-  plugin:
-    implements: some_other_plugin
-    platforms:
-      some_platform:
-        dartPluginClass: SomeClass
-        ffiPlugin: true
-```
-
-A plugin can have both FFI and method channels:
-
-```yaml
-  plugin:
-    platforms:
-      some_platform:
-        pluginClass: SomeName
-        ffiPlugin: true
-```
-
-The native build systems that are invoked by FFI (and method channel) plugins are:
-
-* For Android: Gradle, which invokes the Android NDK for native builds.
-  * See the documentation in android/build.gradle.
-* For iOS and MacOS: Xcode, via CocoaPods.
+```bash
+dart run ffigen --config ffigen.yaml* For iOS and MacOS: Xcode, via CocoaPods.
   * See the documentation in ios/shirm_crypto.podspec.
   * See the documentation in macos/shirm_crypto.podspec.
 * For Linux and Windows: CMake.
   * See the documentation in linux/CMakeLists.txt.
   * See the documentation in windows/CMakeLists.txt.
+```
+## 📄 Основные файлы
 
-## Binding to native code
+| Файл | Описание |
+|------|----------|
+| `src/shirm_crypto.c` | Основная реализация на C |
+| `src/shirm_crypto.h` | Публичное API (экспортируемые функции) |
+| `lib/shirm_crypto.dart` | Dart-обёртка для вызова нативных функций |
+| `lib/shirm_crypto_bindings_generated.dart` | Сгенерированные привязки FFI |
 
-To use the native code, bindings in Dart are needed.
-To avoid writing these by hand, they are generated from the header file
-(`src/shirm_crypto.h`) by `package:ffigen`.
-Regenerate the bindings by running `dart run ffigen --config ffigen.yaml`.
+## 🚀 Производительность
 
-## Invoking native code
-
-Very short-running native functions can be directly invoked from any isolate.
-For example, see `sum` in `lib/shirm_crypto.dart`.
-
-Longer-running functions should be invoked on a helper isolate to avoid
-dropping frames in Flutter applications.
-For example, see `sumAsync` in `lib/shirm_crypto.dart`.
-
-## Flutter help
-
-For help getting started with Flutter, view our
-[online documentation](https://docs.flutter.dev), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-
+Благодаря использованию чистого C и прямых вызовов OpenSSL скорость шифрования сопоставима с нативными утилитами, а отсутствие промежуточных слоёв (например, JSON-парсинга через C++) снижает потребление памяти.
