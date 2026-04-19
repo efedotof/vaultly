@@ -26,6 +26,201 @@ class ShirmCryptoBindings {
     ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName) lookup,
   ) : _lookup = lookup;
 
+  ffi.Pointer<ShirmEncryptStream> shirm_encrypt_stream_init(
+    ffi.Pointer<ffi.Char> inputPath,
+    ffi.Pointer<ffi.Char> publicKeyPem,
+    ffi.Pointer<ffi.Char> privateKeyPem,
+    ffi.Pointer<ffi.Char> userId,
+    ffi.Pointer<ffi.Char> keyOwner,
+    ffi.Pointer<ffi.Char> originalFileName,
+    int compress,
+    ProgressCallback progressCallback,
+    ffi.Pointer<ffi.Void> userData,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> error,
+  ) {
+    return _shirm_encrypt_stream_init(
+      inputPath,
+      publicKeyPem,
+      privateKeyPem,
+      userId,
+      keyOwner,
+      originalFileName,
+      compress,
+      progressCallback,
+      userData,
+      error,
+    );
+  }
+
+  late final _shirm_encrypt_stream_initPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<ShirmEncryptStream> Function(
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Char>,
+            ffi.Int,
+            ProgressCallback,
+            ffi.Pointer<ffi.Void>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('shirm_encrypt_stream_init');
+  late final _shirm_encrypt_stream_init = _shirm_encrypt_stream_initPtr
+      .asFunction<
+        ffi.Pointer<ShirmEncryptStream> Function(
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Char>,
+          int,
+          ProgressCallback,
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
+
+  int shirm_encrypt_stream_process(
+    ffi.Pointer<ShirmEncryptStream> stream,
+    ffi.Pointer<ffi.Pointer<ffi.Uint8>> out_chunk,
+    ffi.Pointer<ffi.Size> out_chunk_size,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> error,
+  ) {
+    return _shirm_encrypt_stream_process(
+      stream,
+      out_chunk,
+      out_chunk_size,
+      error,
+    );
+  }
+
+  late final _shirm_encrypt_stream_processPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int Function(
+            ffi.Pointer<ShirmEncryptStream>,
+            ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+            ffi.Pointer<ffi.Size>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('shirm_encrypt_stream_process');
+  late final _shirm_encrypt_stream_process = _shirm_encrypt_stream_processPtr
+      .asFunction<
+        int Function(
+          ffi.Pointer<ShirmEncryptStream>,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.Size>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
+
+  void shirm_encrypt_stream_free(ffi.Pointer<ShirmEncryptStream> stream) {
+    return _shirm_encrypt_stream_free(stream);
+  }
+
+  late final _shirm_encrypt_stream_freePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ShirmEncryptStream>)>
+      >('shirm_encrypt_stream_free');
+  late final _shirm_encrypt_stream_free = _shirm_encrypt_stream_freePtr
+      .asFunction<void Function(ffi.Pointer<ShirmEncryptStream>)>();
+
+  ffi.Pointer<ShirmDecryptStream> shirm_decrypt_stream_init(
+    ffi.Pointer<ffi.Uint8> shpsData,
+    int shpsSize,
+    ffi.Pointer<ffi.Char> privateKeyPem,
+    ProgressCallback progressCallback,
+    ffi.Pointer<ffi.Void> userData,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> error,
+  ) {
+    return _shirm_decrypt_stream_init(
+      shpsData,
+      shpsSize,
+      privateKeyPem,
+      progressCallback,
+      userData,
+      error,
+    );
+  }
+
+  late final _shirm_decrypt_stream_initPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<ShirmDecryptStream> Function(
+            ffi.Pointer<ffi.Uint8>,
+            ffi.Size,
+            ffi.Pointer<ffi.Char>,
+            ProgressCallback,
+            ffi.Pointer<ffi.Void>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('shirm_decrypt_stream_init');
+  late final _shirm_decrypt_stream_init = _shirm_decrypt_stream_initPtr
+      .asFunction<
+        ffi.Pointer<ShirmDecryptStream> Function(
+          ffi.Pointer<ffi.Uint8>,
+          int,
+          ffi.Pointer<ffi.Char>,
+          ProgressCallback,
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
+
+  int shirm_decrypt_stream_process(
+    ffi.Pointer<ShirmDecryptStream> stream,
+    ffi.Pointer<ffi.Pointer<ffi.Uint8>> out_chunk,
+    ffi.Pointer<ffi.Size> out_chunk_size,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> error,
+  ) {
+    return _shirm_decrypt_stream_process(
+      stream,
+      out_chunk,
+      out_chunk_size,
+      error,
+    );
+  }
+
+  late final _shirm_decrypt_stream_processPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int Function(
+            ffi.Pointer<ShirmDecryptStream>,
+            ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+            ffi.Pointer<ffi.Size>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('shirm_decrypt_stream_process');
+  late final _shirm_decrypt_stream_process = _shirm_decrypt_stream_processPtr
+      .asFunction<
+        int Function(
+          ffi.Pointer<ShirmDecryptStream>,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.Size>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
+
+  void shirm_decrypt_stream_free(ffi.Pointer<ShirmDecryptStream> stream) {
+    return _shirm_decrypt_stream_free(stream);
+  }
+
+  late final _shirm_decrypt_stream_freePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ShirmDecryptStream>)>
+      >('shirm_decrypt_stream_free');
+  late final _shirm_decrypt_stream_free = _shirm_decrypt_stream_freePtr
+      .asFunction<void Function(ffi.Pointer<ShirmDecryptStream>)>();
+
+  /// Оригинальные функции
   ffi.Pointer<EncryptResult> shirm_encrypt_file(
     ffi.Pointer<ffi.Char> inputPath,
     ffi.Pointer<ffi.Char> publicKeyPem,
@@ -161,9 +356,13 @@ final class DecryptResult extends ffi.Struct {
   external ffi.Pointer<ffi.Char> error;
 }
 
+final class ShirmEncryptStream extends ffi.Opaque {}
+
 typedef ProgressCallback =
     ffi.Pointer<ffi.NativeFunction<ProgressCallbackFunction>>;
 typedef ProgressCallbackFunction =
     ffi.Void Function(ffi.Int percent, ffi.Pointer<ffi.Void> userData);
 typedef DartProgressCallbackFunction =
     void Function(int percent, ffi.Pointer<ffi.Void> userData);
+
+final class ShirmDecryptStream extends ffi.Opaque {}
