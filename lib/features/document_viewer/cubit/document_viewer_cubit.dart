@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:archive/archive.dart';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, compute;
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ import 'package:vaulth_app/server/service/logger_service.dart';
 import 'package:vaulth_app/server/service/public_file_decryption_service.dart';
 import 'package:vaulth_app/server/service/shirm_decryption_service_platform.dart';
 import 'package:vaulth_app/server/service/shirmps_header.dart';
+import 'package:shirm_crypto/shirm_crypto.dart';
 import 'file_saver.dart';
 import 'dart:io' as io;
 import 'package:path_provider/path_provider.dart';
@@ -22,31 +24,28 @@ part 'document_viewer_state.dart';
 part 'document_viewer_cubit.freezed.dart';
 
 class _DecryptParams {
-  final String inputPath;
-  final String outputPath;
+  final Uint8List encryptedBytes;
   final String privateKeyPem;
+  final bool compressed;
   _DecryptParams({
-    required this.inputPath,
-    required this.outputPath,
+    required this.encryptedBytes,
     required this.privateKeyPem,
+    required this.compressed,
   });
 }
 
-Future<void> _decryptShpsInIsolate(_DecryptParams params) async {
-  try {
-    final inputFile = io.File(params.inputPath);
-    final encryptedBytes = await inputFile.readAsBytes();
+Future<Uint8List> _decryptAndDecompressInIsolate(_DecryptParams params) async {
+  final decrypted = await ShirmCrypto.decryptData(
+    shpsData: params.encryptedBytes,
+    privateKeyPem: params.privateKeyPem,
+  );
 
-    final decryptedBytes = await ShirmDecryptionService.decryptShps(
-      encryptedBytes,
-      privateKeyPem: params.privateKeyPem,
-    );
-
-    final outputFile = io.File(params.outputPath);
-    await outputFile.writeAsBytes(decryptedBytes);
-  } catch (e) {
-    rethrow;
+  if (!params.compressed) {
+    return decrypted;
   }
+
+  final gzip = GZipDecoder();
+  return Uint8List.fromList(gzip.decodeBytes(decrypted));
 }
 
 class DocumentViewerCubit extends Cubit<DocumentViewerState> {
@@ -102,7 +101,6 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
         await _loadPublicFile(file);
         return;
       }
-
       await _loadPrivateFile(file, password);
     } catch (e, stackTrace) {
       _logger.error(
@@ -123,9 +121,10 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
   }
 
   Future<void> _loadPublicFile(FileDto file) async {
-    if (authCubit.currentPassword == "") return;
+    if (authCubit.currentPassword == "") {
+      return;
+    }
     String password = authCubit.currentPassword!;
-
     final metadata = await fileRepository.getDecryptionMetadata(file.id!);
 
     emit(const DocumentViewerState.downloading());
@@ -198,6 +197,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
 
     String originalFileName = file.originalName;
     String? keyOwner;
+    bool compressed = false;
     try {
       final header = _extractShirmpsHeader(encryptedBytes);
       if (header.originalFileName != null &&
@@ -205,6 +205,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
         originalFileName = header.originalFileName!;
       }
       keyOwner = header.keyOwner;
+      compressed = header.compressed;
     } catch (_) {}
 
     final keys = await _getAvailablePrivateKeys(password);
@@ -232,14 +233,14 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
       final pem = pemKeysToTry[i];
 
       try {
-        final decryptedBytes = await _decryptShpsWithPem(
+        Uint8List decryptedBytes = await _decryptShpsWithPem(
           encryptedBytes: encryptedBytes,
           privateKeyPem: pem,
+          compressed: compressed,
         );
-
-        await localFileCache.saveFile(
-          file.id!,
-          decryptedBytes,
+        localFileCache.saveFileInBackground(
+          fileId: file.id!,
+          data: decryptedBytes,
           originalName: originalFileName,
         );
 
@@ -288,53 +289,29 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
         devicePem = CryptoUtils.encodeRSAPrivateKeyToPem(deviceKey);
       }
     }
-
     return (userKey: userPem, deviceKey: devicePem);
   }
 
   Future<Uint8List> _decryptShpsWithPem({
     required Uint8List encryptedBytes,
     required String privateKeyPem,
+    required bool compressed,
   }) async {
     if (kIsWeb) {
-      return await ShirmDecryptionService.decryptShps(
+      final result = await ShirmDecryptionService.decryptShps(
         encryptedBytes,
         privateKeyPem: privateKeyPem,
       );
+      return result;
     } else {
-      final tempDir = await getTemporaryDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final tempEncryptedPath = '${tempDir.path}/enc_$timestamp.shps';
-      final tempDecryptedPath = '${tempDir.path}/dec_$timestamp.bin';
-
-      try {
-        await io.File(tempEncryptedPath).writeAsBytes(encryptedBytes);
-        await compute(
-          _decryptShpsInIsolate,
-          _DecryptParams(
-            inputPath: tempEncryptedPath,
-            outputPath: tempDecryptedPath,
-            privateKeyPem: privateKeyPem,
-          ),
-        );
-
-        return await io.File(tempDecryptedPath).readAsBytes();
-      } finally {
-        await _deleteTempFiles([tempEncryptedPath, tempDecryptedPath]);
-      }
-    }
-  }
-
-  Future<void> _deleteTempFiles(List<String?> paths) async {
-    for (final path in paths) {
-      if (path != null) {
-        try {
-          final f = io.File(path);
-          if (await f.exists()) {
-            await f.delete();
-          }
-        } catch (_) {}
-      }
+      return await compute(
+        _decryptAndDecompressInIsolate,
+        _DecryptParams(
+          encryptedBytes: encryptedBytes,
+          privateKeyPem: privateKeyPem,
+          compressed: compressed,
+        ),
+      );
     }
   }
 
@@ -354,7 +331,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
       final header = ShirmpsHeader.fromJsonBytes(headerBytes);
 
       return header;
-    } catch (_) {
+    } catch (e) {
       rethrow;
     }
   }
@@ -387,7 +364,6 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
 
   ContentType _detectContentType(Uint8List data, String fileName) {
     final lowerName = fileName.toLowerCase();
-    debugPrint('Detecting type for: $lowerName');
     const codeExtensions = [
       '.dart',
       '.java',
@@ -491,7 +467,9 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
     }
 
     if (data.length > 4) {
-      if (data[0] == 0xFF && data[1] == 0xD8) return ContentType.image;
+      if (data[0] == 0xFF && data[1] == 0xD8) {
+        return ContentType.image;
+      }
       if (data[0] == 0x89 &&
           data[1] == 0x50 &&
           data[2] == 0x4E &&

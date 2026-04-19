@@ -4,58 +4,18 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:bloc/bloc.dart';
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, compute, debugPrint;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:vaulth_app/server/model/file/upload_task/upload_task.dart';
 import 'package:vaulth_app/server/repository/file/file_interface.dart';
-import 'package:vaulth_app/server/service/shirm_encryption_service.dart';
 import 'package:vaulth_app/server/service/shirm_encryption_service_web.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
+import 'package:shirm_crypto/shirm_crypto.dart';
 import 'dart:io' as io;
 
 part 'file_upload_state.dart';
 part 'file_upload_cubit.freezed.dart';
-
-class _EncryptParams {
-  final String inputPath;
-  final String outputPath;
-  final String publicKeyPem;
-  final String privateKeyPem;
-  final String userId;
-  final String keyOwner;
-  final String originalFileName;
-
-  _EncryptParams({
-    required this.inputPath,
-    required this.outputPath,
-    required this.publicKeyPem,
-    required this.privateKeyPem,
-    required this.userId,
-    required this.keyOwner,
-    required this.originalFileName,
-  });
-}
-
-Future<void> _encryptFileInIsolate(_EncryptParams params) async {
-  final inputFile = io.File(params.inputPath);
-  final outputFile = io.File(params.outputPath);
-
-  final publicKey = CryptoUtils.rsaPublicKeyFromPem(params.publicKeyPem);
-  final privateKey = CryptoUtils.rsaPrivateKeyFromPem(params.privateKeyPem);
-
-  final encryptedBytes = await ShirmEncryptionService.encryptFile(
-    inputFile,
-    publicKey: publicKey,
-    userId: params.userId,
-    keyOwner: params.keyOwner,
-    privateKey: privateKey,
-    originalFileName: params.originalFileName,
-    compress: true,
-  );
-
-  await outputFile.writeAsBytes(encryptedBytes);
-}
 
 class _TaskRetryData {
   final Uint8List fileBytes;
@@ -223,7 +183,6 @@ class FileUploadCubit extends Cubit<FileUploadState> {
     );
 
     _pendingTasks.add(task);
-
     _processQueue();
   }
 
@@ -254,9 +213,6 @@ class FileUploadCubit extends Cubit<FileUploadState> {
         folderId: task.folderId,
       ),
     );
-
-    String? tempEncryptedPath;
-    String? tempInputPath;
 
     try {
       final userId = await authLocalStorage.getUserId();
@@ -410,26 +366,29 @@ class FileUploadCubit extends Cubit<FileUploadState> {
       } else {
         final tempDir = io.Directory.systemTemp;
         final timestamp = DateTime.now().millisecondsSinceEpoch;
-        tempInputPath = '${tempDir.path}/input_$timestamp.bin';
-        tempEncryptedPath = '${tempDir.path}/encrypted_$timestamp.shps';
+        final tempInputPath = '${tempDir.path}/input_$timestamp.bin';
 
-        await io.File(tempInputPath).writeAsBytes(task.fileBytes);
+        try {
+          await io.File(tempInputPath).writeAsBytes(task.fileBytes);
 
-        await compute(
-          _encryptFileInIsolate,
-          _EncryptParams(
+          final bytesBuilder = BytesBuilder(copy: false);
+          final stream = ShirmCrypto.encryptFileStream(
             inputPath: tempInputPath,
-            outputPath: tempEncryptedPath,
             publicKeyPem: userPublicKeyPem,
             privateKeyPem: userPrivateKeyPem,
             userId: userId,
             keyOwner: keyOwner,
             originalFileName: task.fileName,
-          ),
-        );
+            compress: true,
+          );
 
-        final encryptedFile = io.File(tempEncryptedPath);
-        encryptedBytes = await encryptedFile.readAsBytes();
+          await for (final chunk in stream) {
+            bytesBuilder.add(chunk);
+          }
+          encryptedBytes = bytesBuilder.takeBytes();
+        } finally {
+          await _deleteTempFile(tempInputPath);
+        }
       }
 
       _updateTask(
@@ -476,8 +435,7 @@ class FileUploadCubit extends Cubit<FileUploadState> {
       );
       task.onSuccess?.call();
       _removeTask(task.taskId);
-    } catch (e, stackTrace) {
-      debugPrint('Upload error: $e\n$stackTrace');
+    } catch (e) {
       _updateTask(
         UploadTask(
           id: task.taskId,
@@ -487,11 +445,6 @@ class FileUploadCubit extends Cubit<FileUploadState> {
           folderId: task.folderId,
         ),
       );
-    } finally {
-      if (!kIsWeb) {
-        await _deleteTempFile(tempEncryptedPath);
-        await _deleteTempFile(tempInputPath);
-      }
     }
   }
 

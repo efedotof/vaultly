@@ -1,6 +1,8 @@
 import 'dart:async';
-import 'dart:math';
 import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
@@ -30,8 +32,7 @@ Future<Uint8List> _decryptInIsolate(Map<String, dynamic> args) async {
     );
     final finalised = gcm.doFinal(plaintext, processed);
     final total = processed + finalised;
-    final result = Uint8List.sublistView(plaintext, 0, total);
-    return result;
+    return Uint8List.sublistView(plaintext, 0, total);
   } catch (e) {
     rethrow;
   }
@@ -51,11 +52,55 @@ Future<List<Map<String, dynamic>>> _readMetadataInIsolate(String dbPath) async {
       };
     }).toList();
     await db.close();
-
     return result;
   } catch (e) {
     return [];
   }
+}
+
+Future<void> _saveToCacheIsolate(Map<String, dynamic> args) async {
+  final fileId = args['fileId'] as String;
+  final data = args['data'] as Uint8List;
+  final originalName = args['originalName'] as String?;
+  final dbPath = args['dbPath'] as String;
+
+  final factory = databaseFactoryIo;
+  final db = await factory.openDatabase(dbPath);
+  final store = StoreRef<String, Map<String, dynamic>>.main();
+
+  final random = Random.secure();
+  final key = Uint8List(32);
+  final nonce = Uint8List(12);
+  for (int i = 0; i < 32; i++) {
+    key[i] = random.nextInt(256);
+  }
+  for (int i = 0; i < 12; i++) {
+    nonce[i] = random.nextInt(256);
+  }
+
+  final keyParam = KeyParameter(key);
+  final gcm = GCMBlockCipher(AESEngine())
+    ..init(true, AEADParameters(keyParam, 128, nonce, Uint8List(0)));
+  final ciphertext = Uint8List(gcm.getOutputSize(data.length));
+  final processed = gcm.processBytes(data, 0, data.length, ciphertext, 0);
+  final finalised = gcm.doFinal(ciphertext, processed);
+  final encryptedData = Uint8List.sublistView(
+    ciphertext,
+    0,
+    processed + finalised,
+  );
+
+  final record = {
+    'id': fileId,
+    'encryptedData': encryptedData,
+    'nonce': nonce,
+    'encryptionKey': key,
+    'originalName': originalName ?? '',
+    'timestamp': DateTime.now().millisecondsSinceEpoch,
+  };
+
+  await store.record(fileId).put(db, record);
+  await db.close();
 }
 
 class LocalFileCache {
@@ -99,6 +144,61 @@ class LocalFileCache {
     }
   }
 
+  void saveFileInBackground({
+    required String fileId,
+    required Uint8List data,
+    String? originalName,
+  }) {
+    if (_dbPath == null) {
+      return;
+    }
+    compute(_saveToCacheIsolate, {
+      'fileId': fileId,
+      'data': data,
+      'originalName': originalName,
+      'dbPath': _dbPath,
+    }).catchError((_) {});
+  }
+
+  Future<void> saveFileEncrypted({
+    required String fileId,
+    required Uint8List key,
+    required Uint8List nonce,
+    required Uint8List encryptedData,
+    String? originalName,
+  }) async {
+    await _init();
+    final record = {
+      'id': fileId,
+      'encryptedData': encryptedData,
+      'nonce': nonce,
+      'encryptionKey': key,
+      'originalName': originalName ?? '',
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    };
+    await _store.record(fileId).put(_db, record);
+  }
+
+  Future<void> saveFile(
+    String fileId,
+    Uint8List data, {
+    String? originalName,
+  }) async {
+    await _init();
+    final (key, nonce) = _generateKeyAndNonce();
+    final encryptedData = await _aesGcmEncrypt(data, key, nonce);
+    await _saveFileKey(fileId, key);
+    final record = {
+      'id': fileId,
+      'encryptedData': encryptedData,
+      'nonce': nonce,
+      'originalName': originalName ?? '',
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    };
+    await _store.record(fileId).put(_db, record);
+    _memoryCache[fileId] = data;
+  }
+
   (Uint8List key, Uint8List nonce) _generateKeyAndNonce() {
     final random = Random.secure();
     final key = Uint8List(32);
@@ -124,24 +224,11 @@ class LocalFileCache {
   Future<Uint8List?> _getFileKey(String fileId) async {
     try {
       final b64 = await SecureStorageAdapter.read(key: '$_keyPrefix$fileId');
-      if (b64 == null || b64.isEmpty) {
-        return null;
-      }
-      try {
-        return base64Decode(b64);
-      } catch (e) {
-        await SecureStorageAdapter.delete(key: '$_keyPrefix$fileId');
-        return null;
-      }
+      if (b64 == null || b64.isEmpty) return null;
+      return base64Decode(b64);
     } catch (e) {
       return null;
     }
-  }
-
-  Future<void> _deleteFileKey(String fileId) async {
-    try {
-      await SecureStorageAdapter.delete(key: '$_keyPrefix$fileId');
-    } catch (_) {}
   }
 
   Future<Uint8List> _aesGcmEncrypt(
@@ -149,115 +236,34 @@ class LocalFileCache {
     Uint8List key,
     Uint8List nonce,
   ) async {
-    try {
-      if (kIsWeb) {
-        final secretKey = await web.AesGcmSecretKey.importRawKey(key);
-        return await secretKey.encryptBytes(plaintext, nonce);
-      } else {
-        final keyParam = KeyParameter(key);
-        final gcm = GCMBlockCipher(AESEngine())
-          ..init(true, AEADParameters(keyParam, 128, nonce, Uint8List(0)));
-        final ciphertext = Uint8List(gcm.getOutputSize(plaintext.length));
-        final processed = gcm.processBytes(
-          plaintext,
-          0,
-          plaintext.length,
-          ciphertext,
-          0,
-        );
-        final finalised = gcm.doFinal(ciphertext, processed);
-        final total = processed + finalised;
-        return Uint8List.sublistView(ciphertext, 0, total);
-      }
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  Future<Uint8List> _aesGcmDecrypt(
-    Uint8List ciphertext,
-    Uint8List key,
-    Uint8List nonce,
-  ) async {
-    try {
-      if (kIsWeb) {
-        final secretKey = await web.AesGcmSecretKey.importRawKey(key);
-        return await secretKey.decryptBytes(ciphertext, nonce);
-      } else {
-        final keyParam = KeyParameter(key);
-        final gcm = GCMBlockCipher(AESEngine())
-          ..init(false, AEADParameters(keyParam, 128, nonce, Uint8List(0)));
-        final plaintext = Uint8List(gcm.getOutputSize(ciphertext.length));
-        final processed = gcm.processBytes(
-          ciphertext,
-          0,
-          ciphertext.length,
-          plaintext,
-          0,
-        );
-        final finalised = gcm.doFinal(plaintext, processed);
-        final total = processed + finalised;
-        return Uint8List.sublistView(plaintext, 0, total);
-      }
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  Future<void> saveFile(
-    String fileId,
-    Uint8List data, {
-    String? originalName,
-  }) async {
-    await _init();
-    try {
-      final (key, nonce) = _generateKeyAndNonce();
-
-      final encryptedData = await _aesGcmEncrypt(data, key, nonce);
-
-      await _saveFileKey(fileId, key);
-
-      final record = {
-        'id': fileId,
-        'encryptedData': encryptedData,
-        'nonce': nonce,
-        'originalName': originalName ?? '',
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-      };
-
-      await _store.record(fileId).put(_db, record);
-      _memoryCache[fileId] = data;
-    } catch (_) {}
-  }
-
-  Future<bool> hasFile(String fileId) async {
-    await _init();
-    try {
-      final snapshot = await _store.record(fileId).getSnapshot(_db);
-      final exists = snapshot != null;
-      return exists;
-    } catch (e) {
-      return false;
+    if (kIsWeb) {
+      final secretKey = await web.AesGcmSecretKey.importRawKey(key);
+      return await secretKey.encryptBytes(plaintext, nonce);
+    } else {
+      final keyParam = KeyParameter(key);
+      final gcm = GCMBlockCipher(AESEngine())
+        ..init(true, AEADParameters(keyParam, 128, nonce, Uint8List(0)));
+      final ciphertext = Uint8List(gcm.getOutputSize(plaintext.length));
+      final processed = gcm.processBytes(
+        plaintext,
+        0,
+        plaintext.length,
+        ciphertext,
+        0,
+      );
+      final finalised = gcm.doFinal(ciphertext, processed);
+      return Uint8List.sublistView(ciphertext, 0, processed + finalised);
     }
   }
 
   Future<Uint8List?> getFileDecrypted(String fileId) async {
-    if (_memoryCache.containsKey(fileId)) {
-      return _memoryCache[fileId];
-    }
-
-    if (_pendingFutures.containsKey(fileId)) {
-      return _pendingFutures[fileId];
-    }
-
+    if (_memoryCache.containsKey(fileId)) return _memoryCache[fileId];
+    if (_pendingFutures.containsKey(fileId)) return _pendingFutures[fileId];
     final future = _getFileDecryptedInternal(fileId);
     _pendingFutures[fileId] = future;
-
     try {
       final result = await future;
-      if (result != null) {
-        _memoryCache[fileId] = result;
-      }
+      if (result != null) _memoryCache[fileId] = result;
       return result;
     } finally {
       _pendingFutures.remove(fileId);
@@ -268,50 +274,19 @@ class LocalFileCache {
     await _init();
     try {
       final record = await _store.record(fileId).get(_db);
-      if (record == null) {
-        return null;
-      }
+      if (record == null) return null;
 
-      Uint8List? encryptedData;
-      final rawEncrypted = record['encryptedData'];
-      if (rawEncrypted is Uint8List) {
-        encryptedData = rawEncrypted;
-      } else if (rawEncrypted is List<int>) {
-        encryptedData = Uint8List.fromList(rawEncrypted);
-      } else if (rawEncrypted is Iterable) {
-        try {
-          encryptedData = Uint8List.fromList(
-            rawEncrypted.map((e) => e as int).toList(),
-          );
-        } catch (_) {}
-      }
+      final encryptedData = record['encryptedData'] as Uint8List?;
+      final nonce = record['nonce'] as Uint8List?;
+      Uint8List? key = await _getFileKey(fileId);
+      key ??= record['encryptionKey'] as Uint8List?;
 
-      Uint8List? nonce;
-      final rawNonce = record['nonce'];
-      if (rawNonce is Uint8List) {
-        nonce = rawNonce;
-      } else if (rawNonce is List<int>) {
-        nonce = Uint8List.fromList(rawNonce);
-      } else if (rawNonce is Iterable) {
-        try {
-          nonce = Uint8List.fromList(rawNonce.map((e) => e as int).toList());
-        } catch (_) {}
-      }
+      if (encryptedData == null || nonce == null || key == null) return null;
 
-      if (encryptedData == null || nonce == null) {
-        return null;
-      }
-
-      final key = await _getFileKey(fileId);
-      if (key == null) {
-        return null;
-      }
-
-      final Uint8List plaintext;
       if (kIsWeb) {
-        plaintext = await _aesGcmDecrypt(encryptedData, key, nonce);
+        return await _aesGcmDecrypt(encryptedData, key, nonce);
       } else {
-        plaintext = await _isolateSemaphore.withPermit(
+        return await _isolateSemaphore.withPermit(
           () => compute(_decryptInIsolate, {
             'encryptedData': encryptedData,
             'key': key,
@@ -319,10 +294,43 @@ class LocalFileCache {
           }),
         );
       }
-
-      return plaintext;
     } catch (e) {
       return null;
+    }
+  }
+
+  Future<Uint8List> _aesGcmDecrypt(
+    Uint8List ciphertext,
+    Uint8List key,
+    Uint8List nonce,
+  ) async {
+    if (kIsWeb) {
+      final secretKey = await web.AesGcmSecretKey.importRawKey(key);
+      return await secretKey.decryptBytes(ciphertext, nonce);
+    } else {
+      final keyParam = KeyParameter(key);
+      final gcm = GCMBlockCipher(AESEngine())
+        ..init(false, AEADParameters(keyParam, 128, nonce, Uint8List(0)));
+      final plaintext = Uint8List(gcm.getOutputSize(ciphertext.length));
+      final processed = gcm.processBytes(
+        ciphertext,
+        0,
+        ciphertext.length,
+        plaintext,
+        0,
+      );
+      final finalised = gcm.doFinal(plaintext, processed);
+      return Uint8List.sublistView(plaintext, 0, processed + finalised);
+    }
+  }
+
+  Future<bool> hasFile(String fileId) async {
+    await _init();
+    try {
+      final snapshot = await _store.record(fileId).getSnapshot(_db);
+      return snapshot != null;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -331,7 +339,7 @@ class LocalFileCache {
     try {
       final record = await _store.record(fileId).get(_db);
       return record?['originalName'] as String?;
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
@@ -342,6 +350,12 @@ class LocalFileCache {
       await _store.record(fileId).delete(_db);
       await _deleteFileKey(fileId);
       _memoryCache.remove(fileId);
+    } catch (_) {}
+  }
+
+  Future<void> _deleteFileKey(String fileId) async {
+    try {
+      await SecureStorageAdapter.delete(key: '$_keyPrefix$fileId');
     } catch (_) {}
   }
 
@@ -360,21 +374,18 @@ class LocalFileCache {
   Future<int> getCacheSize() async {
     await _init();
     try {
-      final finder = Finder();
-      final records = await _store.find(_db, finder: finder);
-      int totalBytes = 0;
-      for (final record in records) {
-        final data = record['encryptedData'];
+      final records = await _store.find(_db, finder: Finder());
+      int total = 0;
+      for (final r in records) {
+        final data = r['encryptedData'];
         if (data is Uint8List) {
-          totalBytes += data.lengthInBytes;
+          total += data.length;
         } else if (data is List<int>) {
-          totalBytes += data.length;
-        } else if (data is Iterable) {
-          totalBytes += data.length;
+          total += data.length;
         }
       }
-      return totalBytes;
-    } catch (e) {
+      return total;
+    } catch (_) {
       return 0;
     }
   }
@@ -384,7 +395,7 @@ class LocalFileCache {
     try {
       final keys = await _store.findKeys(_db);
       return keys.map((k) => k.toString()).toList();
-    } catch (e) {
+    } catch (_) {
       return [];
     }
   }
@@ -393,49 +404,22 @@ class LocalFileCache {
     await _init();
     try {
       if (kIsWeb) {
-        final finder = Finder();
-        final records = await _store.find(_db, finder: finder);
-        return records.map((record) {
-          return {
-            'id': record['id'] as String,
-            'originalName': record['originalName'] as String? ?? '',
-            'timestamp': record['timestamp'] as int? ?? 0,
-          };
-        }).toList();
+        final records = await _store.find(_db, finder: Finder());
+        return records
+            .map(
+              (r) => {
+                'id': r['id'] as String,
+                'originalName': r['originalName'] as String? ?? '',
+                'timestamp': r['timestamp'] as int? ?? 0,
+              },
+            )
+            .toList();
       } else {
-        if (_dbPath == null) {
-          return [];
-        }
+        if (_dbPath == null) return [];
         return await compute(_readMetadataInIsolate, _dbPath!);
       }
-    } catch (e) {
+    } catch (_) {
       return [];
-    }
-  }
-
-  Future<void> saveFileEncrypted({
-    required String fileId,
-    required Uint8List key,
-    required Uint8List nonce,
-    required Uint8List encryptedData,
-    String? originalName,
-  }) async {
-    await _init();
-    try {
-      await _saveFileKey(fileId, key);
-
-      final record = {
-        'id': fileId,
-        'encryptedData': encryptedData,
-        'nonce': nonce,
-        'originalName': originalName ?? '',
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-      };
-
-      await _store.record(fileId).put(_db, record);
-    } catch (e) {
-      await _store.record(fileId).delete(_db);
-      rethrow;
     }
   }
 }

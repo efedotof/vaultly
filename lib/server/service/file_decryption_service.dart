@@ -49,7 +49,12 @@ Future<Map<String, dynamic>> _processPrivateFileInIsolate(
     final total = processed + finalised;
     final encryptedData = Uint8List.sublistView(ciphertext, 0, total);
 
-    return {'key': key, 'nonce': nonce, 'encryptedData': encryptedData};
+    return {
+      'key': key,
+      'nonce': nonce,
+      'encryptedData': encryptedData,
+      'plaintext': plaintext,
+    };
   } catch (e) {
     rethrow;
   }
@@ -97,7 +102,12 @@ Future<Map<String, dynamic>> _processPublicFileInIsolate(
     final total = processed + finalised;
     final encryptedData = Uint8List.sublistView(ciphertext, 0, total);
 
-    return {'key': key, 'nonce': nonce, 'encryptedData': encryptedData};
+    return {
+      'key': key,
+      'nonce': nonce,
+      'encryptedData': encryptedData,
+      'plaintext': plaintext,
+    };
   } catch (e) {
     rethrow;
   }
@@ -186,11 +196,7 @@ class FileDecryptionService {
         encryptedData: result['encryptedData'] as Uint8List,
         originalName: metadata.fileName,
       );
-      plaintext = await _decryptFromCache(
-        file.id!,
-        result['key'] as Uint8List,
-        result['nonce'] as Uint8List,
-      );
+      plaintext = result['plaintext'] as Uint8List;
     }
 
     return plaintext;
@@ -264,22 +270,10 @@ class FileDecryptionService {
         encryptedData: result['encryptedData'] as Uint8List,
         originalName: originalFileName,
       );
-      plaintext = await _decryptFromCache(
-        file.id!,
-        result['key'] as Uint8List,
-        result['nonce'] as Uint8List,
-      );
+      plaintext = result['plaintext'] as Uint8List;
     }
 
     return plaintext;
-  }
-
-  Future<Uint8List> _decryptFromCache(
-    String fileId,
-    Uint8List key,
-    Uint8List nonce,
-  ) async {
-    return (await localFileCache.getFileDecrypted(fileId))!;
   }
 
   ShirmpsHeader _extractShirmpsHeader(Uint8List shpsBytes) {

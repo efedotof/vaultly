@@ -1192,6 +1192,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.0"
+  shirm_crypto:
+    dependency: "direct main"
+    description:
+      path: "/Users/egorfedotov/Documents/project/shirm_crypto"
+      relative: false
+    source: path
+    version: "0.0.1"
   sky_engine:
     dependency: transitive
     description: flutter
