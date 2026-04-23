@@ -37,6 +37,8 @@ import com.efedotov.vaultly.repository.FolderRepository;
 import com.efedotov.vaultly.repository.UserRepository;
 import com.efedotov.vaultly.shirmps.ShirmpsHeader;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -55,6 +57,9 @@ public class FileService {
     private final FolderService folderService;
     private final FileContentRepository fileContentRepository;
     private final ShpsEncryptionService shpsEncryptionService;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Transactional
     public FileDto uploadShpsFile(MultipartFile file, UUID folderId, boolean isPublic,
@@ -242,7 +247,9 @@ public class FileService {
                 } catch (Exception e) {
                     log.error("Failed to delete S3 object: {}", content.getS3Key(), e);
                 }
-                fileContentRepository.delete(content);
+            } else {
+                log.debug("FileContent {} still has {} active links, keeping S3 object and metadata",
+                        content.getId(), activeLinks);
             }
         }
 
