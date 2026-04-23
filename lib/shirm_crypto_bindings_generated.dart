@@ -220,7 +220,7 @@ class ShirmCryptoBindings {
   late final _shirm_decrypt_stream_free = _shirm_decrypt_stream_freePtr
       .asFunction<void Function(ffi.Pointer<ShirmDecryptStream>)>();
 
-  /// Оригинальные функции
+  /// Одноразовые операции
   ffi.Pointer<EncryptResult> shirm_encrypt_file(
     ffi.Pointer<ffi.Char> inputPath,
     ffi.Pointer<ffi.Char> publicKeyPem,
@@ -336,6 +336,383 @@ class ShirmCryptoBindings {
       >('shirm_free_decrypt_result');
   late final _shirm_free_decrypt_result = _shirm_free_decrypt_resultPtr
       .asFunction<void Function(ffi.Pointer<DecryptResult>)>();
+
+  /// Кэш
+  ffi.Pointer<ffi.Void> shirm_cache_init(
+    ffi.Pointer<ffi.Char> cacheDir,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> error,
+  ) {
+    return _shirm_cache_init(cacheDir, error);
+  }
+
+  late final _shirm_cache_initPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<ffi.Void> Function(
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('shirm_cache_init');
+  late final _shirm_cache_init = _shirm_cache_initPtr
+      .asFunction<
+        ffi.Pointer<ffi.Void> Function(
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
+
+  int shirm_cache_save(
+    ffi.Pointer<ffi.Void> cache,
+    ffi.Pointer<ffi.Char> fileId,
+    ffi.Pointer<ffi.Uint8> data,
+    int dataSize,
+    ffi.Pointer<ffi.Char> originalName,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> error,
+  ) {
+    return _shirm_cache_save(
+      cache,
+      fileId,
+      data,
+      dataSize,
+      originalName,
+      error,
+    );
+  }
+
+  late final _shirm_cache_savePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int Function(
+            ffi.Pointer<ffi.Void>,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Uint8>,
+            ffi.Size,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('shirm_cache_save');
+  late final _shirm_cache_save = _shirm_cache_savePtr
+      .asFunction<
+        int Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Uint8>,
+          int,
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
+
+  ffi.Pointer<ffi.Uint8> shirm_cache_load(
+    ffi.Pointer<ffi.Void> cache,
+    ffi.Pointer<ffi.Char> fileId,
+    ffi.Pointer<ffi.Size> outSize,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> error,
+  ) {
+    return _shirm_cache_load(cache, fileId, outSize, error);
+  }
+
+  late final _shirm_cache_loadPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<ffi.Uint8> Function(
+            ffi.Pointer<ffi.Void>,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Size>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('shirm_cache_load');
+  late final _shirm_cache_load = _shirm_cache_loadPtr
+      .asFunction<
+        ffi.Pointer<ffi.Uint8> Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Size>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
+
+  int shirm_cache_has(
+    ffi.Pointer<ffi.Void> cache,
+    ffi.Pointer<ffi.Char> fileId,
+  ) {
+    return _shirm_cache_has(cache, fileId);
+  }
+
+  late final _shirm_cache_hasPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Char>)
+        >
+      >('shirm_cache_has');
+  late final _shirm_cache_has = _shirm_cache_hasPtr
+      .asFunction<int Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Char>)>();
+
+  int shirm_cache_delete(
+    ffi.Pointer<ffi.Void> cache,
+    ffi.Pointer<ffi.Char> fileId,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> error,
+  ) {
+    return _shirm_cache_delete(cache, fileId, error);
+  }
+
+  late final _shirm_cache_deletePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int Function(
+            ffi.Pointer<ffi.Void>,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('shirm_cache_delete');
+  late final _shirm_cache_delete = _shirm_cache_deletePtr
+      .asFunction<
+        int Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
+
+  int shirm_cache_clear(
+    ffi.Pointer<ffi.Void> cache,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> error,
+  ) {
+    return _shirm_cache_clear(cache, error);
+  }
+
+  late final _shirm_cache_clearPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int Function(
+            ffi.Pointer<ffi.Void>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('shirm_cache_clear');
+  late final _shirm_cache_clear = _shirm_cache_clearPtr
+      .asFunction<
+        int Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Pointer<ffi.Char>>)
+      >();
+
+  ffi.Pointer<ffi.Char> shirm_cache_get_all_metadata(
+    ffi.Pointer<ffi.Void> cache,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> error,
+  ) {
+    return _shirm_cache_get_all_metadata(cache, error);
+  }
+
+  late final _shirm_cache_get_all_metadataPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<ffi.Char> Function(
+            ffi.Pointer<ffi.Void>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('shirm_cache_get_all_metadata');
+  late final _shirm_cache_get_all_metadata = _shirm_cache_get_all_metadataPtr
+      .asFunction<
+        ffi.Pointer<ffi.Char> Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
+
+  void shirm_free(ffi.Pointer<ffi.Void> ptr) {
+    return _shirm_free(ptr);
+  }
+
+  late final _shirm_freePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'shirm_free',
+      );
+  late final _shirm_free = _shirm_freePtr
+      .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void shirm_cache_close(ffi.Pointer<ffi.Void> cache) {
+    return _shirm_cache_close(cache);
+  }
+
+  late final _shirm_cache_closePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'shirm_cache_close',
+      );
+  late final _shirm_cache_close = _shirm_cache_closePtr
+      .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  ffi.Pointer<ShirmCacheSaveStream> shirm_cache_save_stream_init(
+    ffi.Pointer<ffi.Void> cache,
+    ffi.Pointer<ffi.Char> fileId,
+    ffi.Pointer<ffi.Char> originalName,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> error,
+  ) {
+    return _shirm_cache_save_stream_init(cache, fileId, originalName, error);
+  }
+
+  late final _shirm_cache_save_stream_initPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<ShirmCacheSaveStream> Function(
+            ffi.Pointer<ffi.Void>,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('shirm_cache_save_stream_init');
+  late final _shirm_cache_save_stream_init = _shirm_cache_save_stream_initPtr
+      .asFunction<
+        ffi.Pointer<ShirmCacheSaveStream> Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
+
+  int shirm_cache_save_stream_write(
+    ffi.Pointer<ShirmCacheSaveStream> stream,
+    ffi.Pointer<ffi.Uint8> chunk,
+    int chunkSize,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> error,
+  ) {
+    return _shirm_cache_save_stream_write(stream, chunk, chunkSize, error);
+  }
+
+  late final _shirm_cache_save_stream_writePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int Function(
+            ffi.Pointer<ShirmCacheSaveStream>,
+            ffi.Pointer<ffi.Uint8>,
+            ffi.Size,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('shirm_cache_save_stream_write');
+  late final _shirm_cache_save_stream_write = _shirm_cache_save_stream_writePtr
+      .asFunction<
+        int Function(
+          ffi.Pointer<ShirmCacheSaveStream>,
+          ffi.Pointer<ffi.Uint8>,
+          int,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
+
+  int shirm_cache_save_stream_finish(
+    ffi.Pointer<ShirmCacheSaveStream> stream,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> error,
+  ) {
+    return _shirm_cache_save_stream_finish(stream, error);
+  }
+
+  late final _shirm_cache_save_stream_finishPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int Function(
+            ffi.Pointer<ShirmCacheSaveStream>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('shirm_cache_save_stream_finish');
+  late final _shirm_cache_save_stream_finish =
+      _shirm_cache_save_stream_finishPtr
+          .asFunction<
+            int Function(
+              ffi.Pointer<ShirmCacheSaveStream>,
+              ffi.Pointer<ffi.Pointer<ffi.Char>>,
+            )
+          >();
+
+  void shirm_cache_save_stream_free(ffi.Pointer<ShirmCacheSaveStream> stream) {
+    return _shirm_cache_save_stream_free(stream);
+  }
+
+  late final _shirm_cache_save_stream_freePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ShirmCacheSaveStream>)>
+      >('shirm_cache_save_stream_free');
+  late final _shirm_cache_save_stream_free = _shirm_cache_save_stream_freePtr
+      .asFunction<void Function(ffi.Pointer<ShirmCacheSaveStream>)>();
+
+  ffi.Pointer<ShirmCacheLoadStream> shirm_cache_load_stream_init(
+    ffi.Pointer<ffi.Void> cache,
+    ffi.Pointer<ffi.Char> fileId,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> error,
+  ) {
+    return _shirm_cache_load_stream_init(cache, fileId, error);
+  }
+
+  late final _shirm_cache_load_stream_initPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<ShirmCacheLoadStream> Function(
+            ffi.Pointer<ffi.Void>,
+            ffi.Pointer<ffi.Char>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('shirm_cache_load_stream_init');
+  late final _shirm_cache_load_stream_init = _shirm_cache_load_stream_initPtr
+      .asFunction<
+        ffi.Pointer<ShirmCacheLoadStream> Function(
+          ffi.Pointer<ffi.Void>,
+          ffi.Pointer<ffi.Char>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
+
+  int shirm_cache_load_stream_read(
+    ffi.Pointer<ShirmCacheLoadStream> stream,
+    ffi.Pointer<ffi.Pointer<ffi.Uint8>> out_chunk,
+    ffi.Pointer<ffi.Size> out_chunkSize,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> error,
+  ) {
+    return _shirm_cache_load_stream_read(
+      stream,
+      out_chunk,
+      out_chunkSize,
+      error,
+    );
+  }
+
+  late final _shirm_cache_load_stream_readPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int Function(
+            ffi.Pointer<ShirmCacheLoadStream>,
+            ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+            ffi.Pointer<ffi.Size>,
+            ffi.Pointer<ffi.Pointer<ffi.Char>>,
+          )
+        >
+      >('shirm_cache_load_stream_read');
+  late final _shirm_cache_load_stream_read = _shirm_cache_load_stream_readPtr
+      .asFunction<
+        int Function(
+          ffi.Pointer<ShirmCacheLoadStream>,
+          ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
+          ffi.Pointer<ffi.Size>,
+          ffi.Pointer<ffi.Pointer<ffi.Char>>,
+        )
+      >();
+
+  void shirm_cache_load_stream_free(ffi.Pointer<ShirmCacheLoadStream> stream) {
+    return _shirm_cache_load_stream_free(stream);
+  }
+
+  late final _shirm_cache_load_stream_freePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ShirmCacheLoadStream>)>
+      >('shirm_cache_load_stream_free');
+  late final _shirm_cache_load_stream_free = _shirm_cache_load_stream_freePtr
+      .asFunction<void Function(ffi.Pointer<ShirmCacheLoadStream>)>();
 }
 
 final class EncryptResult extends ffi.Struct {
@@ -366,3 +743,7 @@ typedef DartProgressCallbackFunction =
     void Function(int percent, ffi.Pointer<ffi.Void> userData);
 
 final class ShirmDecryptStream extends ffi.Opaque {}
+
+final class ShirmCacheSaveStream extends ffi.Opaque {}
+
+final class ShirmCacheLoadStream extends ffi.Opaque {}
