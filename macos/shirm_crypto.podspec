@@ -16,12 +16,9 @@ A Flutter FFI plugin for encryption using OpenSSL.
   s.dependency 'FlutterMacOS'
   s.platform = :osx, '10.11'
 
-  s.vendored_libraries = 'openssl_prebuild/macos-intel/12.0/libssl.a', 
-                          'openssl_prebuild/macos-intel/12.0/libcrypto.a'
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
-    'HEADER_SEARCH_PATHS' => '$(inherited) ${PODS_TARGET_SRCROOT}/openssl_prebuild/macos-intel/12.0/include',
-    'OTHER_LDFLAGS' => '-lz'  
+    'HEADER_SEARCH_PATHS' => '$(inherited) ${PODS_TARGET_SRCROOT}/openssl_prebuild/macos-arm/13.0/include ${PODS_TARGET_SRCROOT}/openssl_prebuild/macos-intel/12.0/include'
   }
   s.swift_version = '5.0'
 end
