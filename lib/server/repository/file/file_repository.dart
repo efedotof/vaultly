@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:vaulth_app/server/model/file/check_duplicate_request/check_duplicate_request.dart';
 import 'package:vaulth_app/server/model/file/check_duplicate_response/check_duplicate_response.dart';
