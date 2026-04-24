@@ -220,7 +220,6 @@ class ShirmCryptoBindings {
   late final _shirm_decrypt_stream_free = _shirm_decrypt_stream_freePtr
       .asFunction<void Function(ffi.Pointer<ShirmDecryptStream>)>();
 
-  /// Одноразовые операции
   ffi.Pointer<EncryptResult> shirm_encrypt_file(
     ffi.Pointer<ffi.Char> inputPath,
     ffi.Pointer<ffi.Char> publicKeyPem,
@@ -337,7 +336,6 @@ class ShirmCryptoBindings {
   late final _shirm_free_decrypt_result = _shirm_free_decrypt_resultPtr
       .asFunction<void Function(ffi.Pointer<DecryptResult>)>();
 
-  /// Кэш
   ffi.Pointer<ffi.Void> shirm_cache_init(
     ffi.Pointer<ffi.Char> cacheDir,
     ffi.Pointer<ffi.Pointer<ffi.Char>> error,

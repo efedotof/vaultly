@@ -13,6 +13,11 @@
 #include <openssl/rand.h>
 #include <openssl/err.h>
 #include <zlib.h>
+#ifdef _WIN32
+  #include <winsock2.h>   
+#else
+  #include <arpa/inet.h>  /
+#endif
 
 void current_iso8601(char *buffer, size_t buffer_size);
 char *base64_encode(const unsigned char *data, size_t len);
