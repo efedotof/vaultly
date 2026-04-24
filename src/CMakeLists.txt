@@ -101,8 +101,12 @@ elseif(UNIX AND NOT APPLE)
     target_link_libraries(shirm_crypto PRIVATE ssl crypto zlib)
 
 elseif(WIN32)
+    set(WIN_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../windows/openssl_prebuild/windows/include)
+    target_include_directories(shirm_crypto PRIVATE
+        ${WIN_INCLUDE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/win32  
+    )
     set(WIN_PREBUILD ${CMAKE_CURRENT_SOURCE_DIR}/../windows/openssl_prebuild/windows/x86_64)
-    target_include_directories(shirm_crypto PRIVATE ${WIN_PREBUILD}/../include)
     add_library(ssl STATIC IMPORTED)
     set_target_properties(ssl PROPERTIES IMPORTED_LOCATION ${WIN_PREBUILD}/libssl.a)
     add_library(crypto STATIC IMPORTED)
