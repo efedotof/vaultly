@@ -110,19 +110,30 @@ jobs:
           nmake install_sw
         shell: cmd
 
-      - name: Copy MSVC libs to plugin symlink
+      - name: Verify OpenSSL output
+        shell: powershell
         run: |
-          flutter pub get
-          set PLUGIN=windows\flutter\ephemeral\.plugin_symlinks\shirm_crypto
-          if not exist "%PLUGIN%" (
-            echo ERROR: symlink missing
-            exit /b 1
-          )
-          mkdir "%PLUGIN%\windows\openssl_prebuild\windows\x86_64" 2>nul
-          mkdir "%PLUGIN%\windows\openssl_prebuild\windows\include" 2>nul
-          xcopy out\lib\*.lib "%PLUGIN%\windows\openssl_prebuild\windows\x86_64\" /Y
-          xcopy out\include\* "%PLUGIN%\windows\openssl_prebuild\windows\include\" /E /Y
-        shell: cmd
+          Get-ChildItem out\lib
+          Get-ChildItem out\include
+
+      - name: Copy MSVC libs to plugin symlink
+        shell: powershell
+        run: |
+          $plugin = "windows\flutter\ephemeral\.plugin_symlinks\shirm_crypto"
+          if (-not (Test-Path $plugin)) {
+            Write-Host "##[error] symlink missing, trying flutter pub get"
+            flutter pub get
+            if (-not (Test-Path $plugin)) { exit 1 }
+          }
+          $targetLib = "$plugin\windows\openssl_prebuild\windows\x86_64"
+          $targetInc = "$plugin\windows\openssl_prebuild\windows\include"
+          New-Item -ItemType Directory -Force -Path $targetLib
+          New-Item -ItemType Directory -Force -Path $targetInc
+          Copy-Item -Path out\lib\libssl.lib -Destination $targetLib -Force
+          Copy-Item -Path out\lib\libcrypto.lib -Destination $targetLib -Force
+          Copy-Item -Path out\include\* -Destination $targetInc -Recurse -Force
+          Write-Host "Files in target lib dir:"
+          Get-ChildItem $targetLib
 
       - name: Build Windows app (release)
         run: flutter build windows --release
