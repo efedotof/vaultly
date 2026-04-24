@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -102,5 +103,68 @@ class PublicFileDecryptionService {
   ) async {
     final secretKey = await web.AesGcmSecretKey.importRawKey(key);
     return await secretKey.decryptBytes(ciphertext, iv);
+  }
+
+  static Stream<Uint8List> decryptPublicFileStream({
+    required Stream<Uint8List> encryptedStream,
+    required String reEncryptedKeyBase64,
+    required String ivBase64,
+    required String clientPrivateKeyPem,
+  }) async* {
+    if (!kIsWeb) {
+      throw UnsupportedError('Streaming decryption only supported on web');
+    }
+
+    final headerLenBuffer = await _readExactly(encryptedStream, 4);
+    final headerLength = ByteData.view(
+      headerLenBuffer.buffer,
+    ).getInt32(0, Endian.big);
+    await _readExactly(encryptedStream, headerLength);
+
+    final encryptedAesKey = base64Decode(reEncryptedKeyBase64);
+    final iv = base64Decode(ivBase64);
+
+    final privateKey = await _importPrivateKeyFromPem(clientPrivateKeyPem);
+    final aesKey = await privateKey.decryptBytes(encryptedAesKey);
+    final aesSecretKey = await web.AesGcmSecretKey.importRawKey(aesKey);
+
+    List<int> buffer = [];
+    await for (final chunk in encryptedStream) {
+      buffer.addAll(chunk);
+    }
+    final allEncrypted = Uint8List.fromList(buffer);
+    final decrypted = await aesSecretKey.decryptBytes(allEncrypted, iv);
+    yield decrypted;
+  }
+
+  static Future<Uint8List> _readExactly(
+    Stream<Uint8List> stream,
+    int length,
+  ) async {
+    final completer = Completer<Uint8List>();
+    List<int> buffer = [];
+    int received = 0;
+    StreamSubscription<Uint8List>? subscription;
+    subscription = stream.listen(
+      (data) {
+        buffer.addAll(data);
+        received += data.length;
+        if (received >= length) {
+          subscription?.cancel();
+          completer.complete(Uint8List.fromList(buffer.sublist(0, length)));
+        }
+      },
+      onError: (err) {
+        if (!completer.isCompleted) completer.completeError(err);
+      },
+      onDone: () {
+        if (!completer.isCompleted && received < length) {
+          completer.completeError(
+            Exception('Stream ended before reading $length bytes'),
+          );
+        }
+      },
+    );
+    return completer.future;
   }
 }

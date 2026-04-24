@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:vaulth_app/server/model/file/upload_task/upload_task.dart';
 import 'package:vaulth_app/server/repository/file/file_interface.dart';
-import 'package:vaulth_app/server/service/shirm_encryption_service_web.dart';
+import 'package:vaulth_app/server/service/encryption/shirm_encryption_service_platform.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 import 'package:shirm_crypto/shirm_crypto.dart';
 import 'dart:io' as io;
@@ -355,7 +355,7 @@ class FileUploadCubit extends Cubit<FileUploadState> {
 
       Uint8List encryptedBytes;
       if (kIsWeb) {
-        encryptedBytes = await ShirmEncryptionServiceWeb.encryptBytes(
+        encryptedBytes = await ShirmEncryptionService.encryptBytes(
           task.fileBytes,
           publicKeyPem: userPublicKeyPem,
           userId: userId,

@@ -4,7 +4,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:crypto/crypto.dart';
-import 'package:vaulth_app/server/service/logger_service.dart';
+import 'package:vaulth_app/server/service/system/logger_service.dart';
 
 class DeviceIdGenerator {
   final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();

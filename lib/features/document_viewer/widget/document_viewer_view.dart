@@ -11,7 +11,7 @@ import 'package:vaulth_app/features/document_viewer/cubit/document_viewer_cubit.
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
 import 'package:vaulth_app/server/model/tempaccess/create_temp_link_request/create_temp_link_request.dart';
 import 'package:vaulth_app/server/repository/temp_access/temp_access_interface.dart';
-import 'package:vaulth_app/server/service/local_file_cache.dart';
+import 'package:vaulth_app/server/service/cache/local_file_cache.dart';
 
 import 'content_view.dart';
 

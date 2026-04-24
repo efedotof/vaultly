@@ -6,8 +6,8 @@ import 'package:vaulth_app/features/auth/cubit/auth_cubit.dart';
 import 'package:vaulth_app/features/notes/cubit/note_editor_cubit.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
 import 'package:vaulth_app/server/repository/file/file_interface.dart';
-import 'package:vaulth_app/server/service/key_manager_service.dart';
-import 'package:vaulth_app/server/service/key_manager_service_web.dart';
+import 'package:vaulth_app/server/service/key/key_manager_service.dart';
+import 'package:vaulth_app/server/service/key/key_manager_service_web.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 
 class NoteEditorScreen extends StatefulWidget {

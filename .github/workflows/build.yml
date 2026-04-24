@@ -48,6 +48,43 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Android NDK
+        run: |
+          echo "ANDROID_NDK=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
+
+      - name: Install OpenSSL for Android
+        run: |
+          git clone https://github.com/openssl/openssl.git --depth 1 --branch openssl-3.0.13
+          cd openssl
+          export TOOLCHAIN=$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64
+          for ARCH in arm64-v8a armeabi-v7a x86_64; do
+            case $ARCH in
+              arm64-v8a)   TARGET=android-arm64;;
+              armeabi-v7a) TARGET=android-arm;;
+              x86_64)      TARGET=android-x86_64;;
+            esac
+            export PATH=$TOOLCHAIN/bin:$PATH
+            ./Configure $TARGET -D__ANDROID_API__=21 --prefix=$PWD/../openssl_$ARCH
+            make -j$(nproc)
+            make install_sw
+            make clean
+          done
+
+      - name: Install zlib for Android
+        run: |
+          git clone https://github.com/madler/zlib.git --depth 1
+          cd zlib
+          for ARCH in arm64-v8a armeabi-v7a x86_64; do
+            mkdir build_$ARCH && cd build_$ARCH
+            cmake .. -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
+                    -DANDROID_ABI=$ARCH -DANDROID_PLATFORM=android-21 \
+                    -DCMAKE_INSTALL_PREFIX=../../zlib_$ARCH
+            make -j$(nproc)
+            make install
+            cd ..
+          done
+        
       - name: Build signed APK
         run: flutter build apk --release
 
@@ -86,6 +123,12 @@ jobs:
 
       - name: Run code generation
         run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Install OpenSSL and zlib via vcpkg
+        run: |
+          vcpkg install openssl:x64-windows zlib:x64-windows
+          echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "CMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build Windows app (release)
         run: flutter build windows --release
@@ -164,6 +207,12 @@ jobs:
           raw_version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
           clean_version="${raw_version%%+*}"
           echo "clean_version=$clean_version" >> $GITHUB_OUTPUT
+
+      - name: Install OpenSSL and zlib
+        run: |
+          brew install openssl zlib
+          echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl)" >> $GITHUB_ENV
+          echo "ZLIB_ROOT=$(brew --prefix zlib)" >> $GITHUB_ENV
 
       - name: Build macOS app (release)
         run: flutter build macos --release

@@ -8,7 +8,7 @@ import 'package:vaulth_app/server/model/folder/folder_update_dto/folder_update_d
 import 'package:vaulth_app/server/model/page_response.dart';
 import 'package:vaulth_app/server/repository/file/file_interface.dart';
 import 'package:vaulth_app/server/repository/folder/folder_interface.dart';
-import 'package:vaulth_app/server/service/local_file_cache.dart';
+import 'package:vaulth_app/server/service/cache/local_file_cache_platform.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 
 part 'home_state.dart';
@@ -234,22 +234,68 @@ class HomeCubit extends Cubit<HomeState> {
   }
 
   Future<void> deleteFile(String fileId) async {
+    final prevState = state;
+    if (prevState is! _Loaded) return;
+
     try {
       emit(const HomeState.deletingFile());
       await fileRepository.deleteFile(fileId);
-      await loadData();
+      await localFileCache.deleteFile(fileId);
+
+      final updatedRecent = prevState.recentFiles
+          .where((f) => f.id != fileId)
+          .toList();
+      final updatedAll = prevState.allFiles
+          .where((f) => f.id != fileId)
+          .toList();
+      final updatedCached =
+          prevState.cachedFiles?.where((f) => f.id != fileId).toList() ?? [];
+
+      emit(
+        prevState.copyWith(
+          recentFiles: updatedRecent,
+          allFiles: updatedAll,
+          cachedFiles: updatedCached,
+        ),
+      );
+      _loadDataInBackground();
     } catch (e) {
       if (_is403Error(e)) {
         emit(const HomeState.unauthorized());
         return;
       }
       emit(HomeState.fileDeleteError(e.toString()));
-      final current = state;
-      if (current is _Loaded) {
-        emit(current);
-      } else {
-        emit(HomeState.error(e.toString()));
-      }
+      emit(prevState);
     }
+  }
+
+  Future<void> _loadDataInBackground() async {
+    try {
+      final foldersFuture = folderRepository.getFolderTree();
+      final recentFuture = fileRepository.getRecentFiles(page: 0, size: 10);
+      final allFuture = fileRepository.getAllFiles(page: 0, size: 50);
+
+      final results = await Future.wait([
+        foldersFuture,
+        recentFuture,
+        allFuture,
+      ]);
+
+      final folders = results[0] as List<FolderDto>;
+      final recentFiles = (results[1] as PageResponse<FileDto>).content;
+      final allFiles = (results[2] as PageResponse<FileDto>).content;
+
+      final currentState = state;
+      if (currentState is _Loaded) {
+        emit(
+          currentState.copyWith(
+            folders: folders,
+            recentFiles: recentFiles,
+            allFiles: allFiles,
+          ),
+        );
+      }
+      _loadCacheInBackground();
+    } catch (_) {}
   }
 }

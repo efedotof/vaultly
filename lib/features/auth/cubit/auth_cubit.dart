@@ -17,9 +17,9 @@ import 'package:vaulth_app/server/repository/auth/auth_interface.dart';
 import 'package:vaulth_app/server/repository/auth/auth_repository.dart';
 import 'package:vaulth_app/server/repository/device/device_interface.dart';
 import 'package:vaulth_app/server/repository/user/user_interface.dart';
-import 'package:vaulth_app/server/service/device_id_generator.dart';
-import 'package:vaulth_app/server/service/logger_service.dart';
-import 'package:vaulth_app/server/service/seed_phrase_service.dart';
+import 'package:vaulth_app/server/service/key/device_id_generator.dart';
+import 'package:vaulth_app/server/service/system/logger_service.dart';
+import 'package:vaulth_app/server/service/key/seed_phrase_service.dart';
 import 'package:vaulth_app/server/service/update/update_service.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 

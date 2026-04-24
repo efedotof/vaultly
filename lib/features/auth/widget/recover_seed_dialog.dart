@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vaulth_app/features/auth/cubit/auth_cubit.dart';
-import 'package:vaulth_app/server/service/seed_phrase_service.dart';
+import 'package:vaulth_app/server/service/key/seed_phrase_service.dart';
 
 import 'word_fields.dart';
 import 'password_fields.dart';

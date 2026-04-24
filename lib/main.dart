@@ -11,14 +11,14 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import 'route/app_router.dart';
-import 'server/service/logger_service.dart';
+import 'server/service/cache/local_file_cache.dart';
+import 'server/service/system/logger_service.dart';
 import 'theme/theme.dart';
 
-import 'is_desktop.dart' if (dart.library.html) 'is_desktop_stub.dart';
+import 'app/sys/is_desktop.dart' if (dart.library.html) 'is_desktop_stub.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   if (isDesktop()) {
     await RustLib.init();
   }
@@ -35,7 +35,7 @@ void main() async {
       WebViewPlatform.instance = WebKitWebViewPlatform();
     }
   }
-
+  await LocalFileCache.instance.close();
   runApp(AppInitializer(appModel: appModal, child: VaultlyApp()));
 }
 
@@ -62,3 +62,4 @@ class _VaultlyAppState extends State<VaultlyApp> {
     );
   }
 }
+

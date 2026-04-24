@@ -64,4 +64,6 @@ abstract class FileInterface {
     String? folderId,
     required bool isPublic,
   });
+
+  Future<Stream<Uint8List>> downloadShpsStream(String fileId);
 }

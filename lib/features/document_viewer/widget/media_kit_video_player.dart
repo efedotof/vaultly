@@ -1,7 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:path_provider/path_provider.dart';
@@ -38,6 +37,16 @@ class _MediaKitVideoPlayerState extends State<MediaKitVideoPlayer> {
     _player = Player();
     _videoController = VideoController(_player);
     _initVideo();
+
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.light,
+      ),
+    );
   }
 
   Future<void> _initVideo() async {
@@ -60,6 +69,7 @@ class _MediaKitVideoPlayerState extends State<MediaKitVideoPlayer> {
   @override
   void dispose() {
     _player.dispose();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
@@ -89,6 +99,14 @@ class _MediaKitVideoPlayerState extends State<MediaKitVideoPlayer> {
       );
     }
 
-    return Video(controller: _videoController);
+    return SafeArea(
+      child: SizedBox.expand(
+        child: Video(
+          controller: _videoController,
+          controls: AdaptiveVideoControls,
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
   }
 }

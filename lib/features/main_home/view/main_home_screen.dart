@@ -19,6 +19,7 @@ class MainHomeScreen extends StatelessWidget {
       builder: (context, children, tabsRouter) {
         return Scaffold(
           backgroundColor: Colors.transparent,
+          resizeToAvoidBottomInset: false,
           body: Stack(
             children: [
               AnimatedSwitcher(
@@ -42,8 +43,10 @@ class MainHomeScreen extends StatelessWidget {
                   child: children[tabsRouter.activeIndex],
                 ),
               ),
-              Align(
-                alignment: Alignment.bottomCenter,
+              Positioned(
+                bottom: 27,
+                left: 0,
+                right: 0,
                 child: FloatingBottomNavBar(
                   currentIndex: tabsRouter.activeIndex,
                   onTap: (index) => tabsRouter.setActiveIndex(index),

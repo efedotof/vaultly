@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:vaulth_app/features/auth/widget/totp_code_dialog.dart';
 import 'package:vaulth_app/features/document_viewer/widget/code_view.dart';
 import 'package:vaulth_app/features/settings/cubit/settings_cubit.dart';
@@ -513,9 +514,33 @@ class SettingsList extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
+            FutureBuilder<String>(
+              future: _getAppVersion(),
+              builder: (context, snapshot) {
+                final version = snapshot.data ?? '...';
+                return Center(
+                  child: Text(
+                    'Версия $version',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
     );
+  }
+
+  Future<String> _getAppVersion() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      return '${packageInfo.version} (${packageInfo.buildNumber})';
+    } catch (_) {
+      return '';
+    }
   }
 }

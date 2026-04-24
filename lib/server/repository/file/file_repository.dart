@@ -1,12 +1,14 @@
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:vaulth_app/server/model/file/check_duplicate_request/check_duplicate_request.dart';
 import 'package:vaulth_app/server/model/file/check_duplicate_response/check_duplicate_response.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
 import 'package:vaulth_app/server/model/file/link_file_request/link_file_request.dart';
 import 'package:vaulth_app/server/model/page_response.dart';
-import 'package:vaulth_app/server/service/key_manager_service.dart';
-import 'package:vaulth_app/server/service/logger_service.dart';
+import 'package:vaulth_app/server/service/key/key_manager_service.dart';
+import 'package:vaulth_app/server/service/system/logger_service.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 import 'file_interface.dart';
 import 'package:vaulth_app/server/model/file/decryption_metadata/decryption_metadata.dart';
@@ -175,12 +177,12 @@ class FileRepository implements FileInterface {
 
   @override
   Future<void> deleteFile(String fileId) async {
-    _logger.debug('[FileRepository] Deleting file: $fileId');
     try {
-      await _dio.delete('/$fileId');
-      _logger.debug('[FileRepository] File deleted successfully');
+      final response = await _dio.delete('/$fileId');
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception('Delete failed with status ${response.statusCode}');
+      }
     } on DioException catch (e) {
-      _logger.error('[FileRepository] Delete file error: ${e.message}');
       throw _handleDioError(e);
     }
   }
@@ -319,6 +321,25 @@ class FileRepository implements FileInterface {
       return FileDto.fromJson(response.data);
     } on DioException catch (e) {
       throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<Stream<Uint8List>> downloadShpsStream(String fileId) async {
+    _logger.debug('[FileRepository] Downloading SHPS stream: $fileId');
+    final response = await _dio.get('/$fileId/download');
+    final data = response.data;
+    if (data is Map<String, dynamic> && data.containsKey('url')) {
+      final url = data['url'] as String;
+      _logger.debug('[FileRepository] Got presigned URL: $url');
+      final client = http.Client();
+      final request = await client.send(http.Request('GET', Uri.parse(url)));
+      if (request.statusCode != 200) {
+        throw Exception('Failed to download: ${request.statusCode}');
+      }
+      return request.stream.map((chunk) => Uint8List.fromList(chunk));
+    } else {
+      throw Exception('Server did not return a presigned URL');
     }
   }
 }

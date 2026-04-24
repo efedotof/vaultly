@@ -3,7 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:webcrypto/webcrypto.dart' as web;
-import 'package:vaulth_app/server/service/logger_service.dart';
+import 'package:vaulth_app/server/service/system/logger_service.dart';
 import 'rsa_key_generator_web.dart';
 
 class KeyManagerServiceWeb {

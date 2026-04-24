@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:bip39/bip39.dart' as bip39;
 import 'package:ed25519_hd_key/ed25519_hd_key.dart';
 import 'package:pinenacl/ed25519.dart' as nacl;
-import 'package:vaulth_app/server/service/logger_service.dart';
+import 'package:vaulth_app/server/service/system/logger_service.dart';
 import 'package:cryptography/cryptography.dart' as crypto;
 import 'package:flutter/foundation.dart';
 

@@ -1,11 +1,11 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:vaulth_app/features/home/widget/file_icon_helper.dart';
-import 'package:vaulth_app/features/home/widget/full_size_cached_preview.dart';
+import 'package:vaulth_app/features/home/widget/file_and_preview/file_icon_helper.dart';
+import 'package:vaulth_app/features/home/widget/file_and_preview/full_size_cached_preview.dart';
 import 'package:vaulth_app/route/app_router.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
-import 'package:vaulth_app/server/service/local_file_cache.dart';
+import 'package:vaulth_app/server/service/cache/local_file_cache.dart';
 
 class FolderFileTile extends StatelessWidget {
   const FolderFileTile({super.key, required this.file, required this.onRemove});

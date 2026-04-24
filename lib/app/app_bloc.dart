@@ -16,11 +16,10 @@ import 'package:vaulth_app/server/repository/file/file_interface.dart';
 import 'package:vaulth_app/server/repository/folder/folder_interface.dart';
 import 'package:vaulth_app/server/repository/totp/totp_interface.dart';
 import 'package:vaulth_app/server/repository/user/user_interface.dart';
-import 'package:vaulth_app/server/service/file_decryption_service.dart';
-import 'package:vaulth_app/server/service/key_manager_service.dart';
-import 'package:vaulth_app/server/service/key_manager_service_web.dart';
-import 'package:vaulth_app/server/service/local_file_cache.dart';
-import 'package:vaulth_app/server/service/seed_phrase_service.dart';
+import 'package:vaulth_app/server/service/key/key_manager_service.dart';
+import 'package:vaulth_app/server/service/key/key_manager_service_web.dart';
+import 'package:vaulth_app/server/service/cache/local_file_cache.dart';
+import 'package:vaulth_app/server/service/key/seed_phrase_service.dart';
 import 'package:vaulth_app/server/service/update/update_service.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 import 'package:vaulth_app/theme/theme_app/theme_cubit.dart';
@@ -119,12 +118,10 @@ class _AppBlocState extends State<AppBloc> {
         ),
         BlocProvider(
           create: (context) => BatchCacheCubit(
-            decryptionService: FileDecryptionService(
-              fileRepository: context.read<FileInterface>(),
-              keyManagerService: keyManagerService,
-              localFileCache: context.read<LocalFileCache>(),
-            ),
             authCubit: context.read<AuthCubit>(),
+            fileRepository: context.read<FileInterface>(),
+            keyManagerService: keyManagerService,
+            localFileCache: context.read<LocalFileCache>(),
           ),
         ),
         BlocProvider(

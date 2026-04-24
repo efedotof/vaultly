@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:pointycastle/export.dart' as pc;
 import 'package:basic_utils/basic_utils.dart';
 import 'package:cryptography/cryptography.dart' as crypto;
-import 'package:vaulth_app/server/service/logger_service.dart';
+import 'package:vaulth_app/server/service/system/logger_service.dart';
 import 'package:vaulth_app/storage/secure_storage_adapter.dart';
 
 class KeyManagerService {

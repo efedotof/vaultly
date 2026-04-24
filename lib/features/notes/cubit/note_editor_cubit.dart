@@ -8,11 +8,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:vaulth_app/features/auth/cubit/auth_cubit.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
 import 'package:vaulth_app/server/repository/file/file_interface.dart';
-import 'package:vaulth_app/server/service/shirm_encryption_service.dart'
-    as native_encrypt;
-import 'package:vaulth_app/server/service/shirm_encryption_service_web.dart'
-    as web_encrypt;
-import 'package:vaulth_app/server/service/shirm_decryption_service_platform.dart';
+import 'package:vaulth_app/server/service/encryption/shirm_encryption_service_platform.dart';
+import 'package:vaulth_app/server/service/decryption/shirm_decryption_service_platform.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 
 part 'note_editor_state.dart';
@@ -126,7 +123,7 @@ class NoteEditorCubit extends Cubit<NoteEditorState> {
         final publicKeyPem = await keyManager.getUserPublicKey() ?? '';
         final privateKeyPem = await keyManager.getPrivateKeyPEM(password) ?? '';
         encryptedData =
-            await web_encrypt.ShirmEncryptionServiceWeb.encryptBytes(
+            await ShirmEncryptionService.encryptBytes(
               Uint8List.fromList(bytes),
               publicKeyPem: publicKeyPem,
               userId: userId,
@@ -141,7 +138,6 @@ class NoteEditorCubit extends Cubit<NoteEditorState> {
           throw Exception('Не удалось получить ключи шифрования');
         }
 
-        // Создаём временный файл и гарантированно удаляем его
         final tempDir = await getTemporaryDirectory();
         final tempPlainFile = io.File(
           '${tempDir.path}/temp_note_${DateTime.now().millisecondsSinceEpoch}.md',
@@ -149,7 +145,7 @@ class NoteEditorCubit extends Cubit<NoteEditorState> {
         try {
           await tempPlainFile.writeAsBytes(bytes);
           encryptedData =
-              await native_encrypt.ShirmEncryptionService.encryptFile(
+              await ShirmEncryptionService.encryptFile(
                 tempPlainFile,
                 publicKey: publicKeyObj,
                 userId: userId,
@@ -157,7 +153,6 @@ class NoteEditorCubit extends Cubit<NoteEditorState> {
                 privateKey: privateKeyObj,
               );
         } finally {
-          // Удаляем временный файл в любом случае
           if (await tempPlainFile.exists()) {
             await tempPlainFile.delete();
           }

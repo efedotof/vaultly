@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:vaulth_app/server/service/logger_service.dart';
+import 'package:vaulth_app/server/service/system/logger_service.dart';
 import 'update_info.dart';
 import 'update_service_android.dart';
 import 'update_service_velopack.dart';

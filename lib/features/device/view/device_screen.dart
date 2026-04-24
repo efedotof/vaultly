@@ -6,7 +6,7 @@ import 'package:vaulth_app/features/settings/cubit/settings_cubit.dart';
 import 'package:vaulth_app/server/model/device/device_register_request/device_register_request.dart';
 import 'package:vaulth_app/server/model/device/device_response/device_response.dart';
 import 'package:vaulth_app/server/model/device/device_update_request/device_update_request.dart';
-import 'package:vaulth_app/server/service/key_manager_service.dart';
+import 'package:vaulth_app/server/service/key/key_manager_service.dart';
 
 @RoutePage()
 class DeviceScreen extends StatefulWidget {

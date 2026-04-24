@@ -4,7 +4,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'content_type.dart';
-import 'file_icon_helper.dart';
+import 'icon_placeholder.dart';
+import 'video_thumbnail_widget.dart';
 
 class PreviewContent extends StatelessWidget {
   const PreviewContent({
@@ -24,7 +25,9 @@ class PreviewContent extends StatelessWidget {
         return Image.memory(
           data,
           fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => _buildIconPlaceholder(context),
+          errorBuilder: (context, error, stackTrace) {
+            return IconPlaceholder(fileName: fileName);
+          },
         );
       case ContentType.markdown:
         final markdownContent = utf8.decode(data, allowMalformed: true);
@@ -52,22 +55,11 @@ class PreviewContent extends StatelessWidget {
             ),
           ),
         );
+      case ContentType.video:
+        return VideoThumbnailWidget(data: data, fileName: fileName);
       case ContentType.text:
       case ContentType.binary:
-        return _buildIconPlaceholder(context);
+        return IconPlaceholder(fileName: fileName);
     }
-  }
-
-  Widget _buildIconPlaceholder(BuildContext context) {
-    return Container(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: Center(
-        child: Icon(
-          getIconByExtension(fileName),
-          color: Theme.of(context).colorScheme.primary,
-          size: 48,
-        ),
-      ),
-    );
   }
 }

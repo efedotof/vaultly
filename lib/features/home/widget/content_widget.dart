@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
 import 'package:vaulth_app/server/model/folder/folder_dto/folder_dto.dart';
 
-import 'file_card.dart';
+import 'file_and_preview/file_card.dart';
 import 'folder_card.dart';
 import 'section_header.dart';
 
