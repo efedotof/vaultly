@@ -99,9 +99,6 @@ jobs:
       - name: Run code generation
         run: flutter pub run build_runner build --delete-conflicting-outputs
 
-      - name: Setup NASM
-        run: choco install nasm -y
-
       - name: Build OpenSSL for Windows (MSVC)
         run: |
           curl -LO "https://github.com/openssl/openssl/releases/download/openssl-4.0.0/openssl-4.0.0.tar.gz"
@@ -113,19 +110,21 @@ jobs:
           nmake install_sw
         shell: cmd
 
+      - name: Final clean before build
+        run: flutter clean
+
       - name: Copy MSVC libs to plugin symlink
         run: |
-          set PLUGIN_SYMLINK=windows\flutter\ephemeral\.plugin_symlinks\shirm_crypto
-          if not exist "%PLUGIN_SYMLINK%" (
-            echo ERROR: Symlink does not exist. Check flutter pub get.
+          set PLUGIN=windows\flutter\ephemeral\.plugin_symlinks\shirm_crypto
+          if not exist "%PLUGIN%" (
+            echo ERROR: symlink missing
             exit /b 1
           )
-          xcopy out\lib\*.lib "%PLUGIN_SYMLINK%\windows\openssl_prebuild\windows\x86_64\" /Y
-          xcopy out\include\* "%PLUGIN_SYMLINK%\windows\openssl_prebuild\windows\include\" /E /Y
+          mkdir "%PLUGIN%\windows\openssl_prebuild\windows\x86_64" 2>nul
+          mkdir "%PLUGIN%\windows\openssl_prebuild\windows\include" 2>nul
+          xcopy out\lib\*.lib "%PLUGIN%\windows\openssl_prebuild\windows\x86_64\" /Y
+          xcopy out\include\* "%PLUGIN%\windows\openssl_prebuild\windows\include\" /E /Y
         shell: cmd
-
-      - name: Clean previous Windows build
-        run: flutter clean
 
       - name: Build Windows app (release)
         run: flutter build windows --release
@@ -212,36 +211,37 @@ jobs:
           echo "clean_version=$clean_version" >> $GITHUB_OUTPUT
 
       - name: Build macOS ARM
-        run: |
-          flutter clean
-          FLUTTER_XCODE_ARCHS=arm64 flutter build macos --release
-      - name: Archive ARM app
-        run: cp -R build/macos/Build/Products/Release/Vaultly.app build/macos/Build/Products/Release/Vaultly_arm64.app
+        run: FLUTTER_XCODE_ARCHS=arm64 flutter build macos --release
 
-      - name: Clean build for Intel
+      - name: Copy ARM app outside build directory
+        run: cp -R build/macos/Build/Products/Release/Vaultly.app /tmp/Vaultly_arm64.app
+
+      - name: Clean for Intel build
         run: |
           rm -rf build/macos
           flutter clean
-          flutter pub get
 
       - name: Build macOS Intel
-        run: |
-          FLUTTER_XCODE_ARCHS=x86_64 flutter build macos --release
-      - name: Archive Intel app
-        run: cp -R build/macos/Build/Products/Release/Vaultly.app build/macos/Build/Products/Release/Vaultly_x86_64.app
+        run: FLUTTER_XCODE_ARCHS=x86_64 flutter build macos --release
+
+      - name: Copy Intel app outside build directory
+        run: cp -R build/macos/Build/Products/Release/Vaultly.app /tmp/Vaultly_x86_64.app
 
       - name: Create universal binary
         run: |
           lipo -create \
-            build/macos/Build/Products/Release/Vaultly_arm64.app/Contents/MacOS/Vaultly \
-            build/macos/Build/Products/Release/Vaultly_x86_64.app/Contents/MacOS/Vaultly \
-            -output build/macos/Build/Products/Release/Vaultly.app/Contents/MacOS/Vaultly
+            /tmp/Vaultly_arm64.app/Contents/MacOS/Vaultly \
+            /tmp/Vaultly_x86_64.app/Contents/MacOS/Vaultly \
+            -output /tmp/Vaultly_universal
 
-      - name: Rename app to vaulth_app.app for consistency
+          # Собираем финальное .app из ARM-версии, заменяя только исполняемый файл
+          cp -R /tmp/Vaultly_arm64.app /tmp/vaulth_app.app
+          cp /tmp/Vaultly_universal /tmp/vaulth_app.app/Contents/MacOS/Vaultly
+
+      - name: Move final app to build directory for Velopack
         run: |
-          if [ -d "build/macos/Build/Products/Release/Vaultly.app" ]; then
-            mv build/macos/Build/Products/Release/Vaultly.app build/macos/Build/Products/Release/vaulth_app.app
-          fi
+          mkdir -p build/macos/Build/Products/Release
+          mv /tmp/vaulth_app.app build/macos/Build/Products/Release/vaulth_app.app
 
       - name: Install .NET SDK
         uses: actions/setup-dotnet@v4

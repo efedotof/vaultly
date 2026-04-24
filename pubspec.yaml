@@ -34,7 +34,7 @@ dependencies:
   shirm_crypto:
     git:
       url: https://github.com/efedotof/vaultly.git
-      ref: c0832279a333271e0cf35e8ae908eb9cd42d8282
+      ref: f5859dbb67e89f688a59c4974a846f7e02e0939a
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
