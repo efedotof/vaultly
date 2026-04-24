@@ -20,6 +20,12 @@ jobs:
         with:
           flutter-version: '3.38.10'
 
+      - name: Repair Flutter pub cache
+        run: flutter pub cache repair
+
+      - name: Clean previous builds
+        run: flutter clean
+
       - name: Get dependencies
         run: flutter pub get
 
@@ -78,6 +84,12 @@ jobs:
         with:
           flutter-version: '3.38.10'
 
+      - name: Repair Flutter pub cache
+        run: flutter pub cache repair
+
+      - name: Clean previous builds
+        run: flutter clean
+        
       - name: Enable windows support
         run: flutter config --enable-windows-desktop
 
@@ -157,6 +169,12 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.38.10'
+
+      - name: Repair Flutter pub cache
+        run: flutter pub cache repair
+
+      - name: Clean previous builds
+        run: flutter clean
 
       - name: Enable macOS support
         run: flutter config --enable-macos-desktop
