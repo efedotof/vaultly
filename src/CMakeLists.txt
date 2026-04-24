@@ -21,7 +21,10 @@ set_target_properties(shirm_crypto PROPERTIES
 
 target_compile_definitions(shirm_crypto PUBLIC DART_SHARED_LIB)
 
-target_include_directories(shirm_crypto PRIVATE include sqlite)
+target_include_directories(shirm_crypto PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/sqlite
+)
 
 if(ANDROID)
     add_library(ssl SHARED IMPORTED)
