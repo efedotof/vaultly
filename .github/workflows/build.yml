@@ -93,7 +93,7 @@ jobs:
       - name: Enable windows support
         run: flutter config --enable-windows-desktop
 
-      - name: Get dependencies
+      - name: Get dependencies (создаст symlink'и)
         run: flutter pub get
 
       - name: Run code generation
@@ -110,11 +110,9 @@ jobs:
           nmake install_sw
         shell: cmd
 
-      - name: Final clean before build
-        run: flutter clean
-
       - name: Copy MSVC libs to plugin symlink
         run: |
+          flutter pub get
           set PLUGIN=windows\flutter\ephemeral\.plugin_symlinks\shirm_crypto
           if not exist "%PLUGIN%" (
             echo ERROR: symlink missing
