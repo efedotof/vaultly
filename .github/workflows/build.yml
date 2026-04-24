@@ -93,7 +93,7 @@ jobs:
       - name: Enable windows support
         run: flutter config --enable-windows-desktop
 
-      - name: Get dependencies (создаст symlink'и)
+      - name: Get dependencies
         run: flutter pub get
 
       - name: Run code generation
@@ -113,27 +113,33 @@ jobs:
       - name: Verify OpenSSL output
         shell: powershell
         run: |
+          Write-Host "Generated .lib files:"
           Get-ChildItem out\lib
+          Write-Host "Generated headers:"
           Get-ChildItem out\include
 
-      - name: Copy MSVC libs to plugin symlink
+      - name: Copy MSVC libs to plugin cache
         shell: powershell
         run: |
-          $plugin = "windows\flutter\ephemeral\.plugin_symlinks\shirm_crypto"
-          if (-not (Test-Path $plugin)) {
-            Write-Host "##[error] symlink missing, trying flutter pub get"
-            flutter pub get
-            if (-not (Test-Path $plugin)) { exit 1 }
+          # Находим папку плагина в кеше pub (git-зависимость)
+          $gitCache = "$env:LOCALAPPDATA\Pub\Cache\git"
+          $pluginDir = Get-ChildItem -Path $gitCache -Directory -Filter "vaultly-*" | Select-Object -First 1
+          if (-not $pluginDir) {
+            Write-Host "##[error] Plugin cache not found"
+            exit 1
           }
-          $targetLib = "$plugin\windows\openssl_prebuild\windows\x86_64"
-          $targetInc = "$plugin\windows\openssl_prebuild\windows\include"
+          $targetLib = "$($pluginDir.FullName)\windows\openssl_prebuild\windows\x86_64"
+          $targetInc = "$($pluginDir.FullName)\windows\openssl_prebuild\windows\include"
           New-Item -ItemType Directory -Force -Path $targetLib
           New-Item -ItemType Directory -Force -Path $targetInc
           Copy-Item -Path out\lib\libssl.lib -Destination $targetLib -Force
           Copy-Item -Path out\lib\libcrypto.lib -Destination $targetLib -Force
           Copy-Item -Path out\include\* -Destination $targetInc -Recurse -Force
-          Write-Host "Files in target lib dir:"
+          Write-Host "Copied to $targetLib"
           Get-ChildItem $targetLib
+
+      - name: Clean previous Windows build
+        run: flutter clean
 
       - name: Build Windows app (release)
         run: flutter build windows --release
