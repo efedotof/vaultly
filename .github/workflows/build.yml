@@ -99,28 +99,8 @@ jobs:
       - name: Run code generation
         run: flutter pub run build_runner build --delete-conflicting-outputs
 
-      - name: Setup NASM (required for OpenSSL assembly)
-        run: choco install nasm -y
+      # Шаги сборки OpenSSL удалены – библиотеки уже лежат в репозитории плагина
 
-      - name: Build OpenSSL for Windows (MSVC)
-        run: |
-          curl -LO "https://github.com/openssl/openssl/releases/download/openssl-4.0.0/openssl-4.0.0.tar.gz"
-          tar xzf openssl-4.0.0.tar.gz
-          cd openssl-4.0.0
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          perl Configure VC-WIN64A no-shared no-tests --prefix=%CD%\..\out
-          nmake
-          nmake install_sw
-        shell: cmd
-
-      - name: Copy OpenSSL libraries for plugin
-        run: |
-          mkdir -p windows\openssl_prebuild\windows\x86_64
-          mkdir -p windows\openssl_prebuild\windows\include
-          xcopy out\lib\*.lib windows\openssl_prebuild\windows\x86_64\ /Y
-          xcopy out\include\* windows\openssl_prebuild\windows\include\ /E /Y
-        shell: cmd
-  
       - name: Clean previous Windows build
         run: flutter clean
 

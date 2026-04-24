@@ -1236,8 +1236,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: f13b62e710ff107760d43f12e7f26d96f94faf0f
-      resolved-ref: f13b62e710ff107760d43f12e7f26d96f94faf0f
+      ref: "713b91eac794706de532e7d7b799441fbb6b7f5d"
+      resolved-ref: "713b91eac794706de532e7d7b799441fbb6b7f5d"
       url: "https://github.com/efedotof/vaultly.git"
     source: git
     version: "0.0.1"
