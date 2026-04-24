@@ -194,14 +194,21 @@ jobs:
           echo "clean_version=$clean_version" >> $GITHUB_OUTPUT
 
       - name: Build macOS ARM
-        run: FLUTTER_XCODE_ARCHS=arm64 flutter build macos --release
-
+        run: |
+          flutter clean
+          FLUTTER_XCODE_ARCHS=arm64 flutter build macos --release
       - name: Archive ARM app
         run: cp -R build/macos/Build/Products/Release/Vaultly.app build/macos/Build/Products/Release/Vaultly_arm64.app
 
-      - name: Build macOS Intel
-        run: FLUTTER_XCODE_ARCHS=x86_64 flutter build macos --release
+      - name: Clean build for Intel
+        run: |
+          rm -rf build/macos
+          flutter clean
+          flutter pub get
 
+      - name: Build macOS Intel
+        run: |
+          FLUTTER_XCODE_ARCHS=x86_64 flutter build macos --release
       - name: Archive Intel app
         run: cp -R build/macos/Build/Products/Release/Vaultly.app build/macos/Build/Products/Release/Vaultly_x86_64.app
 

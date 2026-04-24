@@ -1236,8 +1236,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: shirm_crypto_c
-      resolved-ref: "5bedc4a8b798202e53af86ab472be5f132606036"
+      ref: b54daf0230e05f314a96ccbd8403c971c4b0d94e
+      resolved-ref: b54daf0230e05f314a96ccbd8403c971c4b0d94e
       url: "https://github.com/efedotof/vaultly.git"
     source: git
     version: "0.0.1"
