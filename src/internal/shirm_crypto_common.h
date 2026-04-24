@@ -16,7 +16,7 @@
 #ifdef _WIN32
   #include <winsock2.h>   
 #else
-  #include <arpa/inet.h>  /
+  #include <arpa/inet.h>  
 #endif
 
 void current_iso8601(char *buffer, size_t buffer_size);
