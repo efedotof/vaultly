@@ -118,10 +118,9 @@ jobs:
           Write-Host "Generated headers:"
           Get-ChildItem out\include
 
-      - name: Copy MSVC libs to plugin cache
+      - name: Copy MSVC libs (OpenSSL + zlib) to plugin cache
         shell: powershell
         run: |
-          # Находим папку плагина в кеше pub (git-зависимость)
           $gitCache = "$env:LOCALAPPDATA\Pub\Cache\git"
           $pluginDir = Get-ChildItem -Path $gitCache -Directory -Filter "vaultly-*" | Select-Object -First 1
           if (-not $pluginDir) {
@@ -132,9 +131,19 @@ jobs:
           $targetInc = "$($pluginDir.FullName)\windows\openssl_prebuild\windows\include"
           New-Item -ItemType Directory -Force -Path $targetLib
           New-Item -ItemType Directory -Force -Path $targetInc
+
           Copy-Item -Path out\lib\libssl.lib -Destination $targetLib -Force
           Copy-Item -Path out\lib\libcrypto.lib -Destination $targetLib -Force
           Copy-Item -Path out\include\* -Destination $targetInc -Recurse -Force
+
+          vcpkg install zlib:x64-windows
+          $vcpkgRoot = (Get-Item env:VCPKG_INSTALLATION_ROOT).Value
+          $zlibInclude = "$vcpkgRoot\installed\x64-windows\include"
+          $zlibLib     = "$vcpkgRoot\installed\x64-windows\lib\zlib.lib"
+          Copy-Item -Path $zlibLib -Destination $targetLib -Force
+          Copy-Item -Path "$zlibInclude\zlib.h" -Destination $targetInc -Force
+          Copy-Item -Path "$zlibInclude\zconf.h" -Destination $targetInc -Force
+
           Write-Host "Copied to $targetLib"
           Get-ChildItem $targetLib
 
