@@ -1,13 +1,14 @@
 cmake_minimum_required(VERSION 3.14)
 project(shirm_crypto_library VERSION 0.0.1 LANGUAGES C)
 
-include(FetchContent)
-
-FetchContent_Declare(
-    zlib
-    URL https://github.com/madler/zlib/archive/refs/tags/v1.3.2.tar.gz
-)
-FetchContent_MakeAvailable(zlib)
+if(NOT WIN32)
+  include(FetchContent)
+  FetchContent_Declare(
+      zlib
+      URL https://github.com/madler/zlib/archive/refs/tags/v1.3.2.tar.gz
+  )
+  FetchContent_MakeAvailable(zlib)
+endif()
 
 add_library(shirm_crypto SHARED
     "shirm_crypto.c"
@@ -84,7 +85,7 @@ elseif(UNIX AND NOT APPLE)
 
 elseif(WIN32)
     set(WIN_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../windows/openssl_prebuild/windows/include)
-    set(WIN_LIB_DIR     ${CMAKE_CURRENT_SOURCE_DIR}/../windows/openssl_prebuild/windows/x86_64)
+    set(WIN_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../windows/openssl_prebuild/windows/x86_64)
     target_include_directories(shirm_crypto PRIVATE
         ${WIN_INCLUDE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/win32
