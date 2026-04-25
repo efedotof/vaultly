@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 project(shirm_crypto_library VERSION 0.0.1 LANGUAGES C)
 
-if(NOT WIN32)
+if(NOT WIN32 AND NOT ANDROID)
   include(FetchContent)
   FetchContent_Declare(
       zlib
@@ -39,7 +39,7 @@ if(ANDROID)
     target_include_directories(shirm_crypto PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../android/src/main/jniLibs/${ANDROID_ABI}/include)
 
-    target_link_libraries(shirm_crypto PRIVATE ssl crypto zlib log)
+    target_link_libraries(shirm_crypto PRIVATE ssl crypto z log)
     target_link_options(shirm_crypto PRIVATE "-Wl,-z,max-page-size=16384")
 
 elseif(APPLE AND NOT IOS)
