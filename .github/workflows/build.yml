@@ -251,16 +251,25 @@ jobs:
       - name: Copy Intel app outside build directory
         run: cp -R build/macos/Build/Products/Release/Vaultly.app /tmp/Vaultly_x86_64.app
 
-      - name: Create universal binary
+      - name: Create universal binary (main + all frameworks)
         run: |
           lipo -create \
             /tmp/Vaultly_arm64.app/Contents/MacOS/Vaultly \
             /tmp/Vaultly_x86_64.app/Contents/MacOS/Vaultly \
-            -output /tmp/Vaultly_universal
+            -output /tmp/Vaultly_arm64.app/Contents/MacOS/Vaultly
 
-          # Собираем финальное .app из ARM-версии, заменяя только исполняемый файл
+          for framework in /tmp/Vaultly_arm64.app/Contents/Frameworks/*.framework; do
+            fname=$(basename "$framework" .framework)
+            bin_path="Versions/A/${fname}"
+            arm_bin="${framework}/${bin_path}"
+            intel_bin="/tmp/Vaultly_x86_64.app/Contents/Frameworks/${fname}.framework/${bin_path}"
+            if [ -f "$arm_bin" ] && [ -f "$intel_bin" ]; then
+              echo "Making universal: $fname"
+              lipo -create "$arm_bin" "$intel_bin" -output "$arm_bin"
+            fi
+          done
+
           cp -R /tmp/Vaultly_arm64.app /tmp/vaulth_app.app
-          cp /tmp/Vaultly_universal /tmp/vaulth_app.app/Contents/MacOS/Vaultly
 
       - name: Move final app to build directory for Velopack
         run: |
