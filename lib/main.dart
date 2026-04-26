@@ -18,25 +18,26 @@ import 'theme/theme.dart';
 import 'app/sys/is_desktop.dart' if (dart.library.html) 'is_desktop_stub.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  if (isDesktop()) {
-    await RustLib.init();
-  }
 
-  final LoggerService logger = LoggerService();
-  await logger.init();
-  MediaKit.ensureInitialized();
-  final appModal = AppModel(prefs: await SharedPreferences.getInstance());
-
-  if (!kIsWeb) {
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      WebViewPlatform.instance = AndroidWebViewPlatform();
-    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-      WebViewPlatform.instance = WebKitWebViewPlatform();
+    WidgetsFlutterBinding.ensureInitialized();
+    if (isDesktop()) {
+      await RustLib.init();
     }
-  }
-  await LocalFileCache.instance.close();
-  runApp(AppInitializer(appModel: appModal, child: VaultlyApp()));
+
+    final LoggerService logger = LoggerService();
+    await logger.init();
+    MediaKit.ensureInitialized();
+    final appModal = AppModel(prefs: await SharedPreferences.getInstance());
+
+    if (!kIsWeb) {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        WebViewPlatform.instance = AndroidWebViewPlatform();
+      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+        WebViewPlatform.instance = WebKitWebViewPlatform();
+      }
+    }
+    await LocalFileCache.instance.close();
+    runApp(AppInitializer(appModel: appModal, child: VaultlyApp()));
 }
 
 class VaultlyApp extends StatefulWidget {

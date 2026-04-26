@@ -1235,11 +1235,9 @@ packages:
   shirm_crypto:
     dependency: "direct main"
     description:
-      path: "."
-      ref: a25e0aa7c029cb7dd766f15fa46d4fca164ba103
-      resolved-ref: a25e0aa7c029cb7dd766f15fa46d4fca164ba103
-      url: "https://github.com/efedotof/vaultly.git"
-    source: git
+      path: "/Users/egorfedotov/Documents/project/shirm_crypto"
+      relative: false
+    source: path
     version: "0.0.1"
   sky_engine:
     dependency: transitive
