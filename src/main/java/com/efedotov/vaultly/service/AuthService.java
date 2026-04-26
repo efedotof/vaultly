@@ -41,6 +41,7 @@ public class AuthService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final TotpService totpService;
     private final LoginAttemptService loginAttemptService;
+    private final EncryptionService encryptionService;
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
@@ -68,7 +69,15 @@ public class AuthService {
                 throw new TotpRequiredException("TOTP code required");
             }
 
-            boolean isValid = totpService.verifyCode(user.getTotpSecret(), totpCode);
+            String plainSecret;
+            try {
+                plainSecret = encryptionService.decrypt(user.getTotpSecret());
+            } catch (Exception e) {
+                loginAttemptService.loginFailed(request.getUsername());
+                throw new RuntimeException("Internal error processing TOTP", e);
+            }
+
+            boolean isValid = totpService.verifyCode(plainSecret, totpCode);
             if (!isValid && user.getBackupCodesHash() != null) {
                 isValid = totpService.verifyBackupCode(totpCode, user.getBackupCodesHash());
                 if (isValid) {
@@ -83,6 +92,7 @@ public class AuthService {
                 loginAttemptService.loginFailed(request.getUsername());
                 throw new RuntimeException("Invalid TOTP or backup code");
             }
+
         }
 
         loginAttemptService.loginSucceeded(request.getUsername());
@@ -210,14 +220,16 @@ public class AuthService {
             throw new RuntimeException("TOTP is already enabled");
         }
 
-        String secret = totpService.generateSecret();
-        user.setTotpSecret(secret);
+        String plainSecret = totpService.generateSecret();
+        String encryptedSecret = encryptionService.encrypt(plainSecret);
+
+        user.setTotpSecret(encryptedSecret);
         user.setTotpEnabled(false);
         userRepository.save(user);
 
         try {
-            String qrUrl = totpService.generateQrCodeUrl(secret, user.getUsername());
-            return new TotpSetupResponse(secret, qrUrl);
+            String qrUrl = totpService.generateQrCodeUrl(plainSecret, user.getUsername());
+            return new TotpSetupResponse(plainSecret, qrUrl);
         } catch (QrGenerationException e) {
             throw new RuntimeException("Failed to generate QR code", e);
         }
@@ -232,12 +244,18 @@ public class AuthService {
             throw new RuntimeException("TOTP setup not initiated");
         }
 
-        if (!totpService.verifyCode(user.getTotpSecret(), code)) {
+        String plainSecret;
+        try {
+            plainSecret = encryptionService.decrypt(user.getTotpSecret());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to decrypt TOTP secret", e);
+        }
+
+        if (!totpService.verifyCode(plainSecret, code)) {
             throw new RuntimeException("Invalid TOTP code");
         }
 
         TotpService.BackupCodes backupCodes = totpService.generateBackupCodes();
-
         user.setTotpEnabled(true);
         user.setTotpVerifiedAt(LocalDateTime.now());
         user.setBackupCodesHash(backupCodes.hashesJson());
@@ -256,7 +274,14 @@ public class AuthService {
             throw new RuntimeException("TOTP is not enabled");
         }
 
-        boolean isValid = totpService.verifyCode(user.getTotpSecret(), code);
+        String plainSecret;
+        try {
+            plainSecret = encryptionService.decrypt(user.getTotpSecret());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to decrypt TOTP secret", e);
+        }
+
+        boolean isValid = totpService.verifyCode(plainSecret, code);
         if (!isValid) {
             if (user.getBackupCodesHash() != null) {
                 isValid = totpService.verifyBackupCode(code, user.getBackupCodesHash());
@@ -273,6 +298,7 @@ public class AuthService {
 
         user.setTotpEnabled(false);
         user.setTotpSecret(null);
+
         user.setTotpVerifiedAt(null);
         user.setBackupCodesHash(null);
         userRepository.save(user);
@@ -298,7 +324,7 @@ public class AuthService {
         if (!user.getIsActive()) {
             throw new RuntimeException("User account is disabled");
         }
-        
+
         userRepository.save(user);
 
         loginAttemptService.loginSucceeded("recover:" + publicKeyHash);

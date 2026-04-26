@@ -1,17 +1,32 @@
 package com.efedotov.vaultly.controller;
 
-import com.efedotov.vaultly.dto.auth.*;
-import com.efedotov.vaultly.security.CustomUserDetails;
-import com.efedotov.vaultly.service.AuthService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
+import com.efedotov.vaultly.dto.auth.AuthResponse;
+import com.efedotov.vaultly.dto.auth.LoginRequest;
+import com.efedotov.vaultly.dto.auth.LogoutRequest;
+import com.efedotov.vaultly.dto.auth.RecoverRequest;
+import com.efedotov.vaultly.dto.auth.RegisterRequest;
+import com.efedotov.vaultly.dto.auth.TokenValidationRequest;
+import com.efedotov.vaultly.dto.auth.TotpDisableRequest;
+import com.efedotov.vaultly.dto.auth.TotpSetupResponse;
+import com.efedotov.vaultly.dto.auth.TotpVerifyRequest;
+import com.efedotov.vaultly.dto.auth.TotpVerifyResponse;
+import com.efedotov.vaultly.security.CustomUserDetails;
+import com.efedotov.vaultly.service.AuthService;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestController
