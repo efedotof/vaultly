@@ -105,7 +105,7 @@ jobs:
           tar xzf openssl-4.0.0.tar.gz
           cd openssl-4.0.0
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          perl Configure VC-WIN64A no-shared no-tests -static --prefix=%CD%\..\out
+          perl Configure VC-WIN64A no-shared no-tests -static -MT --prefix=%CD%\..\out
           nmake
           nmake install_sw
         shell: cmd
@@ -136,11 +136,12 @@ jobs:
           Copy-Item -Path out\lib\libcrypto.lib -Destination $targetLib -Force
           Copy-Item -Path out\include\* -Destination $targetInc -Recurse -Force
 
-          vcpkg install zlib:x64-windows
+          vcpkg install zlib:x64-windows-static
           $vcpkgRoot = (Get-Item env:VCPKG_INSTALLATION_ROOT).Value
-          $zlibInclude = "$vcpkgRoot\installed\x64-windows\include"
-          $zlibLib     = "$vcpkgRoot\installed\x64-windows\lib\zlib.lib"
+          $zlibInclude = "$vcpkgRoot\installed\x64-windows-static\include"
+          $zlibLib     = "$vcpkgRoot\installed\x64-windows-static\lib\zlibstatic.lib"
           Copy-Item -Path $zlibLib -Destination $targetLib -Force
+          Rename-Item -Path "$targetLib\zlibstatic.lib" -NewName "zlib.lib"
           Copy-Item -Path "$zlibInclude\zlib.h" -Destination $targetInc -Force
           Copy-Item -Path "$zlibInclude\zconf.h" -Destination $targetInc -Force
 
