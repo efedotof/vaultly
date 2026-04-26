@@ -32,7 +32,11 @@ public class SecurityConfig {
                                 "/api/auth/validate",
                                 "/api/auth/logout",
                                 "/api/auth/recover",
-                                "/api/auth/health")
+                                "/api/auth/health",
+                                "/style.css",
+                                "/script.js"
+
+                        )
                         .permitAll()
                         .requestMatchers("/tempacces/version132/temp-access/{token}/**").permitAll()
                         .anyRequest().authenticated());
