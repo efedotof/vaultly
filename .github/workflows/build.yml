@@ -132,21 +132,44 @@ jobs:
           New-Item -ItemType Directory -Force -Path $targetLib
           New-Item -ItemType Directory -Force -Path $targetInc
 
+       
           Copy-Item -Path out\lib\libssl.lib -Destination $targetLib -Force
           Copy-Item -Path out\lib\libcrypto.lib -Destination $targetLib -Force
           Copy-Item -Path out\include\* -Destination $targetInc -Recurse -Force
 
+    
+          Remove-Item "$targetLib\zlib*" -Force -ErrorAction SilentlyContinue
+
+    
           vcpkg install zlib:x64-windows-static
           $vcpkgRoot = (Get-Item env:VCPKG_INSTALLATION_ROOT).Value
           $zlibInclude = "$vcpkgRoot\installed\x64-windows-static\include"
-          $zlibLib     = "$vcpkgRoot\installed\x64-windows-static\lib\zlibstatic.lib"
-          Copy-Item -Path $zlibLib -Destination $targetLib -Force
-          Rename-Item -Path "$targetLib\zlibstatic.lib" -NewName "zlib.lib"
+
+      
+          $directLib = "$vcpkgRoot\installed\x64-windows-static\lib\zlib.lib"
+          if (Test-Path $directLib) {
+            Copy-Item -Path $directLib -Destination $targetLib -Force
+            Write-Host "Copied zlib.lib (direct path)"
+          } else {
+          
+            $found = Get-ChildItem -Path "$vcpkgRoot\installed\x64-windows-static\lib" -Filter "zlib*.lib" -Recurse
+            if (-not $found) {
+              Write-Host "##[error] No zlib static library found in vcpkg"
+              exit 1
+            }
+            $zlibLib = $found[0].FullName
+            Copy-Item -Path $zlibLib -Destination $targetLib -Force
+          
+            $copiedName = Join-Path $targetLib (Split-Path $zlibLib -Leaf)
+            if ((Split-Path $zlibLib -Leaf) -ne "zlib.lib") {
+              Rename-Item -Path $copiedName -NewName "zlib.lib" -Force
+            }
+            Write-Host "Copied and renamed zlib library to zlib.lib"
+          }
+         
           Copy-Item -Path "$zlibInclude\zlib.h" -Destination $targetInc -Force
           Copy-Item -Path "$zlibInclude\zconf.h" -Destination $targetInc -Force
-
-          Write-Host "Copied to $targetLib"
-          Get-ChildItem $targetLib
+          Write-Host "zlib static library ready"
 
       - name: Clean previous Windows build
         run: flutter clean
