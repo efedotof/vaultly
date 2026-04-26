@@ -84,7 +84,15 @@ elseif(UNIX AND NOT APPLE)
     target_link_libraries(shirm_crypto PRIVATE ssl crypto zlib)
 
 elseif(WIN32)
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    if(MSVC)
+        foreach(flag_var
+            CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE
+            CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO)
+            if(${flag_var} MATCHES "/MD")
+                string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
+            endif()
+        endforeach()
+    endif()
     set(WIN_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../windows/openssl_prebuild/windows/include)
     set(WIN_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../windows/openssl_prebuild/windows/x86_64)
     target_include_directories(shirm_crypto PRIVATE
@@ -97,5 +105,10 @@ elseif(WIN32)
     set_target_properties(crypto PROPERTIES IMPORTED_LOCATION ${WIN_LIB_DIR}/libcrypto.lib)
     add_library(z STATIC IMPORTED)
     set_target_properties(z PROPERTIES IMPORTED_LOCATION ${WIN_LIB_DIR}/zlib.lib)
+
+    set_property(TARGET shirm_crypto PROPERTY
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_options(shirm_crypto PRIVATE /MT)
+
     target_link_libraries(shirm_crypto PRIVATE ssl crypto z ws2_32 crypt32 secur32 advapi32 user32)
 endif()
