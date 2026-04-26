@@ -153,6 +153,12 @@ jobs:
       - name: Build Windows app (release)
         run: flutter build windows --release
 
+      - name: Check dependencies of shirm_crypto.dll
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          dumpbin /dependents build\windows\x64\runner\Release\shirm_crypto.dll
+          
       - name: Copy VC++ runtime DLLs into release folder
         shell: powershell
         run: |
