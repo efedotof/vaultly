@@ -150,6 +150,9 @@ jobs:
       - name: Clean previous Windows build
         run: flutter clean
 
+      - name: Build Windows app (release)
+        run: flutter build windows --release
+
       - name: Copy VC++ runtime DLLs into release folder
         shell: powershell
         run: |
@@ -170,9 +173,6 @@ jobs:
           Copy-Item "$sys32\vcruntime140.dll" $dest -Force
           Copy-Item "$sys32\msvcp140.dll" $dest -Force -ErrorAction SilentlyContinue
           Write-Host "Copied VC++ runtime from System32"
-
-      - name: Build Windows app (release)
-        run: flutter build windows --release
 
       - name: Install .NET SDK
         uses: actions/setup-dotnet@v4
