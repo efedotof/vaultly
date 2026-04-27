@@ -14,7 +14,7 @@ import 'package:vaulth_app/server/repository/auth/auth_interface.dart';
 import 'package:vaulth_app/server/repository/device/device_interface.dart';
 import 'package:vaulth_app/server/repository/totp/totp_interface.dart';
 import 'package:vaulth_app/server/repository/user/user_interface.dart';
-import 'package:vaulth_app/server/service/cache/local_file_cache.dart';
+import 'package:vaulth_app/server/service/cache/local_file_cache_platform.dart';
 import 'package:vaulth_app/server/service/key/seed_phrase_service.dart';
 import 'package:vaulth_app/server/service/update/update_info.dart';
 import 'package:vaulth_app/server/service/update/update_service.dart';

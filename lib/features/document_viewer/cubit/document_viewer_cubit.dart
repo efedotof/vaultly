@@ -13,7 +13,7 @@ import 'package:vaulth_app/server/service/system/logger_service.dart';
 import 'package:vaulth_app/server/service/decryption/public_file_decryption_service.dart';
 import 'package:vaulth_app/server/service/decryption/shirm_decryption_service_platform.dart';
 import 'package:vaulth_app/server/service/system/shirmps_header.dart';
-import 'package:shirm_crypto/shirm_crypto.dart';
+
 import 'file_saver.dart';
 import 'dart:io' as io;
 import 'package:path_provider/path_provider.dart';
@@ -34,8 +34,8 @@ class _DecryptParams {
 }
 
 Future<Uint8List> _decryptAndDecompressInIsolate(_DecryptParams params) async {
-  final decrypted = await ShirmCrypto.decryptData(
-    shpsData: params.encryptedBytes,
+  final decrypted = await ShirmDecryptionService.decryptShps(
+    params.encryptedBytes,
     privateKeyPem: params.privateKeyPem,
   );
 
@@ -98,9 +98,9 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
 
       if (file.isPublic == true) {
         await _loadPublicFile(file);
-        return;
+      } else {
+        await _loadPrivateFile(file, password);
       }
-      await _loadPrivateFile(file, password);
     } catch (e, stackTrace) {
       _logger.error(
         '[DocumentViewerCubit] Ошибка',
@@ -115,6 +115,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
 
   Future<void> retry() async {
     if (_lastFile == null) return;
+
     await Future.delayed(const Duration(milliseconds: 300));
     await loadFile(file: _lastFile!, password: _lastPassword ?? '');
   }
@@ -127,6 +128,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
     final metadata = await fileRepository.getDecryptionMetadata(file.id!);
 
     emit(const DocumentViewerState.downloading());
+
     final shpsData = await fileRepository.downloadShpsFromUrl(
       metadata.presignedUrl,
     );
@@ -237,6 +239,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
           privateKeyPem: pem,
           compressed: compressed,
         );
+
         localFileCache.saveFileInBackground(
           fileId: file.id!,
           data: decryptedBytes,
@@ -264,6 +267,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
       '[DocumentViewerCubit] Ошибка расшифровки приватного файла',
       error: lastError,
     );
+
     emit(DocumentViewerState.error(_formatErrorMessage(lastError)));
   }
 
@@ -326,10 +330,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
         throw Exception('Invalid header length: $headerLength');
       }
       final headerBytes = shpsBytes.sublist(4, 4 + headerLength);
-
-      final header = ShirmpsHeader.fromJsonBytes(headerBytes);
-
-      return header;
+      return ShirmpsHeader.fromJsonBytes(headerBytes);
     } catch (e) {
       rethrow;
     }
@@ -413,15 +414,11 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
       '.dockerignore',
     ];
     for (final ext in codeExtensions) {
-      if (lowerName.endsWith(ext)) {
-        return ContentType.code;
-      }
+      if (lowerName.endsWith(ext)) return ContentType.code;
     }
-
     if (lowerName.endsWith('.md') || lowerName.endsWith('.markdown')) {
       return ContentType.markdown;
     }
-
     if (lowerName.endsWith('.txt') ||
         lowerName.endsWith('.json') ||
         lowerName.endsWith('.xml') ||
@@ -429,11 +426,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
         lowerName.endsWith('.log')) {
       return ContentType.text;
     }
-
-    if (lowerName.endsWith('.pdf')) {
-      return ContentType.pdf;
-    }
-
+    if (lowerName.endsWith('.pdf')) return ContentType.pdf;
     if (lowerName.endsWith('.mp4') ||
         lowerName.endsWith('.mov') ||
         lowerName.endsWith('.avi') ||
@@ -443,7 +436,6 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
         lowerName.endsWith('.3gp')) {
       return ContentType.video;
     }
-
     if (lowerName.endsWith('.doc') ||
         lowerName.endsWith('.docx') ||
         lowerName.endsWith('.xls') ||
@@ -454,7 +446,6 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
         lowerName.endsWith('.ods')) {
       return ContentType.office;
     }
-
     if (lowerName.endsWith('.jpg') ||
         lowerName.endsWith('.jpeg') ||
         lowerName.endsWith('.png') ||
@@ -466,9 +457,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
     }
 
     if (data.length > 4) {
-      if (data[0] == 0xFF && data[1] == 0xD8) {
-        return ContentType.image;
-      }
+      if (data[0] == 0xFF && data[1] == 0xD8) return ContentType.image;
       if (data[0] == 0x89 &&
           data[1] == 0x50 &&
           data[2] == 0x4E &&
@@ -543,9 +532,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
         }
       } else {
         final dir = await getDownloadsDirectory();
-        if (dir == null) {
-          throw Exception('Не удалось получить папку Downloads');
-        }
+        if (dir == null) throw Exception('Не удалось получить папку Downloads');
         downloadsDir = dir;
       }
 

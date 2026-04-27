@@ -33,14 +33,14 @@ class AuthCubit extends Cubit<AuthState> {
     required dynamic keyManagerService,
     required AuthLocalStorage authLocalService,
     required UserInterface userInterface,
-    required UpdateService updateService, 
-  })  : _userInterface = userInterface,
-        _authinterface = authRepository,
-        _deviceInterface = deviceRepository,
-        _keyManagerService = keyManagerService,
-        _authLocalStorage = authLocalService,
-        _updateService = updateService, 
-        super(const AuthState.loading()) {
+    required UpdateService updateService,
+  }) : _userInterface = userInterface,
+       _authinterface = authRepository,
+       _deviceInterface = deviceRepository,
+       _keyManagerService = keyManagerService,
+       _authLocalStorage = authLocalService,
+       _updateService = updateService,
+       super(const AuthState.loading()) {
     Future.microtask(() => checkAuthStatus());
   }
 
@@ -54,7 +54,6 @@ class AuthCubit extends Cubit<AuthState> {
   final UpdateService _updateService;
   String? _currentPassword;
   String? get currentPassword => _currentPassword;
-
 
   Future<String> _getDeviceType() async {
     if (kIsWeb) return 'web';
@@ -560,6 +559,10 @@ class AuthCubit extends Cubit<AuthState> {
     } catch (e) {
       emit(AuthState.error(e.toString()));
     }
+  }
+
+  void setCurrentPassword(String password) {
+    _currentPassword = password;
   }
 
   void resetToUnauthenticated() => emit(const AuthState.unauthenticated());

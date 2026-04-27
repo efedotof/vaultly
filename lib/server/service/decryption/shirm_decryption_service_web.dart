@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:webcrypto/webcrypto.dart' as web;
 import 'package:archive/archive.dart';
 import '../system/shirmps_header.dart';
@@ -41,6 +41,7 @@ class ShirmDecryptionService {
             hash,
           );
           aesKeyBytes = await privateKey.decryptBytes(encryptedAesKey);
+
           break;
         } catch (e) {
           errors.add(Exception('Failed with hash $hash: $e'));
@@ -54,6 +55,7 @@ class ShirmDecryptionService {
       }
 
       final encryptedData = shpsBytes.sublist(4 + headerLength);
+
       final aesKey = await web.AesGcmSecretKey.importRawKey(aesKeyBytes);
       final decryptedData = await aesKey.decryptBytes(encryptedData, iv);
 
@@ -61,6 +63,7 @@ class ShirmDecryptionService {
         try {
           final gzipDecoder = GZipDecoder();
           final decompressed = gzipDecoder.decodeBytes(decryptedData);
+
           return Uint8List.fromList(decompressed);
         } catch (e) {
           throw Exception('Failed to decompress gzip data: $e');
@@ -88,6 +91,7 @@ class ShirmDecryptionService {
       final actualHeaderLength = ByteData.view(
         headerLenBuffer.buffer,
       ).getInt32(0, Endian.big);
+
       if (actualHeaderLength <= 0 || actualHeaderLength > 20 * 1024) {
         throw Exception('Invalid header length: $actualHeaderLength');
       }
@@ -119,8 +123,11 @@ class ShirmDecryptionService {
     }
 
     final chunkCount = effectiveHeader.metadata!['chunkCount'] as int;
-    final chunkIvsBase64 = (effectiveHeader.metadata!['chunkIvs'] as List)
+
+    final chunkIvsJson = effectiveHeader.metadata!['chunkIvs']!;
+    final List<String> chunkIvsBase64 = (jsonDecode(chunkIvsJson) as List)
         .cast<String>();
+
     final encryptedAesKey = base64.decode(effectiveHeader.encryptedKey!);
 
     Uint8List? aesKeyBytes;
@@ -128,6 +135,7 @@ class ShirmDecryptionService {
       try {
         final privateKey = await _importRsaOaepPrivateKey(privateKeyPem, hash);
         aesKeyBytes = await privateKey.decryptBytes(encryptedAesKey);
+
         break;
       } catch (_) {}
     }
@@ -137,19 +145,21 @@ class ShirmDecryptionService {
     final List<int>? compressedBuffer =
         effectiveHeader.metadata?['compressed'] == 'true' ? [] : null;
 
-    final encryptedChunkSizes =
-        effectiveHeader.metadata!['encryptedChunkSizes'] as List<dynamic>?;
-    if (encryptedChunkSizes == null ||
-        encryptedChunkSizes.length != chunkCount) {
-      throw Exception('Missing encrypted chunk sizes in metadata');
-    }
+    final sizesJson = effectiveHeader.metadata!['encryptedChunkSizes']!;
+    final List<int> sizes = (jsonDecode(sizesJson) as List).cast<int>();
 
-    final List<int> sizes = encryptedChunkSizes.cast<int>();
+    if (sizes.length != chunkCount) {
+      throw Exception(
+        'Mismatched encrypted chunk sizes count: ${sizes.length} vs $chunkCount',
+      );
+    }
 
     for (int i = 0; i < chunkCount; i++) {
       final iv = base64.decode(chunkIvsBase64[i]);
       final encryptedChunk = await _readExactly(remainingStream, sizes[i]);
+
       final decryptedChunk = await aesKey.decryptBytes(encryptedChunk, iv);
+
       if (compressedBuffer != null) {
         compressedBuffer.addAll(decryptedChunk);
       } else {
@@ -158,10 +168,15 @@ class ShirmDecryptionService {
     }
 
     if (compressedBuffer != null) {
-      final decompressed = GZipDecoder().decodeBytes(
-        Uint8List.fromList(compressedBuffer),
-      );
-      yield Uint8List.fromList(decompressed);
+      try {
+        final decompressed = GZipDecoder().decodeBytes(
+          Uint8List.fromList(compressedBuffer),
+        );
+
+        yield Uint8List.fromList(decompressed);
+      } catch (e) {
+        rethrow;
+      }
     }
   }
 

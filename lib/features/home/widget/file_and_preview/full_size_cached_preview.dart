@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
-import 'package:vaulth_app/server/service/cache/local_file_cache.dart';
+import 'package:vaulth_app/server/service/cache/local_file_cache_platform.dart';
 import 'content_type.dart';
 import 'preview_content.dart';
 

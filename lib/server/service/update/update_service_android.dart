@@ -3,11 +3,12 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:vaulth_app/server/service/system/logger_service.dart';
-import 'update_service.dart';
 import 'update_info.dart';
+import 'update_service.dart';
 
 class AndroidUpdateService implements IUpdateService {
   final String githubRepoUrl;
@@ -67,28 +68,46 @@ class AndroidUpdateService implements IUpdateService {
 
   @override
   Future<UpdateInfo?> checkForUpdate() async {
-    if (!Platform.isAndroid) {
-      _logger.debug('AndroidUpdateService: not Android, skipping');
-      return null;
-    }
+    if (!Platform.isAndroid) return null;
 
     try {
       _logger.debug(
         'Checking for updates from GitHub: $_githubUser/$_repoName',
       );
+
+      final packageInfo = await PackageInfo.fromPlatform();
+      String currentVersionRaw = packageInfo.version;
+      if (currentVersionRaw.contains('+')) {
+        currentVersionRaw = currentVersionRaw.split('+').first;
+      }
+      _logger.debug('Current app version: $currentVersionRaw');
+
       final latestRelease = await _fetchLatestRelease();
       if (latestRelease == null) return null;
 
-      final version = latestRelease['tag_name'] as String? ?? 'unknown';
+      String latestVersionRaw = latestRelease['tag_name'] as String? ?? '';
+      String latestVersion = latestVersionRaw;
+      if (latestVersion.startsWith('v')) {
+        latestVersion = latestVersion.substring(1);
+      }
+      _logger.debug('Latest GitHub version (normalized): $latestVersion');
+
+      if (currentVersionRaw == latestVersion) {
+        _logger.debug('Already on the latest version');
+        return null;
+      }
+
       final apkAsset = _findApkAsset(latestRelease['assets'] as List?);
       if (apkAsset == null) return null;
 
       final downloadUrl = apkAsset['browser_download_url'] as String;
       final fileSize = apkAsset['size'] as int? ?? 0;
 
-      _logger.info('Update found: $version, size: ${_formatBytes(fileSize)}');
+      _logger.info(
+        'Update found: $latestVersionRaw, size: ${_formatBytes(fileSize)}',
+      );
       return UpdateInfo(
-        version: version,
+        version: latestVersionRaw,
         downloadUrl: downloadUrl,
         fileSize: fileSize,
       );

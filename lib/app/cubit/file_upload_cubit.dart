@@ -11,8 +11,6 @@ import 'package:vaulth_app/server/model/file/upload_task/upload_task.dart';
 import 'package:vaulth_app/server/repository/file/file_interface.dart';
 import 'package:vaulth_app/server/service/encryption/shirm_encryption_service_platform.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
-import 'package:shirm_crypto/shirm_crypto.dart';
-import 'dart:io' as io;
 
 part 'file_upload_state.dart';
 part 'file_upload_cubit.freezed.dart';
@@ -364,33 +362,16 @@ class FileUploadCubit extends Cubit<FileUploadState> {
           originalFileName: task.fileName,
         );
       } else {
-        final tempDir = io.Directory.systemTemp;
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final tempInputPath = '${tempDir.path}/input_$timestamp.bin';
-
-        try {
-          await io.File(tempInputPath).writeAsBytes(task.fileBytes);
-
-          final bytesBuilder = BytesBuilder(copy: false);
-          final stream = ShirmCrypto.encryptFileStream(
-            inputPath: tempInputPath,
-            publicKeyPem: userPublicKeyPem,
-            privateKeyPem: userPrivateKeyPem,
-            userId: userId,
-            keyOwner: keyOwner,
-            originalFileName: task.fileName,
-            compress: true,
-          );
-
-          await for (final chunk in stream) {
-            bytesBuilder.add(chunk);
-          }
-          encryptedBytes = bytesBuilder.takeBytes();
-        } finally {
-          await _deleteTempFile(tempInputPath);
-        }
+        encryptedBytes = await ShirmEncryptionService.encryptBytes(
+          task.fileBytes,
+          publicKeyPem: userPublicKeyPem,
+          userId: userId,
+          keyOwner: keyOwner,
+          privateKeyPem: userPrivateKeyPem,
+          originalFileName: task.fileName,
+          compress: true,
+        );
       }
-
       _updateTask(
         UploadTask(
           id: task.taskId,
@@ -445,15 +426,6 @@ class FileUploadCubit extends Cubit<FileUploadState> {
           folderId: task.folderId,
         ),
       );
-    }
-  }
-
-  Future<void> _deleteTempFile(String? path) async {
-    if (path != null && !kIsWeb) {
-      try {
-        final f = io.File(path);
-        if (await f.exists()) await f.delete();
-      } catch (_) {}
     }
   }
 

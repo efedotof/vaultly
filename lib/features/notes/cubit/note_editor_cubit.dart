@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'dart:io' as io;
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:basic_utils/basic_utils.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:vaulth_app/features/auth/cubit/auth_cubit.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
 import 'package:vaulth_app/server/repository/file/file_interface.dart';
@@ -117,47 +115,30 @@ class NoteEditorCubit extends Cubit<NoteEditorState> {
 
       final password = authCubit.currentPassword ?? '';
 
-      Uint8List encryptedData;
+      String publicKeyPem;
+      String privateKeyPem;
 
       if (kIsWeb) {
-        final publicKeyPem = await keyManager.getUserPublicKey() ?? '';
-        final privateKeyPem = await keyManager.getPrivateKeyPEM(password) ?? '';
-        encryptedData =
-            await ShirmEncryptionService.encryptBytes(
-              Uint8List.fromList(bytes),
-              publicKeyPem: publicKeyPem,
-              userId: userId,
-              keyOwner: 'user',
-              privateKeyPem: privateKeyPem,
-              originalFileName: fileName,
-            );
+        publicKeyPem = await keyManager.getUserPublicKey() ?? '';
+        privateKeyPem = await keyManager.getPrivateKeyPEM(password) ?? '';
       } else {
         final publicKeyObj = await keyManager.getUserPublicKeyObject();
         final privateKeyObj = await keyManager.getPrivateKey(password);
         if (publicKeyObj == null || privateKeyObj == null) {
           throw Exception('Не удалось получить ключи шифрования');
         }
-
-        final tempDir = await getTemporaryDirectory();
-        final tempPlainFile = io.File(
-          '${tempDir.path}/temp_note_${DateTime.now().millisecondsSinceEpoch}.md',
-        );
-        try {
-          await tempPlainFile.writeAsBytes(bytes);
-          encryptedData =
-              await ShirmEncryptionService.encryptFile(
-                tempPlainFile,
-                publicKey: publicKeyObj,
-                userId: userId,
-                keyOwner: 'user',
-                privateKey: privateKeyObj,
-              );
-        } finally {
-          if (await tempPlainFile.exists()) {
-            await tempPlainFile.delete();
-          }
-        }
+        publicKeyPem = CryptoUtils.encodeRSAPublicKeyToPem(publicKeyObj);
+        privateKeyPem = CryptoUtils.encodeRSAPrivateKeyToPem(privateKeyObj);
       }
+
+      final encryptedData = await ShirmEncryptionService.encryptBytes(
+        Uint8List.fromList(bytes),
+        publicKeyPem: publicKeyPem,
+        userId: userId,
+        keyOwner: 'user',
+        privateKeyPem: privateKeyPem,
+        originalFileName: fileName,
+      );
 
       if (existingNote == null) {
         await fileRepository.createNote(

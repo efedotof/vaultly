@@ -6,6 +6,7 @@ import 'package:vaulth_app/features/notes/widget/note_editor_screen.dart';
 import 'package:vaulth_app/features/notes/widget/note_list_item.dart';
 import 'package:vaulth_app/route/app_router.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
+import 'package:vaulth_app/server/service/cache/local_file_cache_platform.dart';
 
 @RoutePage()
 class NotesScreen extends StatelessWidget {
@@ -13,6 +14,8 @@ class NotesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localCache = context.read<LocalFileCache>();
+
     return BlocBuilder<NotesCubit, NotesState>(
       builder: (context, state) {
         return Scaffold(
@@ -48,6 +51,7 @@ class NotesScreen extends StatelessWidget {
                                 note: note,
                                 onTap: () => _openNoteEditor(context, note),
                                 onDelete: () => _deleteNote(context, note),
+                                cache: localCache,
                               );
                             },
                           ),

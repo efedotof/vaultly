@@ -20,7 +20,7 @@ import 'package:vaulth_app/server/repository/totp/totp_repository.dart';
 import 'package:vaulth_app/server/repository/user/user_interface.dart';
 import 'package:vaulth_app/server/repository/user/user_repository.dart';
 import 'package:vaulth_app/server/service/key/key_manager_service.dart';
-import 'package:vaulth_app/server/service/cache/local_file_cache.dart';
+import 'package:vaulth_app/server/service/cache/local_file_cache_platform.dart';
 import 'package:vaulth_app/server/service/key/seed_phrase_service.dart';
 import 'package:vaulth_app/server/service/encryption/shirm_encryption_service.dart';
 import 'package:vaulth_app/server/service/update/update_service.dart';

@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vaulth_app/features/home/cubit/home_cubit.dart';
 import 'package:vaulth_app/route/app_router.dart';
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
-import 'package:vaulth_app/server/service/cache/local_file_cache.dart';
+import 'package:vaulth_app/server/service/cache/local_file_cache_platform.dart';
 import 'file_icon_helper.dart';
 import 'full_size_cached_preview.dart';
 

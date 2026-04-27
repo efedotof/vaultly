@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:sembast_web/sembast_web.dart';
 
@@ -6,7 +7,7 @@ class LocalFileCache {
   static LocalFileCache? _instance;
   late Database _db;
   late StoreRef<String, Map<String, dynamic>> _metaStore;
-  late StoreRef<String, Uint8List> _chunksStore;
+  late StoreRef<String, String> _chunksStore;
   bool _initialized = false;
 
   static LocalFileCache get instance {
@@ -21,7 +22,7 @@ class LocalFileCache {
     final factory = databaseFactoryWeb;
     _db = await factory.openDatabase('shirm_cache_web');
     _metaStore = StoreRef<String, Map<String, dynamic>>('metadata');
-    _chunksStore = StoreRef<String, Uint8List>('chunks');
+    _chunksStore = StoreRef<String, String>('chunks_base64');
     _initialized = true;
   }
 
@@ -36,9 +37,10 @@ class LocalFileCache {
     int totalSize = 0;
     final List<int> chunkSizes = [];
 
-    await for (final chunk in _chunkStream(dataStream, chunkSize)) {
+    await for (final chunk in dataStream) {
+      final base64 = base64Encode(chunk);
       final key = '${fileId}_$chunkIndex';
-      await _chunksStore.record(key).put(_db, chunk);
+      await _chunksStore.record(key).put(_db, base64);
       chunkSizes.add(chunk.length);
       totalSize += chunk.length;
       chunkIndex++;
@@ -54,6 +56,25 @@ class LocalFileCache {
     });
   }
 
+  Future<void> saveFile(
+    String fileId,
+    Uint8List data, {
+    String? originalName,
+  }) async {
+    await _init();
+    final base64 = base64Encode(data);
+    final key = '${fileId}_0';
+    await _chunksStore.record(key).put(_db, base64);
+    await _metaStore.record(fileId).put(_db, {
+      'originalName': originalName,
+      'totalSize': data.length,
+      'chunkSize': data.length,
+      'chunkCount': 1,
+      'chunkSizes': [data.length],
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+  }
+
   Stream<Uint8List> getFileChunksStream(String fileId) async* {
     await _init();
     final meta = await _metaStore.record(fileId).get(_db);
@@ -61,8 +82,10 @@ class LocalFileCache {
     final chunkCount = meta['chunkCount'] as int;
     for (int i = 0; i < chunkCount; i++) {
       final key = '${fileId}_$i';
-      final chunk = await _chunksStore.record(key).get(_db);
-      if (chunk != null) yield chunk;
+      final base64 = await _chunksStore.record(key).get(_db);
+      if (base64 != null) {
+        yield base64Decode(base64);
+      }
     }
   }
 
@@ -80,18 +103,6 @@ class LocalFileCache {
       offset += chunk.length;
     }
     return result;
-  }
-
-  Future<void> saveFile(
-    String fileId,
-    Uint8List data, {
-    String? originalName,
-  }) async {
-    await saveFileChunked(
-      fileId,
-      Stream.value(data),
-      originalName: originalName,
-    );
   }
 
   Future<bool> hasFile(String fileId) async {
@@ -140,22 +151,26 @@ class LocalFileCache {
     return meta?['originalName'] as String?;
   }
 
-  Stream<Uint8List> _chunkStream(
-    Stream<Uint8List> stream,
-    int chunkSize,
-  ) async* {
-    List<int> buffer = [];
-    await for (final data in stream) {
-      buffer.addAll(data);
-      while (buffer.length >= chunkSize) {
-        yield Uint8List.fromList(buffer.sublist(0, chunkSize));
-        buffer = buffer.sublist(chunkSize);
-      }
-    }
-    if (buffer.isNotEmpty) yield Uint8List.fromList(buffer);
-  }
-
   Future<void> close() async {
     if (_initialized) await _db.close();
+  }
+
+  void saveFileInBackground({
+    required String fileId,
+    required Uint8List data,
+    String? originalName,
+  }) {
+    saveFile(fileId, data, originalName: originalName).catchError((_) {});
+  }
+
+  Future<int> getCacheSize() async {
+    await _init();
+    int total = 0;
+    final records = await _metaStore.find(_db, finder: Finder());
+    for (final record in records) {
+      final meta = record.value;
+      total += (meta['totalSize'] as int?) ?? 0;
+    }
+    return total;
   }
 }

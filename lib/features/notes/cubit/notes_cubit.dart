@@ -54,4 +54,8 @@ class NotesCubit extends Cubit<NotesState> {
       await loadNotes();
     }
   }
+
+  void reset() {
+    emit(const NotesState.initial());
+  }
 }

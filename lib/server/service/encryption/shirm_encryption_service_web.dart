@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:typed_data';
 import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart';
 import 'package:webcrypto/webcrypto.dart' as web;
 import '../system/shirmps_header.dart';
 
@@ -73,6 +73,7 @@ class ShirmEncryptionService {
     final encryptedKey = await publicKey.encryptBytes(aesKey);
 
     final List<String> chunkIvs = [];
+    final List<int> encryptedChunkSizes = [];
     final chunkController = StreamController<Uint8List>();
 
     Stream<Uint8List> dataToEncrypt = plaintextStream;
@@ -87,11 +88,14 @@ class ShirmEncryptionService {
     }
 
     int chunkIndex = 0;
+
     await for (final chunk in _chunkStream(dataToEncrypt, chunkSize)) {
       final iv = _generateRandomBytes(12);
       chunkIvs.add(base64.encode(iv));
       final encryptedChunk = await _aesGcmEncrypt(chunk, aesKey, iv);
       chunkController.add(encryptedChunk);
+      encryptedChunkSizes.add(encryptedChunk.length);
+
       chunkIndex++;
     }
     await chunkController.close();
@@ -106,6 +110,7 @@ class ShirmEncryptionService {
         'chunkSize': chunkSize.toString(),
         'chunkCount': chunkIndex.toString(),
         'chunkIvs': jsonEncode(chunkIvs),
+        'encryptedChunkSizes': jsonEncode(encryptedChunkSizes),
         if (compress) 'compressed': 'true',
       }
       ..keyOwner = keyOwner

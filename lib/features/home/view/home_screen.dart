@@ -155,47 +155,45 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
- Future<void> _uploadFile() async {
-  final result = await FilePicker.platform.pickFiles(
-    allowMultiple: true,
-  );
-  if (result == null || result.files.isEmpty) return;
+  Future<void> _uploadFile() async {
+    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+    if (result == null || result.files.isEmpty) return;
 
-  final isPublic = await _showTypeDialog();
-  if (isPublic == null) return;
+    final isPublic = await _showTypeDialog();
+    if (isPublic == null) return;
 
-  final password = await _showPasswordDialog();
-  if (password == null) return;
+    final password = await _showPasswordDialog();
+    if (password == null) return;
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  final filesBytes = <Uint8List>[];
-  final fileNames = <String>[];
+    final filesBytes = <Uint8List>[];
+    final fileNames = <String>[];
 
-  for (final platformFile in result.files) {
-    Uint8List bytes;
-    if (kIsWeb) {
-      bytes = platformFile.bytes!;
-    } else {
-      final file = File(platformFile.path!);
-      bytes = await file.readAsBytes();
+    for (final platformFile in result.files) {
+      Uint8List bytes;
+      if (kIsWeb) {
+        bytes = platformFile.bytes!;
+      } else {
+        final file = File(platformFile.path!);
+        bytes = await file.readAsBytes();
+      }
+      filesBytes.add(bytes);
+      fileNames.add(platformFile.name);
     }
-    filesBytes.add(bytes);
-    fileNames.add(platformFile.name);
+
+    if (!mounted) return;
+
+    context.read<FileUploadCubit>().addMultipleUploadTasks(
+      filesBytes: filesBytes,
+      fileNames: fileNames,
+      password: password,
+      isPublic: isPublic,
+      onAllSuccess: () {
+        context.read<HomeCubit>().refresh();
+      },
+    );
   }
-
-  if (!mounted) return;
-
-  context.read<FileUploadCubit>().addMultipleUploadTasks(
-    filesBytes: filesBytes,
-    fileNames: fileNames,
-    password: password,
-    isPublic: isPublic,
-    onAllSuccess: () {  
-      context.read<HomeCubit>().refresh();
-    },
-  );
-}
 
   Future<bool?> _showTypeDialog() async {
     return showDialog<bool>(
@@ -458,10 +456,69 @@ class _HomeScreenState extends State<HomeScreen> {
                             onPressed: _refresh,
                             tooltip: 'Обновить',
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.download_done),
-                            onPressed: () => _cacheAllFiles(context),
-                            tooltip: 'Кэшировать все файлы',
+
+                          BlocBuilder<BatchCacheCubit, BatchCacheState>(
+                            builder: (context, cacheState) {
+                              final progress = cacheState.maybeWhen(
+                                inProgress: (current, total) =>
+                                    (current: current, total: total),
+                                orElse: () => null,
+                              );
+                              if (progress != null) {
+                                final current = progress.current;
+                                final total = progress.total;
+                                final isSingle = total == 1;
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4.0,
+                                  ),
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 200),
+                                    child: GestureDetector(
+                                      onTap: null,
+                                      child: isSingle
+                                          ? const SizedBox(
+                                              width: 32,
+                                              height: 32,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.5,
+                                              ),
+                                            )
+                                          : Container(
+                                              width: 32,
+                                              height: 32,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.primaryContainer,
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  '$current',
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .labelSmall
+                                                      ?.copyWith(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onPrimaryContainer,
+                                                      ),
+                                                ),
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                );
+                              }
+                              return IconButton(
+                                icon: const Icon(Icons.download_done),
+                                onPressed: () => _cacheAllFiles(context),
+                                tooltip: 'Кэшировать все файлы',
+                              );
+                            },
                           ),
                           IconButton(
                             icon: const Icon(Icons.cloud_upload),
@@ -479,7 +536,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Positioned(
               bottom: 90,
               left: 16,
-              right: 16,
+              right: MediaQuery.of(context).size.width * 0.5,
               child: BlocBuilder<FileUploadCubit, FileUploadState>(
                 builder: (context, uploadState) {
                   final tasks = uploadState.maybeWhen(
@@ -502,40 +559,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
             ),
-
-            Positioned(
-              bottom: 90,
-              left: 16,
-              right: 16,
-              child: BlocBuilder<BatchCacheCubit, BatchCacheState>(
-                builder: (context, state) {
-                  return state.maybeWhen(
-                    inProgress: (current, total) => Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 8,
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('Кэширование файлов: $current из $total'),
-                          const SizedBox(height: 8),
-                          LinearProgressIndicator(value: current / total),
-                        ],
-                      ),
-                    ),
-                    orElse: () => const SizedBox.shrink(),
-                  );
-                },
-              ),
-            ),
           ],
         ),
       ),
@@ -544,18 +567,16 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            FloatingActionButton.extended(
+            FloatingActionButton(
               onPressed: _showCreateFolderDialog,
-              label: const Text('Новая папка'),
-              icon: const Icon(Icons.create_new_folder),
               heroTag: 'createFolder',
+              child: const Icon(Icons.create_new_folder),
             ),
             const SizedBox(height: 12),
-            FloatingActionButton.extended(
+            FloatingActionButton(
               onPressed: _uploadFile,
-              label: const Text('Загрузить файл'),
-              icon: const Icon(Icons.cloud_upload),
               heroTag: 'uploadFile',
+              child: const Icon(Icons.cloud_upload),
             ),
           ],
         ),

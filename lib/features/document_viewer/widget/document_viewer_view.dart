@@ -11,7 +11,7 @@ import 'package:vaulth_app/features/document_viewer/cubit/document_viewer_cubit.
 import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
 import 'package:vaulth_app/server/model/tempaccess/create_temp_link_request/create_temp_link_request.dart';
 import 'package:vaulth_app/server/repository/temp_access/temp_access_interface.dart';
-import 'package:vaulth_app/server/service/cache/local_file_cache.dart';
+import 'package:vaulth_app/server/service/cache/local_file_cache_platform.dart';
 
 import 'content_view.dart';
 
@@ -587,7 +587,7 @@ class _DocumentViewerViewState extends State<DocumentViewerView> {
                 onVideoTempPath: (path) => _tempVideoPath = path,
                 onToggleFullscreen: _toggleFullscreen,
                 preUrlFile: widget.file.s3Url ?? "",
-                file: widget.file, 
+                file: widget.file,
               ),
               error: (message) => Center(
                 child: Padding(

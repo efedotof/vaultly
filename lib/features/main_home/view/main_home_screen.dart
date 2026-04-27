@@ -17,6 +17,7 @@ class MainHomeScreen extends StatelessWidget {
         SettingsRoute(),
       ],
       builder: (context, children, tabsRouter) {
+        final bottomPadding = MediaQuery.of(context).padding.bottom;
         return Scaffold(
           backgroundColor: Colors.transparent,
           resizeToAvoidBottomInset: false,
@@ -44,7 +45,7 @@ class MainHomeScreen extends StatelessWidget {
                 ),
               ),
               Positioned(
-                bottom: 27,
+                bottom: 10 + bottomPadding,
                 left: 0,
                 right: 0,
                 child: FloatingBottomNavBar(
