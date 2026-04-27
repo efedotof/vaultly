@@ -19,7 +19,7 @@ class ShirmEncryptionService {
         ? CryptoUtils.encodeRSAPrivateKeyToPem(privateKey)
         : null;
 
-    return ShirmCrypto.encryptFile(
+    final result = ShirmCrypto.encryptFile(
       inputPath: file.path,
       publicKeyPem: publicKeyPem,
       privateKeyPem: privateKeyPem,
@@ -28,6 +28,7 @@ class ShirmEncryptionService {
       originalFileName: originalFileName ?? file.path.split('/').last,
       compress: compress,
     );
+    return result;
   }
 
   static Future<void> encryptFileToFile(
@@ -118,7 +119,8 @@ class ShirmEncryptionService {
       await for (final chunk in stream) {
         bytesBuilder.add(chunk);
       }
-      return bytesBuilder.takeBytes();
+      final result = bytesBuilder.takeBytes();
+      return result;
     } finally {
       try {
         if (await tempInputFile.exists()) {

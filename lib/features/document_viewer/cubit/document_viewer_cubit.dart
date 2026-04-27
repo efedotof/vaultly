@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:archive/archive.dart';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, compute;
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -25,26 +24,15 @@ part 'document_viewer_cubit.freezed.dart';
 class _DecryptParams {
   final Uint8List encryptedBytes;
   final String privateKeyPem;
-  final bool compressed;
-  _DecryptParams({
-    required this.encryptedBytes,
-    required this.privateKeyPem,
-    required this.compressed,
-  });
+  _DecryptParams({required this.encryptedBytes, required this.privateKeyPem});
 }
 
 Future<Uint8List> _decryptAndDecompressInIsolate(_DecryptParams params) async {
-  final decrypted = await ShirmDecryptionService.decryptShps(
+  final result = await ShirmDecryptionService.decryptShps(
     params.encryptedBytes,
     privateKeyPem: params.privateKeyPem,
   );
-
-  if (!params.compressed) {
-    return decrypted;
-  }
-
-  final gzip = GZipDecoder();
-  return Uint8List.fromList(gzip.decodeBytes(decrypted));
+  return result;
 }
 
 class DocumentViewerCubit extends Cubit<DocumentViewerState> {
@@ -189,6 +177,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
         error: e,
         stackTrace: stack,
       );
+
       rethrow;
     }
   }
@@ -292,6 +281,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
         devicePem = CryptoUtils.encodeRSAPrivateKeyToPem(deviceKey);
       }
     }
+
     return (userKey: userPem, deviceKey: devicePem);
   }
 
@@ -305,6 +295,7 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
         encryptedBytes,
         privateKeyPem: privateKeyPem,
       );
+
       return result;
     } else {
       return await compute(
@@ -312,7 +303,6 @@ class DocumentViewerCubit extends Cubit<DocumentViewerState> {
         _DecryptParams(
           encryptedBytes: encryptedBytes,
           privateKeyPem: privateKeyPem,
-          compressed: compressed,
         ),
       );
     }

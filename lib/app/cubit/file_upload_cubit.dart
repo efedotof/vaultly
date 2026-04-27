@@ -126,12 +126,15 @@ class FileUploadCubit extends Cubit<FileUploadState> {
 
   Future<void> retryTask(String taskId) async {
     final data = _retryData[taskId];
-    if (data == null) return;
+    if (data == null) {
+      return;
+    }
 
     dismissTask(taskId);
     _retryData.remove(taskId);
 
     final newTaskId = '${DateTime.now().millisecondsSinceEpoch}_retry';
+
     _addPendingTask(
       _PendingUploadTask(
         taskId: newTaskId,
@@ -308,7 +311,6 @@ class FileUploadCubit extends Cubit<FileUploadState> {
         _removeTask(task.taskId);
         return;
       }
-
       _updateTask(
         UploadTask(
           id: task.taskId,
@@ -372,6 +374,7 @@ class FileUploadCubit extends Cubit<FileUploadState> {
           compress: true,
         );
       }
+
       _updateTask(
         UploadTask(
           id: task.taskId,
@@ -383,6 +386,7 @@ class FileUploadCubit extends Cubit<FileUploadState> {
       );
 
       final randomName = _generateRandomFileName();
+
       await fileRepository.uploadShps(
         encryptedData: encryptedBytes,
         originalFileName: randomName,
@@ -414,6 +418,7 @@ class FileUploadCubit extends Cubit<FileUploadState> {
           folderId: task.folderId,
         ),
       );
+
       task.onSuccess?.call();
       _removeTask(task.taskId);
     } catch (e) {
@@ -479,9 +484,10 @@ class FileUploadCubit extends Cubit<FileUploadState> {
     const chars =
         'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final random = Random.secure();
-    return List.generate(
+    final name = List.generate(
       length,
       (_) => chars[random.nextInt(chars.length)],
     ).join();
+    return name;
   }
 }

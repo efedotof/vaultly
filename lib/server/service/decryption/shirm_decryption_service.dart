@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart' show compute;
 import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shirm_crypto/shirm_crypto.dart';
 import '../system/shirmps_header.dart';
 
@@ -26,7 +25,8 @@ Future<Uint8List> _decryptInIsolate(_DecryptParams params) async {
   if (params.compressed) {
     final gzipDecoder = GZipDecoder();
     final decompressed = gzipDecoder.decodeBytes(decrypted);
-    return Uint8List.fromList(decompressed);
+    final result = Uint8List.fromList(decompressed);
+    return result;
   }
 
   return decrypted;
@@ -40,7 +40,7 @@ class ShirmDecryptionService {
     final header = _extractShirmpsHeader(shpsBytes);
     final compressed = header.compressed;
 
-    return compute(
+    final result = await compute(
       _decryptInIsolate,
       _DecryptParams(
         shpsBytes: shpsBytes,
@@ -48,6 +48,7 @@ class ShirmDecryptionService {
         compressed: compressed,
       ),
     );
+    return result;
   }
 
   static Future<void> decryptShpsToFile(

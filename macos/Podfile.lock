@@ -16,7 +16,6 @@ PODS:
     - FlutterMacOS
   - media_kit_video (0.0.1):
     - FlutterMacOS
-  - OpenSSL-Universal (1.1.2301)
   - package_info_plus (0.0.1):
     - FlutterMacOS
   - shared_preferences_foundation (0.0.1):
@@ -24,7 +23,6 @@ PODS:
     - FlutterMacOS
   - shirm_crypto (0.0.1):
     - FlutterMacOS
-    - OpenSSL-Universal (~> 1.1.1100)
   - velopack_flutter (0.0.1):
     - FlutterMacOS
   - volume_controller (0.0.1):
@@ -54,10 +52,6 @@ DEPENDENCIES:
   - wakelock_plus (from `Flutter/ephemeral/.symlinks/plugins/wakelock_plus/macos`)
   - webcrypto (from `Flutter/ephemeral/.symlinks/plugins/webcrypto/darwin`)
   - webview_flutter_wkwebview (from `Flutter/ephemeral/.symlinks/plugins/webview_flutter_wkwebview/darwin`)
-
-SPEC REPOS:
-  https://github.com/CocoaPods/Specs.git:
-    - OpenSSL-Universal
 
 EXTERNAL SOURCES:
   device_info_plus:
@@ -99,10 +93,9 @@ SPEC CHECKSUMS:
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
   media_kit_libs_macos_video: b3e2bbec2eef97c285f2b1baa7963c67c753fb82
   media_kit_video: c75b07f14d59706c775778e4dd47dd027de8d1e5
-  OpenSSL-Universal: ca89c20240633a77c776082ba76b7d90f992bf77
   package_info_plus: 12f1c5c2cfe8727ca46cbd0b26677728972d9a5b
   shared_preferences_foundation: 5086985c1d43c5ba4d5e69a4e8083a389e2909e6
-  shirm_crypto: c7c4d50a52bc23cc7dc05de78aa6ee3f6f9cda42
+  shirm_crypto: 99941a2c65d32aca0d99ec4e3846d423e4f7d61e
   velopack_flutter: 9d8a62354a23c75157e37a66ef691a47b4fe0e92
   volume_controller: 90a5978956cf18ebb7739bf5382fc1b0cfef66d0
   wakelock_plus: 9d63063ffb7af1c215209769067c57103bde719d
