@@ -136,8 +136,8 @@ CREATE TABLE IF NOT EXISTS devices (
     encrypted_private_key TEXT,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    unique_id VARCHAR(255) NOT NULL,
+    last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+    unique_id VARCHAR(255) NOT NULL                   
 );
 
 CREATE INDEX idx_users_email ON users(email);
