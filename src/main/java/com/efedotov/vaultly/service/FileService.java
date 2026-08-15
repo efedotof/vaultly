@@ -89,14 +89,17 @@ public class FileService {
             }
 
             String shpsFileName = originalFilename.endsWith(".shps") ? originalFilename : originalFilename + ".shps";
-            String url = s3Service.uploadFileWithMultipart(tempFile, shpsFileName, "application/x-shirmps");
-            String s3Key = s3Service.getObjectKeyFromUrl(url);
+        
+            String s3Key = s3Service.uploadFileWithMultipart(tempFile, shpsFileName, "application/x-shirmps");
             long actualSize = Files.size(tempFile);
+            
+   
+            String publicUrl = s3Service.getPublicUrl(s3Key);
 
             FileContent content = FileContent.builder()
                     .hash(contentHash)
                     .s3Key(s3Key)
-                    .s3Url(url)
+                    .s3Url(publicUrl)  
                     .size(actualSize)
                     .mimeType("application/x-shirmps")
                     .isPublic(isPublic)
@@ -132,15 +135,17 @@ public class FileService {
                     plainStream, fileSize, originalFilename, userId);
 
             String shpsFileName = originalFilename + ".shps";
-            String url = s3Service.uploadFileWithMultipart(tempShpsFile.toPath(), shpsFileName,
+  
+            String s3Key = s3Service.uploadFileWithMultipart(tempShpsFile.toPath(), shpsFileName,
                     "application/x-shirmps");
-            String s3Key = s3Service.getObjectKeyFromUrl(url);
             long actualSize = tempShpsFile.length();
+            
+            String publicUrl = s3Service.getPublicUrl(s3Key);
 
             FileContent content = FileContent.builder()
                     .hash(contentHash)
                     .s3Key(s3Key)
-                    .s3Url(url)
+                    .s3Url(publicUrl)
                     .size(actualSize)
                     .mimeType("application/x-shirmps")
                     .isPublic(true)
@@ -371,14 +376,15 @@ public class FileService {
             if (!"user".equals(header.getKeyOwner()) || !userId.toString().equals(header.getUserId())) {
                 throw new SecurityException("Invalid note owner");
             }
-            String url = s3Service.uploadFileWithMultipart(tempFile, originalFilename, "application/x-shirmps");
-            String s3Key = s3Service.getObjectKeyFromUrl(url);
+        
+            String s3Key = s3Service.uploadFileWithMultipart(tempFile, originalFilename, "application/x-shirmps");
             long size = Files.size(tempFile);
+            String publicUrl = s3Service.getPublicUrl(s3Key);
 
             FileContent content = FileContent.builder()
                     .hash(null)
                     .s3Key(s3Key)
-                    .s3Url(url)
+                    .s3Url(publicUrl)
                     .size(size)
                     .mimeType("text/markdown")
                     .isPublic(false)
@@ -416,6 +422,10 @@ public class FileService {
             s3Service.uploadFileWithMultipart(tempFile, s3Key, originalFilename, "application/x-shirmps");
             existingNote.setSize(Files.size(tempFile));
             existingNote.setOriginalName(originalFilename);
+
+            String publicUrl = s3Service.getPublicUrl(s3Key);
+            existingNote.getFileContent().setS3Url(publicUrl);
+            fileContentRepository.save(existingNote.getFileContent());
             return fileRepository.save(existingNote);
         } finally {
             Files.deleteIfExists(tempFile);
@@ -427,25 +437,4 @@ public class FileService {
         return fileRepository.findNotesByUserId(userId, pageable);
     }
 
-    private FileDto mapToDto(File file) {
-        FileDto dto = new FileDto();
-        dto.setId(file.getId());
-        dto.setName(file.getName());
-        dto.setOriginalName(file.getOriginalName());
-        dto.setSize(file.getSize());
-        dto.setMimeType(file.getMimeType());
-        if (file.getFileContent() != null) {
-            dto.setS3Url(file.getFileContent().getS3Url());
-        }
-        dto.setIsEncrypted(file.getIsEncrypted());
-        dto.setIsPublic(file.getIsPublic());
-        dto.setIsNote(file.getIsNote());
-        dto.setCreatedAt(file.getCreatedAt());
-        dto.setUpdatedAt(file.getUpdatedAt());
-        if (file.getFolder() != null) {
-            dto.setFolderId(file.getFolder().getId());
-            dto.setFolderName(file.getFolder().getName());
-        }
-        return dto;
-    }
 }

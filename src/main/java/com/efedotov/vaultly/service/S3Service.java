@@ -53,7 +53,7 @@ public class S3Service {
 
         s3Client.putObject(request, RequestBody.fromBytes(fileBytes));
         log.info("Successfully uploaded SHPS file to S3: bucket={}, key={}", bucketName, key);
-        return dotenv.get("S3_PUBLIC_URL") + "/" + key;
+        return key;  
     }
 
     public String uploadFileWithMultipart(Path filePath, String originalFilename, String contentType) {
@@ -83,7 +83,7 @@ public class S3Service {
             s3Client.putObject(request, RequestBody.fromFile(filePath));
 
             log.info("Upload completed: bucket={}, key={}", bucketName, key);
-            return dotenv.get("S3_PUBLIC_URL") + "/" + key;
+            return key;
 
         } catch (IOException e) {
             throw new RuntimeException("Failed to upload file: " + filePath, e);
@@ -91,7 +91,7 @@ public class S3Service {
     }
 
     public String uploadStreamWithMultipart(InputStream inputStream, long contentLength,
-            String originalFilename, String contentType) throws IOException {
+                                            String originalFilename, String contentType) throws IOException {
         Path tempFile = Files.createTempFile("upload-", ".tmp");
         try {
             Files.copy(inputStream, tempFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
@@ -124,13 +124,28 @@ public class S3Service {
         return presignedRequest.url().toString();
     }
 
-    public String getObjectKeyFromUrl(String fileUrl) {
-        String bucketName = dotenv.get("S3_BUCKET");
-        String prefix = "https://s3.ru1.storage.beget.cloud/" + bucketName + "/";
-        if (fileUrl.startsWith(prefix)) {
-            return fileUrl.substring(prefix.length());
+    /**
+     * Формирует публичный (не подписанный) URL для объекта в S3.
+     * Использует S3_PUBLIC_URL из .env, если задан, иначе собирает из S3_ENDPOINT + bucket.
+     */
+    public String getPublicUrl(String key) {
+        if (key == null) return null;
+        String publicUrlBase = dotenv.get("S3_PUBLIC_URL");
+        if (publicUrlBase != null && !publicUrlBase.isEmpty()) {
+            return publicUrlBase + "/" + key;
+        } else {
+            String endpoint = dotenv.get("S3_ENDPOINT");
+            String bucket = dotenv.get("S3_BUCKET");
+            return endpoint + "/" + bucket + "/" + key;
         }
-        return fileUrl;
+    }
+
+    public String getObjectKeyFromUrl(String fileUrl) {
+        if (fileUrl == null) return null;
+        if (!fileUrl.startsWith("http")) {
+            return fileUrl;
+        }
+        return fileUrl.substring(fileUrl.lastIndexOf('/') + 1);
     }
 
     public byte[] downloadFile(String objectKey) {
@@ -182,7 +197,7 @@ public class S3Service {
     }
 
     public String uploadFileWithMultipart(Path filePath, String objectKey, String originalFilename,
-            String contentType) {
+                                          String contentType) {
         validateShpsFile(originalFilename, contentType);
         String bucketName = dotenv.get("S3_BUCKET");
 
@@ -207,11 +222,10 @@ public class S3Service {
             s3Client.putObject(request, RequestBody.fromFile(filePath));
 
             log.info("Upload completed: bucket={}, key={}", bucketName, objectKey);
-            return dotenv.get("S3_PUBLIC_URL") + "/" + objectKey;
+            return objectKey;
 
         } catch (IOException e) {
             throw new RuntimeException("Failed to upload file: " + filePath, e);
         }
     }
-
 }
