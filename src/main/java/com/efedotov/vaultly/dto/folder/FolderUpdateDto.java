@@ -7,6 +7,5 @@ import lombok.Data;
 public class FolderUpdateDto {
     @NotBlank(message = "Новое имя обязательно")
     private String name;
-
     private String description;
 }
