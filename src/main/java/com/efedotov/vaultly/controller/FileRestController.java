@@ -253,35 +253,6 @@ public class FileRestController {
         return mapToDto(updatedNote);
     }
 
-    private FileDto mapToDto(File file) {
-        FileDto dto = new FileDto();
-        dto.setId(file.getId());
-        dto.setName(file.getName());
-        dto.setOriginalName(file.getOriginalName());
-        dto.setSize(file.getSize());
-        dto.setMimeType(file.getMimeType());
-        dto.setIsEncrypted(file.getIsEncrypted());
-        dto.setIsPublic(file.getIsPublic());
-        dto.setIsNote(file.getIsNote());
-        dto.setCreatedAt(file.getCreatedAt());
-        dto.setUpdatedAt(file.getUpdatedAt());
-
-        if (file.getFolder() != null) {
-            dto.setFolderId(file.getFolder().getId());
-            dto.setFolderName(file.getFolder().getName());
-        }
-
-        if (file.getFileContent() != null) {
-            String s3Key = file.getFileContent().getS3Key();
-            if (s3Key != null) {
-                dto.setS3Url(s3Service.getPublicUrl(s3Key));
-            }
-        }
-
-        return dto;
-    }
-
-
     @PostMapping("/check-duplicate")
     public ResponseEntity<Map<String, Object>> checkDuplicate(
             @RequestBody CheckDuplicateRequest request,
@@ -320,9 +291,6 @@ public class FileRestController {
         dto.setOriginalName(file.getOriginalName());
         dto.setSize(file.getSize());
         dto.setMimeType(file.getMimeType());
-        if (file.getFileContent() != null) {
-            dto.setS3Url(file.getFileContent().getS3Url());
-        }
         dto.setIsEncrypted(file.getIsEncrypted());
         dto.setIsPublic(file.getIsPublic());
         dto.setIsNote(file.getIsNote());
@@ -334,6 +302,14 @@ public class FileRestController {
             dto.setFolderName(file.getFolder().getName());
         }
 
+        if (file.getFileContent() != null) {
+            String s3Key = file.getFileContent().getS3Key();
+            if (s3Key != null) {
+                dto.setS3Url(s3Service.getPublicUrl(s3Key));
+            }
+        }
+
         return dto;
     }
+
 }
