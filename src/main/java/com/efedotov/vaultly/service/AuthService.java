@@ -194,22 +194,22 @@ public class AuthService {
     }
 
     private AuthResponse createAuthResponse(User user, String accessToken) {
-        AuthResponse response = new AuthResponse();
-        response.setAccessToken(accessToken);
-        response.setRefreshToken(null);
-        response.setUserId(user.getId());
-        response.setEmail(user.getEmail());
-        response.setUsername(user.getUsername());
-        response.setStorageUsed(user.getStorageUsed());
-        response.setStorageLimit(user.getStorageLimit());
+    AuthResponse response = new AuthResponse();
+    response.setAccessToken(accessToken);
+    response.setRefreshToken(null);
+    response.setUserId(user.getId());
+    response.setEmail(user.getEmail());
+    response.setUsername(user.getUsername());
+    response.setStorageUsed(user.getStorageUsed());
+    response.setStorageLimit(user.getStorageLimit());
 
-        Set<String> roles = user.getRoles().stream()
-                .map(Role::getRoleName)
-                .collect(Collectors.toSet());
-        response.setRoles(roles);
-        response.setTotpEnabled(user.getTotpEnabled());
-        return response;
-    }
+    Set<String> roles = user.getRoles().stream()
+        .map(role -> role.getRoleName())
+        .collect(Collectors.toSet());
+    response.setRoles(roles);
+    response.setTotpEnabled(user.getTotpEnabled());
+    return response;
+}
 
     @Transactional
     public TotpSetupResponse setupTotp(UUID userId) {

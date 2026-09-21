@@ -89,17 +89,16 @@ public class FileService {
             }
 
             String shpsFileName = originalFilename.endsWith(".shps") ? originalFilename : originalFilename + ".shps";
-        
+
             String s3Key = s3Service.uploadFileWithMultipart(tempFile, shpsFileName, "application/x-shirmps");
             long actualSize = Files.size(tempFile);
-            
-   
+
             String publicUrl = s3Service.getPublicUrl(s3Key);
 
             FileContent content = FileContent.builder()
                     .hash(contentHash)
                     .s3Key(s3Key)
-                    .s3Url(publicUrl)  
+                    .s3Url(publicUrl)
                     .size(actualSize)
                     .mimeType("application/x-shirmps")
                     .isPublic(isPublic)
@@ -135,11 +134,11 @@ public class FileService {
                     plainStream, fileSize, originalFilename, userId);
 
             String shpsFileName = originalFilename + ".shps";
-  
+
             String s3Key = s3Service.uploadFileWithMultipart(tempShpsFile.toPath(), shpsFileName,
                     "application/x-shirmps");
             long actualSize = tempShpsFile.length();
-            
+
             String publicUrl = s3Service.getPublicUrl(s3Key);
 
             FileContent content = FileContent.builder()
@@ -191,7 +190,7 @@ public class FileService {
     @Transactional(readOnly = true)
     public UUID findExistingFileContentId(String hash, Boolean isPublic) {
         return fileContentRepository.findByHashAndIsPublic(hash, isPublic)
-                .map(FileContent::getId)
+                .map(content -> content.getId())
                 .orElse(null);
     }
 
@@ -376,7 +375,7 @@ public class FileService {
             if (!"user".equals(header.getKeyOwner()) || !userId.toString().equals(header.getUserId())) {
                 throw new SecurityException("Invalid note owner");
             }
-        
+
             String s3Key = s3Service.uploadFileWithMultipart(tempFile, originalFilename, "application/x-shirmps");
             long size = Files.size(tempFile);
             String publicUrl = s3Service.getPublicUrl(s3Key);
@@ -437,8 +436,7 @@ public class FileService {
         return fileRepository.findNotesByUserId(userId, pageable);
     }
 
-
-     private FileDto mapToDto(File file) {
+    private FileDto mapToDto(File file) {
         FileDto dto = new FileDto();
         dto.setId(file.getId());
         dto.setName(file.getName());
@@ -465,6 +463,5 @@ public class FileService {
 
         return dto;
     }
-
 
 }

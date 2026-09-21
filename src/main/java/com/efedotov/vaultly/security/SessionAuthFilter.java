@@ -5,7 +5,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -62,7 +61,7 @@ public class SessionAuthFilter extends OncePerRequestFilter {
                 log.info("Authenticated user: {} with roles: {} for request: {} {}",
                         userDetails.getUsername(),
                         userDetails.getAuthorities().stream()
-                                .map(GrantedAuthority::getAuthority)
+                                .map(auth -> auth.getAuthority())
                                 .collect(Collectors.joining(", ")),
                         method, uri);
 
