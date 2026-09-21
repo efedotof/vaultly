@@ -54,8 +54,8 @@ public class TempFileAccess {
     @Builder.Default
     private Boolean isActive = true;
 
-    @Column(name = "password")
-    private String password;
+    @Column(name = "password_hash")
+    private String passwordHash;
 
     @CreationTimestamp
     @Column(updatable = false)

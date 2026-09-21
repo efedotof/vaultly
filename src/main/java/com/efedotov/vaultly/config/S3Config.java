@@ -7,11 +7,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import jakarta.annotation.PostConstruct;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -62,21 +62,6 @@ public class S3Config {
         }
 
         @Bean
-        public S3AsyncClient s3AsyncClient() {
-                return S3AsyncClient.builder()
-                                .endpointOverride(URI.create(endpoint))
-                                .region(Region.of(region))
-                                .credentialsProvider(credentialsProvider())
-                                .serviceConfiguration(s3Configuration())
-                                .overrideConfiguration(overrideConfiguration())
-                                .multipartEnabled(true)
-                                .multipartConfiguration(conf -> conf
-                                                .apiCallBufferSizeInBytes(16L * 1024 * 1024)
-                                                .minimumPartSizeInBytes(5L * 1024 * 1024))
-                                .build();
-        }
-
-        @Bean
         public S3Presigner s3Presigner() {
                 return S3Presigner.builder()
                                 .endpointOverride(URI.create(endpoint))
@@ -84,5 +69,15 @@ public class S3Config {
                                 .credentialsProvider(credentialsProvider())
                                 .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
                                 .build();
+        }
+
+        @PostConstruct
+        void validateCredentials() {
+                if (accessKey == null || accessKey.isBlank()) {
+                        throw new IllegalStateException("S3_ACCESS_KEY is not configured");
+                }
+                if (secretKey == null || secretKey.isBlank()) {
+                        throw new IllegalStateException("S3_SECRET_KEY is not configured");
+                }
         }
 }

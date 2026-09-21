@@ -11,7 +11,6 @@ public class FileDto {
     private String originalName;
     private Long size;
     private String mimeType;
-    private String s3Url;
     private Boolean isEncrypted;
     private Boolean isPublic;
     private Boolean isNote;

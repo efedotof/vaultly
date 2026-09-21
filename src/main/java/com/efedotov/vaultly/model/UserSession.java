@@ -19,15 +19,17 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Table(name = "user_sessions")
 public class UserSession {
+
     @Id
-    private String token;
+    @Column(name = "token_hash", length = 64, nullable = false)
+    private String tokenHash;
 
     @Column(nullable = false)
     private UUID userId;
 
-    @Column(nullable = false, columnDefinition = "TIMESTAMP")
+    @Column(nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
     private Instant createdAt;
 
-    @Column(nullable = false, columnDefinition = "TIMESTAMP")
+    @Column(nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
     private Instant expiresAt;
 }

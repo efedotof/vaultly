@@ -19,6 +19,7 @@ import com.efedotov.vaultly.dto.device.DeviceUpdateRequest;
 import com.efedotov.vaultly.security.CustomUserDetails;
 import com.efedotov.vaultly.service.DeviceService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,7 +32,7 @@ public class DeviceRestController {
     private final DeviceService deviceService;
 
     @PostMapping("/register")
-    public DeviceResponse registerDevice(@RequestBody DeviceRegisterRequest request,
+    public DeviceResponse registerDevice(@Valid @RequestBody DeviceRegisterRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
         try {
             DeviceResponse device = deviceService.registerDevice(request, user.getUserId());

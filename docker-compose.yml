@@ -28,8 +28,8 @@ services:
     volumes:
       - minio_data:/data
     ports:
-      - "9000:9000"   
-      - "9001:9001"   
+      - "9000:9000"
+      - "9001:9001"
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
@@ -46,8 +46,8 @@ services:
       /bin/sh -c "
       mc alias set myminio http://minio:9000 ${S3_ACCESS_KEY} ${S3_SECRET_KEY};
       mc mb --ignore-existing myminio/${S3_BUCKET};
-      mc anonymous set download myminio/${S3_BUCKET};
-      echo 'MinIO bucket готов';
+      mc anonymous set none myminio/${S3_BUCKET};
+      echo 'MinIO bucket готов (приватный)';
       exit 0;
       "
 
@@ -75,10 +75,16 @@ services:
       S3_BUCKET: ${S3_BUCKET}
       S3_PUBLIC_URL: ${S3_PUBLIC_URL}
       SERVER_PORT: ${SERVER_PORT}
+      APP_BASE_URL: ${APP_BASE_URL}
       ENCRYPTION_MASTER_KEY: ${ENCRYPTION_MASTER_KEY}
       SERVER_PRIVATE_KEY_PATH: ${SERVER_PRIVATE_KEY_PATH}
       SERVER_PUBLIC_KEY_PATH: ${SERVER_PUBLIC_KEY_PATH}
-      app.base-url: ${APP_BASE_URL}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      TRUST_FORWARDED_HEADERS: ${TRUST_FORWARDED_HEADERS}
+      LOG_LEVEL_VAULTLY: ${LOG_LEVEL_VAULTLY:-INFO}
+      LOG_LEVEL_SPRING_WEB: ${LOG_LEVEL_SPRING_WEB:-INFO}
+      LOG_LEVEL_SPRING_SEC: ${LOG_LEVEL_SPRING_SEC:-INFO}
+      LOG_LEVEL_HIKARI: ${LOG_LEVEL_HIKARI:-INFO}
 
     ports:
       - "${SERVER_PORT}:${SERVER_PORT}"

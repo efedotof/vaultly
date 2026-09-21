@@ -4,6 +4,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.efedotov.vaultly.dto.file.FileDto;
@@ -23,12 +28,16 @@ import com.efedotov.vaultly.dto.folder.FolderMoveDto;
 import com.efedotov.vaultly.dto.folder.FolderPasswordDto;
 import com.efedotov.vaultly.dto.folder.FolderShareDto;
 import com.efedotov.vaultly.dto.folder.FolderUpdateDto;
+import com.efedotov.vaultly.exception.BadRequestException;
 import com.efedotov.vaultly.model.File;
 import com.efedotov.vaultly.model.Folder;
 import com.efedotov.vaultly.model.FolderAccess;
 import com.efedotov.vaultly.security.CustomUserDetails;
 import com.efedotov.vaultly.service.FolderService;
+import com.efedotov.vaultly.service.LoginAttemptService;
+import com.efedotov.vaultly.service.PasswordCheckResult;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,9 +48,10 @@ import lombok.extern.slf4j.Slf4j;
 public class FolderRestController {
 
     private final FolderService folderService;
+    private final LoginAttemptService loginAttemptService;
 
     @PostMapping
-    public FolderDto createFolder(@RequestBody FolderCreateDto request,
+    public FolderDto createFolder(@Valid @RequestBody FolderCreateDto request,
             @AuthenticationPrincipal CustomUserDetails user) {
         log.info("REST create folder request for user: {}", user.getUsername());
         try {
@@ -69,7 +79,7 @@ public class FolderRestController {
 
     @PutMapping("/{folderId}")
     public FolderDto renameFolder(@PathVariable UUID folderId,
-            @RequestBody FolderUpdateDto request,
+            @Valid @RequestBody FolderUpdateDto request,
             @AuthenticationPrincipal CustomUserDetails user) {
         log.info("REST rename folder request for user: {}", user.getUsername());
         try {
@@ -142,7 +152,7 @@ public class FolderRestController {
 
     @PostMapping("/{folderId}/share")
     public List<FolderAccess> shareFolder(@PathVariable UUID folderId,
-            @RequestBody FolderShareDto request,
+            @Valid @RequestBody FolderShareDto request,
             @AuthenticationPrincipal CustomUserDetails user) {
         log.info("REST share folder request for user: {}", user.getUsername());
         try {
@@ -158,24 +168,42 @@ public class FolderRestController {
 
     @PostMapping("/{folderId}/access/check")
     public boolean checkFolderAccess(@PathVariable UUID folderId,
-            @RequestBody FolderAccessDto request,
+            @Valid @RequestBody FolderAccessDto request,
             @AuthenticationPrincipal CustomUserDetails user) {
+
         log.info("REST check folder access request for user: {}", user.getUsername());
+
         try {
+            
+            
+            
+            
+            String rateKey = "folder-check:" + user.getUserId();
+            if (loginAttemptService.isFolderCheckBlocked(rateKey)) {
+                throw new SecurityException("Too many folder access checks, try again later");
+            }
+            loginAttemptService.folderCheckAttempt(rateKey);
+
             Folder folder = folderService.getFolderById(folderId);
 
-            if (folderService.hasActivePassword(folderId)) {
+            if (folderService.hasActivePassword(folderId, user.getUserId())) {
                 if (request.getPassword() == null) {
                     return false;
                 }
-                return folderService.checkFolderPassword(folderId, request.getPassword());
+                PasswordCheckResult result = folderService.checkFolderPassword(folderId, request.getPassword());
+                if (result == PasswordCheckResult.BLOCKED) {
+                    throw new SecurityException("Too many attempts");
+                }
+                return result == PasswordCheckResult.OK;
             }
 
             if (request.getHiddenFolderKey() != null) {
                 return folderService.checkHiddenFolderKey(folderId, request.getHiddenFolderKey());
             }
+
             folderService.checkFolderAccess(folder, user.getUserId(), FolderAccess.AccessLevel.READ);
             return true;
+
         } catch (SecurityException e) {
             return false;
         } catch (Exception e) {
@@ -199,18 +227,21 @@ public class FolderRestController {
     }
 
     @GetMapping("/{folderId}/files")
-    public List<FileDto> getFolderFiles(@PathVariable UUID folderId,
-            @AuthenticationPrincipal CustomUserDetails user) {
-        log.info("REST get folder files request for user: {}", user.getUsername());
-        try {
-            List<File> files = folderService.getFolderFiles(folderId, user.getUserId());
-            return files.stream()
-                    .map(this::convertFileToDto)
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            log.error("Ошибка при получении файлов папки: {}", e.getMessage());
-            throw e;
+    public ResponseEntity<Page<FileDto>> getFolderFiles(
+            @PathVariable UUID folderId,
+            @AuthenticationPrincipal CustomUserDetails user,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+
+        if (page < 0 || size < 1 || size > 100) {
+            throw new BadRequestException("Invalid pagination: page >= 0, 1 <= size <= 100");
         }
+
+        Page<File> filesPage = folderService.getFolderFilesPaged(
+                folderId, user.getUserId(),
+                PageRequest.of(page, size, Sort.by("createdAt").descending()));
+
+        return ResponseEntity.ok(filesPage.map(this::convertFileToDto));
     }
 
     private FolderDto convertToDto(Folder folder) {
@@ -252,7 +283,7 @@ public class FolderRestController {
 
     @PostMapping("/{folderId}/password")
     public void setFolderPassword(@PathVariable UUID folderId,
-            @RequestBody FolderPasswordDto request,
+            @Valid @RequestBody FolderPasswordDto request,
             @AuthenticationPrincipal CustomUserDetails user) {
         log.info("REST set folder password request for user: {}", user.getUsername());
         folderService.setFolderPassword(folderId, request.getPassword(), user.getUserId());
@@ -268,9 +299,6 @@ public class FolderRestController {
         dto.setOriginalName(file.getOriginalName());
         dto.setSize(file.getSize());
         dto.setMimeType(file.getMimeType());
-        if (file.getFileContent() != null) {
-            dto.setS3Url(file.getFileContent().getS3Url());
-        }
         dto.setIsEncrypted(file.getIsEncrypted());
         dto.setIsPublic(file.getIsPublic());
         dto.setCreatedAt(file.getCreatedAt());

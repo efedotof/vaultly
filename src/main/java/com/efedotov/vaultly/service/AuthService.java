@@ -1,6 +1,11 @@
 package com.efedotov.vaultly.service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -14,16 +19,20 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.efedotov.vaultly.dto.auth.AuthResponse;
 import com.efedotov.vaultly.dto.auth.LoginRequest;
+import com.efedotov.vaultly.dto.auth.LoginWithTotpRequest;
 import com.efedotov.vaultly.dto.auth.RecoverRequest;
+import com.efedotov.vaultly.dto.auth.RecoveryChallengeRequest;
+import com.efedotov.vaultly.dto.auth.RecoveryChallengeResponse;
 import com.efedotov.vaultly.dto.auth.RegisterRequest;
 import com.efedotov.vaultly.dto.auth.TotpSetupResponse;
 import com.efedotov.vaultly.dto.auth.TotpVerifyResponse;
+import com.efedotov.vaultly.exception.TotpRequiredException;
 import com.efedotov.vaultly.model.Role;
 import com.efedotov.vaultly.model.User;
 import com.efedotov.vaultly.model.UserSession;
 import com.efedotov.vaultly.repository.RoleRepository;
 import com.efedotov.vaultly.repository.UserRepository;
-
+import tools.jackson.databind.json.JsonMapper;
 import dev.samstevens.totp.exceptions.QrGenerationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,82 +43,127 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+
+    private static final String DUMMY_BCRYPT_HASH = "$2a$12$HfiR86pa3YfuxiPkAxUAeOhmRHWqqPWRYMlbmWAQAxUMsbyaKCuEy";
+
     private final UserRepository userRepository;
     private final SessionService sessionService;
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = JsonMapper.builder().build();
     private final TotpService totpService;
     private final LoginAttemptService loginAttemptService;
     private final EncryptionService encryptionService;
+    private final RecoveryChallengeService recoveryChallengeService;
+    private final PreAuthTokenService preAuthTokenService;
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        log.info("Login attempt for username: {}", request.getUsername());
+        log.debug("Login attempt");
 
         if (loginAttemptService.isBlocked(request.getUsername())) {
-            throw new RuntimeException("Too many failed attempts. Try again later.");
+            throw new RuntimeException("Invalid credentials");
         }
 
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findByUsername(request.getUsername()).orElse(null);
+
+        if (user == null) {
+            
+            passwordEncoder.matches(request.getPassword(), DUMMY_BCRYPT_HASH);
+            loginAttemptService.loginFailed(request.getUsername());
+            throw new RuntimeException("Invalid credentials");
+        }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             loginAttemptService.loginFailed(request.getUsername());
-            throw new RuntimeException("Invalid password");
+            throw new RuntimeException("Invalid credentials");
         }
 
-        if (!user.getIsActive()) {
-            throw new RuntimeException("User account is disabled");
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            loginAttemptService.loginFailed(request.getUsername());
+            throw new RuntimeException("Invalid credentials");
         }
 
         if (Boolean.TRUE.equals(user.getTotpEnabled())) {
             String totpCode = request.getTotpCode();
             if (totpCode == null || totpCode.isBlank()) {
-                throw new TotpRequiredException("TOTP code required");
+                String preAuthToken = preAuthTokenService.issue(user.getId());
+                throw new TotpRequiredException(preAuthToken);
             }
 
-            String plainSecret;
-            try {
-                plainSecret = encryptionService.decrypt(user.getTotpSecret());
-            } catch (Exception e) {
+            if (!verifyTotpOrBackup(user, totpCode)) {
                 loginAttemptService.loginFailed(request.getUsername());
-                throw new RuntimeException("Internal error processing TOTP", e);
+                throw new RuntimeException("Invalid credentials");
             }
-
-            boolean isValid = totpService.verifyCode(plainSecret, totpCode);
-            if (!isValid && user.getBackupCodesHash() != null) {
-                isValid = totpService.verifyBackupCode(totpCode, user.getBackupCodesHash());
-                if (isValid) {
-                    String updatedHashes = totpService.removeUsedBackupCode(totpCode, user.getBackupCodesHash());
-                    user.setBackupCodesHash(updatedHashes);
-                    userRepository.save(user);
-                    log.info("Backup code used for user: {}", user.getUsername());
-                }
-            }
-
-            if (!isValid) {
-                loginAttemptService.loginFailed(request.getUsername());
-                throw new RuntimeException("Invalid TOTP or backup code");
-            }
-
         }
 
         loginAttemptService.loginSucceeded(request.getUsername());
-
-        UserSession session = sessionService.createSession(user.getId());
-        return createAuthResponse(user, session.getToken());
+        SessionService.CreatedSession created = sessionService.createSession(user.getId());
+        return createAuthResponse(user, created.plaintextToken());
     }
 
-    public static class TotpRequiredException extends RuntimeException {
-        public TotpRequiredException(String message) {
-            super(message);
+    private boolean verifyTotpOrBackup(User user, String code) {
+        String plainSecret;
+        try {
+            plainSecret = encryptionService.decrypt(user.getTotpSecret());
+        } catch (Exception e) {
+            return false;
         }
+
+        if (totpService.verifyCode(plainSecret, code)) {
+            return true;
+        }
+
+        if (user.getBackupCodesHash() != null) {
+            String key = "backup:" + user.getId();
+            if (loginAttemptService.isBackupCodeBlocked(key)) {
+                log.warn("Backup code attempts blocked for user {}", user.getId());
+                return false;
+            }
+
+            boolean validBackup = totpService.verifyBackupCode(code, user.getBackupCodesHash());
+            if (validBackup) {
+                loginAttemptService.backupCodeSucceeded(key);
+                String updatedHashes = totpService.removeUsedBackupCode(code, user.getBackupCodesHash());
+                user.setBackupCodesHash(updatedHashes);
+                userRepository.save(user);
+                log.info("Backup code used for user: {}", user.getUsername());
+                return true;
+            }
+            loginAttemptService.backupCodeFailed(key);
+        }
+        return false;
+    }
+
+    @Transactional
+    public AuthResponse loginWithTotp(LoginWithTotpRequest request) {
+        UUID userId = preAuthTokenService.consume(request.getPreAuthToken());
+        if (userId == null) {
+            throw new RuntimeException("Invalid or expired pre-auth token");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new RuntimeException("Invalid credentials");
+        }
+
+        if (Boolean.TRUE.equals(user.getTotpEnabled())) {
+            if (!verifyTotpOrBackup(user, request.getTotpCode())) {
+                loginAttemptService.loginFailed(user.getUsername());
+                throw new RuntimeException("Invalid credentials");
+            }
+        }
+
+        loginAttemptService.loginSucceeded(user.getUsername());
+        SessionService.CreatedSession created = sessionService.createSession(user.getId());
+        return createAuthResponse(user, created.plaintextToken());
     }
 
     @Transactional
     public AuthResponse registration(RegisterRequest request) {
-        log.info("Registration attempt for username: {}", request.getUsername());
+        log.debug("Registration attempt");
 
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new RuntimeException("Username already exists");
@@ -127,6 +181,7 @@ public class AuthService {
 
         User user = User.builder()
                 .username(request.getUsername())
+                .email(request.getEmail())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
@@ -135,13 +190,12 @@ public class AuthService {
                 .salt(normalizedSalt)
                 .roles(new HashSet<>(Set.of(userRole)))
                 .build();
-
+        UserService.validatePublicKeyFormat(request.getPublicKey());
         user = userRepository.save(user);
         log.info("User created with ID: {}", user.getId());
 
-        UserSession session = sessionService.createSession(user.getId());
-
-        return createAuthResponse(user, session.getToken());
+        SessionService.CreatedSession created = sessionService.createSession(user.getId());
+        return createAuthResponse(user, created.plaintextToken());
     }
 
     private String normalizePrivateKeyEncrypted(String raw) {
@@ -189,27 +243,27 @@ public class AuthService {
 
     @Transactional
     public void logout(String token) {
-        log.info("Logout for token");
+        log.debug("Logout");
         sessionService.deleteSession(token);
     }
 
     private AuthResponse createAuthResponse(User user, String accessToken) {
-    AuthResponse response = new AuthResponse();
-    response.setAccessToken(accessToken);
-    response.setRefreshToken(null);
-    response.setUserId(user.getId());
-    response.setEmail(user.getEmail());
-    response.setUsername(user.getUsername());
-    response.setStorageUsed(user.getStorageUsed());
-    response.setStorageLimit(user.getStorageLimit());
+        AuthResponse response = new AuthResponse();
+        response.setAccessToken(accessToken);
 
-    Set<String> roles = user.getRoles().stream()
-        .map(role -> role.getRoleName())
-        .collect(Collectors.toSet());
-    response.setRoles(roles);
-    response.setTotpEnabled(user.getTotpEnabled());
-    return response;
-}
+        response.setUserId(user.getId());
+        response.setEmail(user.getEmail());
+        response.setUsername(user.getUsername());
+        response.setStorageUsed(user.getStorageUsed());
+        response.setStorageLimit(user.getStorageLimit());
+
+        Set<String> roles = user.getRoles().stream()
+                .map(role -> role.getRoleName())
+                .collect(Collectors.toSet());
+        response.setRoles(roles);
+        response.setTotpEnabled(user.getTotpEnabled());
+        return response;
+    }
 
     @Transactional
     public TotpSetupResponse setupTotp(UUID userId) {
@@ -229,7 +283,7 @@ public class AuthService {
 
         try {
             String qrUrl = totpService.generateQrCodeUrl(plainSecret, user.getUsername());
-            return new TotpSetupResponse(plainSecret, qrUrl);
+            return new TotpSetupResponse(qrUrl);
         } catch (QrGenerationException e) {
             throw new RuntimeException("Failed to generate QR code", e);
         }
@@ -298,7 +352,6 @@ public class AuthService {
 
         user.setTotpEnabled(false);
         user.setTotpSecret(null);
-
         user.setTotpVerifiedAt(null);
         user.setBackupCodesHash(null);
         userRepository.save(user);
@@ -314,31 +367,69 @@ public class AuthService {
             throw new RuntimeException("Too many recovery attempts. Try again later.");
         }
 
+        if (!recoveryChallengeService.consume(request.getChallenge(), publicKeyHash)) {
+            loginAttemptService.loginFailed("recover:" + publicKeyHash);
+            throw new RuntimeException("Invalid or expired challenge");
+        }
+
         String normalizedPublicKey = normalizePublicKey(request.getPublicKey());
         User user = userRepository.findByRecoveryPublicKey(normalizedPublicKey)
                 .orElseThrow(() -> {
                     loginAttemptService.loginFailed("recover:" + publicKeyHash);
-                    return new RuntimeException("No user found with this recovery key");
+                    return new RuntimeException("Recovery failed");
                 });
 
         if (!user.getIsActive()) {
-            throw new RuntimeException("User account is disabled");
+            throw new RuntimeException("Recovery failed");
         }
 
-        userRepository.save(user);
+        if (!verifyRecoverySignature(user.getRecoveryPublicKey(), request.getChallenge(), request.getSignature())) {
+            loginAttemptService.loginFailed("recover:" + publicKeyHash);
+            throw new RuntimeException("Recovery failed");
+        }
 
         loginAttemptService.loginSucceeded("recover:" + publicKeyHash);
-        UserSession session = sessionService.createSession(user.getId());
-        return createAuthResponse(user, session.getToken());
+        SessionService.CreatedSession created = sessionService.createSession(user.getId());
+        return createAuthResponse(user, created.plaintextToken());
     }
 
-    private String normalizePublicKey(String raw) {
-        if (raw == null)
+    public static String normalizePublicKey(String raw) {
+        if (raw == null) {
             return null;
-
+        }
         return raw.trim()
-                .replaceAll("\\s+", "")
-                .replace("-----BEGIN PUBLIC KEY-----", "")
-                .replace("-----END PUBLIC KEY-----", "");
+                .replaceAll("-----BEGIN [A-Z ]+-----", "")
+                .replaceAll("-----END [A-Z ]+-----", "")
+                .replaceAll("\\s+", "");
+    }
+
+    public RecoveryChallengeResponse createRecoveryChallenge(RecoveryChallengeRequest request) {
+        String publicKeyHash = DigestUtils.sha256Hex(request.getPublicKey());
+
+        if (loginAttemptService.isBlocked("recover:" + publicKeyHash)) {
+            throw new RuntimeException("Too many recovery attempts. Try again later.");
+        }
+
+        String challenge = recoveryChallengeService.issue(publicKeyHash);
+        return new RecoveryChallengeResponse(challenge, 300);
+    }
+
+    private boolean verifyRecoverySignature(String storedPublicKey, String challenge, String signatureBase64) {
+        try {
+            PublicKey publicKey = parsePublicKey(normalizePublicKey(storedPublicKey));
+            java.security.Signature sig = java.security.Signature.getInstance("SHA256withRSA");
+            sig.initVerify(publicKey);
+            sig.update(challenge.getBytes(StandardCharsets.UTF_8));
+            return sig.verify(Base64.getDecoder().decode(signatureBase64));
+        } catch (Exception e) {
+            log.warn("Recovery signature verification failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    private PublicKey parsePublicKey(String normalizedBase64) throws Exception {
+        byte[] der = Base64.getDecoder().decode(normalizedBase64);
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(der);
+        return KeyFactory.getInstance("RSA").generatePublic(spec);
     }
 }

@@ -62,9 +62,23 @@ public class FolderAccess {
     private String accessKeyHash;
 
     public enum AccessLevel {
-        READ,
-        WRITE,
-        ADMIN,
-        OWNER
+        READ(1),
+        WRITE(2),
+        ADMIN(3),
+        OWNER(4);
+
+        private final int weight;
+
+        AccessLevel(int weight) {
+            this.weight = weight;
+        }
+
+        public int getWeight() {
+            return weight;
+        }
+
+        public boolean isAtLeast(AccessLevel required) {
+            return this.weight >= required.weight;
+        }
     }
 }

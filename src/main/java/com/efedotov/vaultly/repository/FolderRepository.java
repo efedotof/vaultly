@@ -2,6 +2,7 @@ package com.efedotov.vaultly.repository;
 
 import com.efedotov.vaultly.model.Folder;
 import com.efedotov.vaultly.model.User;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -31,4 +32,8 @@ public interface FolderRepository extends JpaRepository<Folder, UUID> {
 
     @Query("SELECT f FROM Folder f WHERE f.user = :user AND f.parentFolder = :parent")
     List<Folder> findByUserAndParentFolder(@Param("user") User user, @Param("parent") Folder parent);
+
+    @EntityGraph(attributePaths = { "user" })
+    @Query("SELECT f FROM Folder f WHERE f.id = :id")
+    Optional<Folder> findByIdWithUser(@Param("id") UUID id);
 }

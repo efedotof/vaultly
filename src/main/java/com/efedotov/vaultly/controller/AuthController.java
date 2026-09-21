@@ -2,6 +2,7 @@ package com.efedotov.vaultly.controller;
 
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -13,17 +14,24 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.efedotov.vaultly.dto.auth.AuthResponse;
 import com.efedotov.vaultly.dto.auth.LoginRequest;
+import com.efedotov.vaultly.dto.auth.LoginWithTotpRequest;
 import com.efedotov.vaultly.dto.auth.LogoutRequest;
 import com.efedotov.vaultly.dto.auth.RecoverRequest;
+import com.efedotov.vaultly.dto.auth.RecoveryChallengeRequest;
+import com.efedotov.vaultly.dto.auth.RecoveryChallengeResponse;
 import com.efedotov.vaultly.dto.auth.RegisterRequest;
 import com.efedotov.vaultly.dto.auth.TokenValidationRequest;
 import com.efedotov.vaultly.dto.auth.TotpDisableRequest;
 import com.efedotov.vaultly.dto.auth.TotpSetupResponse;
 import com.efedotov.vaultly.dto.auth.TotpVerifyRequest;
 import com.efedotov.vaultly.dto.auth.TotpVerifyResponse;
+import com.efedotov.vaultly.exception.BadRequestException;
+import com.efedotov.vaultly.exception.TotpRequiredException;
 import com.efedotov.vaultly.security.CustomUserDetails;
 import com.efedotov.vaultly.service.AuthService;
+import com.efedotov.vaultly.service.LoginAttemptService;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,26 +43,85 @@ import lombok.extern.slf4j.Slf4j;
 public class AuthController {
 
     private final AuthService authService;
+    private final LoginAttemptService loginAttemptService;
+
+    @Value("${app.security.trust-forwarded-headers}")
+    private boolean trustForwardedHeaders;
 
     @PostMapping("/register")
-    public AuthResponse register(@RequestBody RegisterRequest request) {
-        log.info("REST register request for username: {}", request.getUsername());
-        return authService.registration(request);
+    public AuthResponse register(@Valid @RequestBody RegisterRequest request,
+            HttpServletRequest httpRequest) {
+
+        log.debug("REST register request");
+
+        String ip = extractClientIp(httpRequest);
+        if (loginAttemptService.isIpBlocked(ip)) {
+            throw new BadRequestException("Too many attempts");
+        }
+
+        try {
+            return authService.registration(request);
+        } catch (Exception e) {
+            loginAttemptService.ipFailed(ip);
+            throw e;
+        }
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        log.info("REST login request for username: {}", request.getUsername());
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest) {
+        log.debug("REST login request");
+
+        String ip = extractClientIp(httpRequest);
+
+        if (loginAttemptService.isIpBlocked(ip)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("error", "rate_limited", "message", "Too many attempts"));
+        }
+
         try {
             AuthResponse response = authService.login(request);
             return ResponseEntity.ok(response);
-        } catch (AuthService.TotpRequiredException e) {
+        } catch (TotpRequiredException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "totp_required", "message", e.getMessage()));
+                    .body(Map.of(
+                            "error", "totp_required",
+                            "preAuthToken", e.getPreAuthToken()));
         } catch (Exception e) {
-            log.error("Login error", e);
+            loginAttemptService.ipFailed(ip);
+            log.warn("Login failed");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "login_failed", "message", e.getMessage()));
+                    .body(Map.of("error", "login_failed", "message", "Invalid credentials"));
+        }
+    }
+
+    private String extractClientIp(HttpServletRequest request) {
+        if (trustForwardedHeaders) {
+            String xff = request.getHeader("X-Forwarded-For");
+            if (xff != null && !xff.isBlank()) {
+                String[] parts = xff.split(",");
+                String last = parts[parts.length - 1].trim();
+                if (!last.isEmpty()) {
+                    return last;
+                }
+            }
+        }
+        return request.getRemoteAddr();
+    }
+
+    @PostMapping("/login/totp")
+    public ResponseEntity<?> loginWithTotp(@Valid @RequestBody LoginWithTotpRequest request,
+            HttpServletRequest httpRequest) {
+        log.debug("REST login with TOTP");
+        String ip = extractClientIp(httpRequest);
+        try {
+            AuthResponse response = authService.loginWithTotp(request);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            loginAttemptService.ipFailed(ip);
+            log.warn("Login with TOTP failed");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "login_failed", "message", "Invalid credentials"));
         }
     }
 
@@ -68,7 +135,7 @@ public class AuthController {
     @PostMapping("/totp/verify")
     public ResponseEntity<TotpVerifyResponse> verifyTotp(
             @AuthenticationPrincipal CustomUserDetails user,
-            @RequestBody TotpVerifyRequest request) {
+            @Valid @RequestBody TotpVerifyRequest request) {
         log.info("TOTP verification requested for user: {}", user.getUsername());
         TotpVerifyResponse response = authService.verifyAndEnableTotp(user.getUserId(), request.getCode());
         return ResponseEntity.ok(response);
@@ -77,7 +144,7 @@ public class AuthController {
     @PostMapping("/totp/disable")
     public ResponseEntity<Void> disableTotp(
             @AuthenticationPrincipal CustomUserDetails user,
-            @RequestBody TotpDisableRequest request) {
+            @Valid @RequestBody TotpDisableRequest request) {
         log.info("TOTP disable requested for user: {}", user.getUsername());
         authService.disableTotp(user.getUserId(), request.getCode());
         return ResponseEntity.ok().build();
@@ -91,7 +158,7 @@ public class AuthController {
 
     @PostMapping("/logout")
     public void logout(@RequestBody LogoutRequest request) {
-        log.info("REST logout request");
+        log.debug("REST logout request");
         authService.logout(request.getToken());
     }
 
@@ -102,8 +169,14 @@ public class AuthController {
 
     @PostMapping("/recover")
     public ResponseEntity<AuthResponse> recoverAccess(@Valid @RequestBody RecoverRequest request) {
-        log.info("REST recover access request with publicKey");
+        log.info("REST recover access request (signed)");
         AuthResponse response = authService.recoverAccess(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/recover/challenge")
+    public ResponseEntity<RecoveryChallengeResponse> recoverChallenge(
+            @Valid @RequestBody RecoveryChallengeRequest request) {
+        return ResponseEntity.ok(authService.createRecoveryChallenge(request));
     }
 }

@@ -3,15 +3,16 @@ package com.efedotov.vaultly.service;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Base64;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,7 @@ import com.efedotov.vaultly.dto.folder.FolderCreateDto;
 import com.efedotov.vaultly.dto.folder.FolderMoveDto;
 import com.efedotov.vaultly.dto.folder.FolderShareDto;
 import com.efedotov.vaultly.dto.folder.FolderUpdateDto;
+import com.efedotov.vaultly.exception.BadRequestException;
 import com.efedotov.vaultly.model.File;
 import com.efedotov.vaultly.model.FileContent;
 import com.efedotov.vaultly.model.Folder;
@@ -47,10 +49,12 @@ public class FolderService {
     private final FolderPasswordRepository folderPasswordRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final S3Service s3Service;
+    private final LoginAttemptService loginAttemptService;
+
+    private static final int MAX_FOLDER_DEPTH = 100;
 
     public Folder getFolderById(UUID folderId) {
-        return folderRepository.findById(folderId)
+        return folderRepository.findByIdWithUser(folderId)
                 .orElseThrow(() -> new IllegalArgumentException("Папка не найдена"));
     }
 
@@ -68,6 +72,17 @@ public class FolderService {
 
         if (folderRepository.existsByUserAndNameAndParentFolder(user, request.getName(), parentFolder)) {
             throw new IllegalArgumentException("Папка с таким именем уже существует");
+        }
+        if (parentFolder != null) {
+            int depth = 0;
+            Folder current = parentFolder;
+            while (current != null) {
+                depth++;
+                if (depth >= MAX_FOLDER_DEPTH) {
+                    throw new BadRequestException("Folder hierarchy too deep");
+                }
+                current = current.getParentFolder();
+            }
         }
 
         Folder folder = Folder.builder()
@@ -98,32 +113,33 @@ public class FolderService {
                 .orElseThrow(() -> new IllegalArgumentException("Папка не найдена"));
         checkFolderAccess(folder, userId, FolderAccess.AccessLevel.ADMIN);
 
-        deleteFolderRecursive(folder, userId);
-        folderAccessRepository.deleteByFolder(folder);
-        folderPasswordRepository.deleteByFolder(folder);
-        folderRepository.delete(folder);
-        log.info("Папка удалена: {}", folderId);
+        softDeleteFolderRecursive(folder);
+        log.info("Папка мягко удалена: {}", folderId);
     }
 
-    private void deleteFolderRecursive(Folder folder, UUID userId) {
+    private void softDeleteFolderRecursive(Folder folder) {
+        if (Boolean.TRUE.equals(folder.getIsDeleted())) {
+            return;
+        }
+
         List<File> files = fileRepository.findByFolderId(folder.getId());
         for (File file : files) {
-            try {
-                FileContent content = file.getFileContent();
-                if (content != null) {
-                    s3Service.deleteFile(content.getS3Url());
-                }
-                fileRepository.delete(file);
-            } catch (Exception e) {
-                log.error("Ошибка при удалении файла {} из S3: {}", file.getId(), e.getMessage());
+            if (Boolean.TRUE.equals(file.getIsDeleted())) {
+                continue;
             }
+            file.setIsDeleted(true);
+            file.setDeletedAt(LocalDateTime.now());
+            fileRepository.save(file);
         }
 
         List<Folder> subfolders = folderRepository.findByParentFolder(folder);
-        for (Folder subfolder : subfolders) {
-            deleteFolderRecursive(subfolder, userId);
-            folderRepository.delete(subfolder);
+        for (Folder sub : subfolders) {
+            softDeleteFolderRecursive(sub);
         }
+
+        folder.setIsDeleted(true);
+        folder.setDeletedAt(LocalDateTime.now());
+        folderRepository.save(folder);
     }
 
     @Transactional
@@ -150,6 +166,10 @@ public class FolderService {
         File file = fileRepository.findById(fileId)
                 .orElseThrow(() -> new IllegalArgumentException("Файл не найден"));
 
+        if (!file.getUser().getId().equals(userId)) {
+            throw new SecurityException("Нет прав на перемещение этого файла");
+        }
+
         Folder folder = null;
         if (folderId != null) {
             folder = folderRepository.findById(folderId)
@@ -161,6 +181,7 @@ public class FolderService {
         return fileRepository.save(file);
     }
 
+    
     @Transactional
     public List<File> moveFiles(FolderMoveDto request, UUID userId) {
         List<File> movedFiles = new ArrayList<>();
@@ -177,14 +198,10 @@ public class FolderService {
                     .orElseThrow(() -> new IllegalArgumentException("Файл не найден: " + fileId));
 
             if (!file.getUser().getId().equals(userId)) {
-                if (file.getFolder() != null) {
-                    checkFolderAccess(file.getFolder(), userId, FolderAccess.AccessLevel.WRITE);
-                } else {
-                    throw new SecurityException("Нет прав на перемещение файла");
-                }
+                throw new SecurityException("Нет прав на перемещение этого файла");
             }
 
-            if (request.getCopy()) {
+            if (Boolean.TRUE.equals(request.getCopy())) {
                 File copiedFile = copyFile(file, targetFolder);
                 movedFiles.add(copiedFile);
             } else {
@@ -195,9 +212,12 @@ public class FolderService {
         return movedFiles;
     }
 
-    public boolean hasActivePassword(UUID folderId) {
+    
+    @Transactional(readOnly = true)
+    public boolean hasActivePassword(UUID folderId, UUID userId) {
         Folder folder = folderRepository.findById(folderId)
                 .orElseThrow(() -> new IllegalArgumentException("Папка не найдена"));
+        checkFolderAccess(folder, userId, FolderAccess.AccessLevel.READ);
         return folderPasswordRepository.findByFolderAndIsActive(folder, true).isPresent();
     }
 
@@ -243,9 +263,11 @@ public class FolderService {
     public List<FolderAccess> shareFolder(FolderShareDto request, UUID userId) {
         Folder folder = folderRepository.findById(request.getFolderId())
                 .orElseThrow(() -> new IllegalArgumentException("Папка не найдена"));
-        checkFolderAccess(folder, userId, FolderAccess.AccessLevel.ADMIN);
-        if (!request.getCanShare()) {
-            throw new IllegalArgumentException("У вас нет прав на предоставление доступа");
+
+        checkCanShare(folder, userId);
+
+        if (request.getUserIds() == null || request.getUserIds().isEmpty()) {
+            return List.of();
         }
 
         List<FolderAccess> newAccesses = new ArrayList<>();
@@ -253,16 +275,17 @@ public class FolderService {
             User sharedUser = userRepository.findById(sharedUserId)
                     .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + sharedUserId));
 
-            if (!folderAccessRepository.existsByFolderAndUser(folder, sharedUser)) {
+            if (!folderAccessRepository.existsByFolderIdAndUserId(folder.getId(), sharedUserId)) {
                 FolderAccess access = FolderAccess.builder()
                         .folder(folder)
                         .user(sharedUser)
                         .accessLevel(FolderAccess.AccessLevel.READ)
-                        .canEdit(request.getCanEdit())
-                        .canDelete(request.getCanDelete())
-                        .canShare(request.getCanShare())
+                        .canEdit(Boolean.TRUE.equals(request.getCanEdit()))
+                        .canDelete(Boolean.TRUE.equals(request.getCanDelete()))
+                        .canShare(Boolean.TRUE.equals(request.getCanShare()))
                         .grantedBy(userId)
                         .grantedAt(LocalDateTime.now())
+                        .expiresAt(request.getExpiresAt())
                         .build();
                 newAccesses.add(folderAccessRepository.save(access));
             }
@@ -270,27 +293,69 @@ public class FolderService {
         return newAccesses;
     }
 
-    public void checkFolderAccess(Folder folder, UUID userId, FolderAccess.AccessLevel requiredLevel) {
+    private void checkCanShare(Folder folder, UUID userId) {
         if (folder.getUser().getId().equals(userId)) {
             return;
         }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден"));
+        FolderAccess access = folderAccessRepository
+                .findByFolderIdAndUserId(folder.getId(), userId)
+                .orElseThrow(() -> new SecurityException("Доступ к папке запрещен"));
 
-        Optional<FolderAccess> accessOpt = folderAccessRepository.findByFolderAndUser(folder, user);
-        if (accessOpt.isEmpty()) {
-            throw new SecurityException("Доступ к папке запрещен");
+        if (!Boolean.TRUE.equals(access.getIsActive())) {
+            throw new SecurityException("Доступ к папке отозван");
+        }
+        if (!Boolean.TRUE.equals(access.getCanShare())) {
+            throw new SecurityException("Нет прав на шаринг этой папки");
+        }
+    }
+
+    public void checkFolderAccess(Folder folder, UUID userId, FolderAccess.AccessLevel requiredLevel) {
+        if (Boolean.TRUE.equals(folder.getIsDeleted())) {
+            throw new SecurityException("Папка удалена");
+        }
+        if (folder.getUser().getId().equals(userId)) {
+            return;
         }
 
-        FolderAccess access = accessOpt.get();
-        if (!access.getIsActive()) {
+        FolderAccess access = folderAccessRepository
+                .findByFolderIdAndUserId(folder.getId(), userId)
+                .orElseThrow(() -> new SecurityException("Доступ к папке запрещен"));
+
+        if (!Boolean.TRUE.equals(access.getIsActive())) {
             throw new SecurityException("Доступ к папке отозван");
         }
 
-        if (access.getAccessLevel().ordinal() < requiredLevel.ordinal()) {
+        if (!access.getAccessLevel().isAtLeast(requiredLevel)) {
             throw new SecurityException("Недостаточно прав для выполнения операции");
         }
+    }
+
+    public PasswordCheckResult checkFolderPassword(UUID folderId, String password) {
+        Folder folder = folderRepository.findById(folderId)
+                .orElseThrow(() -> new IllegalArgumentException("Папка не найдена"));
+
+        String key = "folder:" + folderId;
+        if (loginAttemptService.isFolderPasswordBlocked(key)) {
+            return PasswordCheckResult.BLOCKED;
+        }
+
+        Optional<FolderPassword> passwordOpt = folderPasswordRepository
+                .findByFolderAndIsActive(folder, true);
+        if (passwordOpt.isEmpty()) {
+            return PasswordCheckResult.OK;
+        }
+        FolderPassword folderPassword = passwordOpt.get();
+        boolean ok = verifyPassword(
+                password,
+                folderPassword.getPasswordHash(),
+                folderPassword.getAlgorithm());
+        if (!ok) {
+            loginAttemptService.folderPasswordFailed(key);
+            return PasswordCheckResult.INVALID;
+        }
+        loginAttemptService.folderPasswordSucceeded(key);
+        return PasswordCheckResult.OK;
     }
 
     @Transactional
@@ -302,12 +367,11 @@ public class FolderService {
         folderPasswordRepository.deactivateByFolder(folder);
 
         if (password != null && !password.isEmpty()) {
-            String salt = generateSalt();
-            String hashedPassword = hashPassword(password, salt);
             FolderPassword folderPassword = FolderPassword.builder()
                     .folder(folder)
-                    .passwordHash(hashedPassword)
-                    .salt(salt)
+                    .passwordHash(hashPassword(password))
+                    .salt("")
+                    .algorithm("BCRYPT")
                     .isActive(true)
                     .createdAt(LocalDateTime.now())
                     .build();
@@ -315,25 +379,12 @@ public class FolderService {
         }
     }
 
-    public boolean checkFolderPassword(UUID folderId, String password) {
-        Folder folder = folderRepository.findById(folderId)
-                .orElseThrow(() -> new IllegalArgumentException("Папка не найдена"));
-        Optional<FolderPassword> passwordOpt = folderPasswordRepository.findByFolderAndIsActive(folder, true);
-        if (passwordOpt.isEmpty()) {
-            return true;
-        }
-        FolderPassword folderPassword = passwordOpt.get();
-        String hashedInput = hashPassword(password, folderPassword.getSalt());
-        return folderPassword.getPasswordHash().equals(hashedInput);
-    }
-
     private void setFolderPassword(Folder folder, String password) {
-        String salt = generateSalt();
-        String hashedPassword = hashPassword(password, salt);
         FolderPassword folderPassword = FolderPassword.builder()
                 .folder(folder)
-                .passwordHash(hashedPassword)
-                .salt(salt)
+                .passwordHash(hashPassword(password))
+                .salt("")
+                .algorithm("BCRYPT")
                 .createdAt(LocalDateTime.now())
                 .build();
         folderPasswordRepository.save(folderPassword);
@@ -361,59 +412,95 @@ public class FolderService {
         folderAccessRepository.save(ownerAccess);
     }
 
-    private String hashPassword(String password, String salt) {
+    private String hashPassword(String password) {
+        return passwordEncoder.encode(password);
+    }
+
+    
+    private boolean verifyPassword(String password, String storedHash, String algorithm) {
+        if (password == null || storedHash == null) {
+            return false;
+        }
+        if (algorithm == null || "BCRYPT".equalsIgnoreCase(algorithm) || storedHash.startsWith("$2")) {
+            return passwordEncoder.matches(password, storedHash);
+        }
+        if ("LEGACY-SHA256".equalsIgnoreCase(algorithm)) {
+            String legacy = sha256Hex(password);
+            return MessageDigest.isEqual(
+                    legacy.getBytes(StandardCharsets.UTF_8),
+                    storedHash.getBytes(StandardCharsets.UTF_8));
+        }
+        throw new IllegalStateException("Unknown password algorithm: " + algorithm);
+    }
+
+    private static String sha256Hex(String input) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
-            md.update(salt.getBytes(StandardCharsets.UTF_8));
-            byte[] hashedBytes = md.digest(password.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : hashedBytes) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
+            byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("Ошибка при хешировании пароля", e);
+            throw new IllegalStateException("SHA-256 not available", e);
         }
     }
 
-    private String generateSalt() {
-        SecureRandom random = new SecureRandom();
-        byte[] salt = new byte[16];
-        random.nextBytes(salt);
-        return Base64.getEncoder().encodeToString(salt);
-    }
-
+    @Transactional(readOnly = true)
     public List<Folder> getFolderTree(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден"));
-        List<Folder> rootFolders = folderRepository.findByUserAndParentFolderIsNull(user);
-        return rootFolders.stream()
-                .map(this::enrichFolderWithSubfolders)
+
+        List<Folder> roots = folderRepository.findByUserAndParentFolderIsNull(user);
+        return roots.stream()
+                .filter(f -> !Boolean.TRUE.equals(f.getIsDeleted()))
+                .filter(f -> !Boolean.TRUE.equals(f.getIsHidden()))
+                .map(f -> enrichFolderWithSubfolders(f, 0))
                 .collect(Collectors.toList());
     }
 
-    private Folder enrichFolderWithSubfolders(Folder folder) {
-        List<Folder> subfolders = folderRepository.findByParentFolder(folder);
-        List<Folder> enrichedSubfolders = subfolders.stream()
-                .map(this::enrichFolderWithSubfolders)
+    private Folder enrichFolderWithSubfolders(Folder folder, int depth) {
+        if (depth >= MAX_FOLDER_DEPTH) {
+            log.warn("Folder tree depth exceeds {} for folder {}",
+                    MAX_FOLDER_DEPTH, folder.getId());
+            return folder;
+        }
+        List<Folder> subfolders = folderRepository.findByParentFolder(folder).stream()
+                .filter(f -> !Boolean.TRUE.equals(f.getIsDeleted()))
+                .filter(f -> !Boolean.TRUE.equals(f.getIsHidden()))
                 .collect(Collectors.toList());
-        folder.setSubfolders(enrichedSubfolders);
+
+        List<Folder> enriched = subfolders.stream()
+                .map(f -> enrichFolderWithSubfolders(f, depth + 1))
+                .collect(Collectors.toList());
+        folder.setSubfolders(enriched);
         return folder;
-    }
-
-    public List<File> getFolderFiles(UUID folderId, UUID userId) {
-        Folder folder = folderRepository.findById(folderId)
-                .orElseThrow(() -> new IllegalArgumentException("Папка не найдена"));
-        checkFolderAccess(folder, userId, FolderAccess.AccessLevel.READ);
-        return fileRepository.findByFolderId(folderId);
     }
 
     public boolean checkHiddenFolderKey(UUID folderId, String key) {
         Folder folder = folderRepository.findById(folderId)
                 .orElseThrow(() -> new IllegalArgumentException("Папка не найдена"));
+
         if (folder.getHiddenFolderKeyHash() == null) {
             return false;
         }
-        return passwordEncoder.matches(key, folder.getHiddenFolderKeyHash());
+
+        String attemptKey = "hidden:" + folderId;
+        if (loginAttemptService.isFolderPasswordBlocked(attemptKey)) {
+            throw new SecurityException("Too many attempts, try again later");
+        }
+
+        boolean ok = passwordEncoder.matches(key, folder.getHiddenFolderKeyHash());
+        if (ok) {
+            loginAttemptService.folderPasswordSucceeded(attemptKey);
+        } else {
+            loginAttemptService.folderPasswordFailed(attemptKey);
+        }
+        return ok;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<File> getFolderFilesPaged(UUID folderId, UUID userId, Pageable pageable) {
+        Folder folder = folderRepository.findById(folderId)
+                .orElseThrow(() -> new IllegalArgumentException("Папка не найдена"));
+        checkFolderAccess(folder, userId, FolderAccess.AccessLevel.READ);
+        return fileRepository.findByFolderIdAndIsDeletedFalse(folderId, pageable);
     }
 }

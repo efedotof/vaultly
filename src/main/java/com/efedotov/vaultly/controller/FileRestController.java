@@ -1,20 +1,8 @@
 package com.efedotov.vaultly.controller;
 
-import java.io.InputStream;
-import java.security.MessageDigest;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.spec.MGF1ParameterSpec;
 import java.time.Duration;
-import java.util.Base64;
-import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.spec.OAEPParameterSpec;
-import javax.crypto.spec.PSource;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,15 +25,13 @@ import com.efedotov.vaultly.dto.file.CheckDuplicateRequest;
 import com.efedotov.vaultly.dto.file.DecryptionMetadata;
 import com.efedotov.vaultly.dto.file.FileDto;
 import com.efedotov.vaultly.dto.file.LinkFileRequest;
+import com.efedotov.vaultly.exception.BadRequestException;
 import com.efedotov.vaultly.model.File;
 import com.efedotov.vaultly.security.CustomUserDetails;
 import com.efedotov.vaultly.service.FileService;
 import com.efedotov.vaultly.service.S3Service;
-import com.efedotov.vaultly.service.ServerKeyService;
-import com.efedotov.vaultly.service.ShpsSecurityService;
-import com.efedotov.vaultly.service.UserKeyService;
-import com.efedotov.vaultly.shirmps.ShirmpsHeader;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -55,11 +41,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class FileRestController {
 
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final S3Service s3Service;
-    private final ShpsSecurityService shpsSecurityService;
     private final FileService fileService;
-    private final ServerKeyService serverKeyService;
-    private final UserKeyService userKeyService;
 
     @PostMapping("/upload/shps")
     public FileDto uploadShps(
@@ -90,6 +75,7 @@ public class FileRestController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
+        validatePageParams(page, size);
         UUID userId = user.getUserId();
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
@@ -105,6 +91,7 @@ public class FileRestController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
+        validatePageParams(page, size);
         UUID userId = user.getUserId();
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
@@ -138,72 +125,10 @@ public class FileRestController {
     @GetMapping("/{fileId}/content")
     public ResponseEntity<DecryptionMetadata> getDecryptionMetadata(
             @PathVariable UUID fileId,
-            @AuthenticationPrincipal CustomUserDetails user) throws Exception {
+            @AuthenticationPrincipal CustomUserDetails user) {
 
         UUID userId = user.getUserId();
-        File file = fileService.getFileById(fileId, userId);
-        if (!file.getIsPublic()) {
-            throw new SecurityException("Only public files supported");
-        }
-
-        String s3Key = file.getFileContent() != null ? file.getFileContent().getS3Key() : null;
-        if (s3Key == null) {
-            throw new IllegalStateException("File has no associated content");
-        }
-
-        ShirmpsHeader header;
-        try (InputStream s3Stream = s3Service.getObjectStream(s3Key)) {
-            header = shpsSecurityService.extractHeader(s3Stream);
-        }
-
-        log.info(
-                "SHPS header extracted: version={}, algorithm={}, keyEncryption={}, keyOwner={}, userId={}, originalSize={}",
-                header.getVersion(), header.getAlgorithm(), header.getKeyEncryption(),
-                header.getKeyOwner(), header.getUserId(), header.getOriginalFileSize());
-
-        String encryptedKeyBase64 = header.getEncryptedKey();
-        if (encryptedKeyBase64 == null || encryptedKeyBase64.isBlank()) {
-            throw new SecurityException("Encrypted AES key is missing in SHPS header");
-        }
-
-        PrivateKey serverPrivateKey = serverKeyService.getPrivateKey();
-        PublicKey serverPublicKey = serverKeyService.getPublicKey();
-
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
-        byte[] pubEncoded = serverPublicKey.getEncoded();
-        byte[] fingerprint = md.digest(pubEncoded);
-        log.info("Decrypting with server public key fingerprint (SHA-256): {}", HexFormat.of().formatHex(fingerprint));
-
-        byte[] encryptedAesKey = Base64.getDecoder().decode(encryptedKeyBase64);
-
-        Cipher rsaCipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
-        OAEPParameterSpec oaepParams = new OAEPParameterSpec(
-                "SHA-256", "MGF1", MGF1ParameterSpec.SHA256, PSource.PSpecified.DEFAULT);
-        rsaCipher.init(Cipher.DECRYPT_MODE, serverPrivateKey, oaepParams);
-
-        byte[] aesKeyBytes;
-        try {
-            aesKeyBytes = rsaCipher.doFinal(encryptedAesKey);
-        } catch (BadPaddingException e) {
-            log.error("BadPaddingException during AES key decryption.");
-            throw e;
-        }
-
-        PublicKey userPublicKey = userKeyService.getPublicKey(userId);
-        rsaCipher.init(Cipher.ENCRYPT_MODE, userPublicKey, oaepParams);
-        byte[] reEncryptedKey = rsaCipher.doFinal(aesKeyBytes);
-
-        Duration duration = Duration.ofMinutes(10);
-        String presignedUrl = s3Service.generatePresignedUrl(s3Key, duration);
-
-        DecryptionMetadata metadata = new DecryptionMetadata();
-        metadata.setPresignedUrl(presignedUrl);
-        metadata.setEncryptedKey(Base64.getEncoder().encodeToString(reEncryptedKey));
-        metadata.setIv(header.getIv());
-        metadata.setOriginalSize(header.getOriginalFileSize());
-        metadata.setMimeType(file.getMimeType());
-        metadata.setFileName(file.getOriginalName());
-
+        DecryptionMetadata metadata = fileService.getDecryptionMetadataForUser(fileId, userId);
         return ResponseEntity.ok(metadata);
     }
 
@@ -225,6 +150,7 @@ public class FileRestController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
+        validatePageParams(page, size);
         UUID userId = user.getUserId();
         Page<File> notesPage = fileService.getUsersNodes(userId, page, size);
         Page<FileDto> dtoPage = notesPage.map(this::mapToDto);
@@ -258,20 +184,14 @@ public class FileRestController {
             @RequestBody CheckDuplicateRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
 
-        UUID existingFileContentId = fileService.findExistingFileContentId(
-                request.getHash(), request.getIsPublic());
-        if (existingFileContentId != null) {
-            return ResponseEntity.ok(Map.of(
-                    "exists", true,
-                    "fileContentId", existingFileContentId.toString()));
-        } else {
-            return ResponseEntity.ok(Map.of("exists", false));
-        }
+        boolean exists = fileService.existsFileContentForUser(
+                request.getHash(), request.getIsPublic(), user.getUserId());
+        return ResponseEntity.ok(Map.of("exists", exists));
     }
 
     @PostMapping("/link")
     public FileDto linkExistingFile(
-            @RequestBody LinkFileRequest request,
+            @Valid @RequestBody LinkFileRequest request,
             @AuthenticationPrincipal CustomUserDetails user) {
 
         UUID userId = user.getUserId();
@@ -282,6 +202,13 @@ public class FileRestController {
                 request.getFolderId(),
                 request.getIsPublic());
         return mapToDto(file);
+    }
+
+    private void validatePageParams(int page, int size) {
+        if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BadRequestException(
+                    "Invalid pagination: page >= 0, 1 <= size <= " + MAX_PAGE_SIZE);
+        }
     }
 
     private FileDto mapToDto(File file) {
@@ -302,14 +229,6 @@ public class FileRestController {
             dto.setFolderName(file.getFolder().getName());
         }
 
-        if (file.getFileContent() != null) {
-            String s3Key = file.getFileContent().getS3Key();
-            if (s3Key != null) {
-                dto.setS3Url(s3Service.getPublicUrl(s3Key));
-            }
-        }
-
         return dto;
     }
-
 }

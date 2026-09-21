@@ -72,4 +72,9 @@ public class File {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @Version
+    @Builder.Default
+    @Column(nullable = false)
+    private Long version = 0L;
 }

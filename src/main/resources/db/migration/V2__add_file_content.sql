@@ -9,9 +9,9 @@ CREATE TABLE IF NOT EXISTS file_contents (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-DO $$ 
-BEGIN 
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                    WHERE table_name='files' AND column_name='file_content_id') THEN
         ALTER TABLE files ADD COLUMN file_content_id UUID REFERENCES file_contents(id);
     END IF;

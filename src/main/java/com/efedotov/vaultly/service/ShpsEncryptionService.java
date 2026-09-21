@@ -1,23 +1,19 @@
 package com.efedotov.vaultly.service;
 
-import com.efedotov.vaultly.dto.file.ShpsEncryptedStream;
 import com.efedotov.vaultly.shirmps.ShirmpsHeader;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.Cipher;
-import javax.crypto.CipherInputStream;
 import javax.crypto.CipherOutputStream;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.OAEPParameterSpec;
 import javax.crypto.spec.PSource;
-
 import java.io.*;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -45,116 +41,6 @@ public class ShpsEncryptionService {
     private final ServerKeyService serverKeyService;
     private final ObjectMapper objectMapper = ShirmpsHeader.createObjectMapper();
 
-    /**
-     * Шифрует открытый файл в формат SHPS для публичного доступа (keyOwner =
-     * server).
-     */
-    public byte[] encryptForServer(byte[] plainData, String originalFileName, UUID userId) throws Exception {
-        log.info("Encrypting public file for server: {}, size: {} bytes", originalFileName, plainData.length);
-
-        KeyGenerator keyGen = KeyGenerator.getInstance("AES");
-        keyGen.init(AES_KEY_SIZE);
-        SecretKey aesKey = keyGen.generateKey();
-
-        byte[] iv = new byte[GCM_IV_LENGTH];
-        new SecureRandom().nextBytes(iv);
-
-        Cipher aesCipher = Cipher.getInstance("AES/GCM/NoPadding");
-        GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
-        aesCipher.init(Cipher.ENCRYPT_MODE, aesKey, gcmSpec);
-        byte[] encryptedData = aesCipher.doFinal(plainData);
-
-        PublicKey serverPublicKey = serverKeyService.getPublicKey();
-        Cipher rsaCipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
-        rsaCipher.init(Cipher.ENCRYPT_MODE, serverPublicKey);
-        byte[] encryptedKey = rsaCipher.doFinal(aesKey.getEncoded());
-
-        ShirmpsHeader header = new ShirmpsHeader();
-        header.setVersion("1.0");
-        header.setAlgorithm("AES-256-GCM");
-        header.setKeyEncryption("RSA-OAEP");
-        header.setKeyOwner("server");
-        header.setUserId(userId.toString());
-        header.setOriginalFileName(originalFileName);
-        header.setOriginalFileSize((long) plainData.length);
-        header.setEncryptedKey(Base64.getEncoder().encodeToString(encryptedKey));
-        header.setIv(Base64.getEncoder().encodeToString(iv));
-        header.setSignature(null);
-        header.setCreationDate(LocalDateTime.now());
-        header.setMetadata(new HashMap<>());
-
-        byte[] headerBytes = objectMapper.writeValueAsBytes(header);
-
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream dos = new DataOutputStream(baos);
-        dos.writeInt(headerBytes.length);
-        dos.write(headerBytes);
-        dos.write(encryptedData);
-
-        log.info("SHPS file generated for public upload, total size: {} bytes", baos.size());
-        return baos.toByteArray();
-    }
-
-    /**
-     * Потоковое шифрование в SHPS с возвратом составного InputStream.
-     */
-    @SuppressWarnings("resource")
-    public ShpsEncryptedStream encryptForServerStreaming(InputStream plainInputStream,
-            long plainSize,
-            String originalFileName,
-            UUID userId) throws Exception {
-        log.info("Streaming encryption for public file: {}, size: {} bytes", originalFileName, plainSize);
-
-        KeyGenerator keyGen = KeyGenerator.getInstance("AES");
-        keyGen.init(AES_KEY_SIZE);
-        SecretKey aesKey = keyGen.generateKey();
-
-        byte[] iv = new byte[GCM_IV_LENGTH];
-        new SecureRandom().nextBytes(iv);
-
-        PublicKey serverPublicKey = serverKeyService.getPublicKey();
-        Cipher rsaCipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
-        rsaCipher.init(Cipher.ENCRYPT_MODE, serverPublicKey);
-        byte[] encryptedKey = rsaCipher.doFinal(aesKey.getEncoded());
-
-        ShirmpsHeader header = new ShirmpsHeader();
-        header.setVersion("1.0");
-        header.setAlgorithm("AES-256-GCM");
-        header.setKeyEncryption("RSA-OAEP");
-        header.setKeyOwner("server");
-        header.setUserId(userId.toString());
-        header.setOriginalFileName(originalFileName);
-        header.setOriginalFileSize(plainSize);
-        header.setEncryptedKey(Base64.getEncoder().encodeToString(encryptedKey));
-        header.setIv(Base64.getEncoder().encodeToString(iv));
-        header.setSignature(null);
-        header.setCreationDate(LocalDateTime.now());
-        header.setMetadata(new HashMap<>());
-
-        byte[] headerBytes = objectMapper.writeValueAsBytes(header);
-        int headerLength = headerBytes.length;
-
-        ByteArrayInputStream lengthStream = new ByteArrayInputStream(
-                ByteBuffer.allocate(4).putInt(headerLength).array());
-        ByteArrayInputStream headerStream = new ByteArrayInputStream(headerBytes);
-
-        Cipher aesCipher = Cipher.getInstance("AES/GCM/NoPadding");
-        GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
-        aesCipher.init(Cipher.ENCRYPT_MODE, aesKey, gcmSpec);
-        CipherInputStream encryptedDataStream = new CipherInputStream(plainInputStream, aesCipher);
-
-        InputStream combinedStream = new SequenceInputStream(
-                new SequenceInputStream(lengthStream, headerStream),
-                encryptedDataStream);
-
-        long totalSize = 4L + headerLength + plainSize + (GCM_TAG_LENGTH / 8);
-
-        return new ShpsEncryptedStream(combinedStream, totalSize);
-    }
-
-    /**
-     * Шифрует данные из InputStream во временный файл на диске.
-     */
     public java.io.File encryptForServerToTempFile(InputStream plainInputStream,
             long plainSize,
             String originalFileName,

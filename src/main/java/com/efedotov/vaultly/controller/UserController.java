@@ -26,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 @RestController
 @RequestMapping("/api/users")
@@ -33,7 +34,7 @@ import tools.jackson.databind.ObjectMapper;
 public class UserController {
 
     private final UserService userService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = JsonMapper.builder().build();
 
     @GetMapping("/me")
     public ResponseEntity<UserProfileDto> getCurrentUserProfile(@AuthenticationPrincipal UserDetails currentUser) {
@@ -65,9 +66,16 @@ public class UserController {
 
     @GetMapping("/{id}")
     public ResponseEntity<UserProfileDto> getUserProfileById(@PathVariable UUID id,
-            @AuthenticationPrincipal UserDetails currentUser) {
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
         UserProfileDto profile = userService.getUserProfile(id);
-        return ResponseEntity.ok(profile);
+        UserProfileDto publicView = new UserProfileDto();
+        publicView.setId(profile.getId());
+        publicView.setUsername(profile.getUsername());
+        publicView.setFirstName(profile.getFirstName());
+        publicView.setLastName(profile.getLastName());
+        publicView.setAvatarUrl(profile.getAvatarUrl());
+        publicView.setPublicKey(profile.getPublicKey());
+        return ResponseEntity.ok(publicView);
     }
 
     private UUID extractUserIdFromPrincipal(UserDetails principal) {
@@ -97,7 +105,7 @@ public class UserController {
     @PostMapping("/keys/update")
     public ResponseEntity<Void> updateKeys(
             @AuthenticationPrincipal CustomUserDetails user,
-            @RequestBody UpdateKeysRequest request) {
+            @Valid @RequestBody UpdateKeysRequest request) {
         userService.updateKeys(user.getUserId(), request);
         return ResponseEntity.ok().build();
     }

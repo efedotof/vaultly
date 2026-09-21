@@ -15,10 +15,8 @@ import com.efedotov.vaultly.model.UserSession;
 @Repository
 public interface UserSessionRepository extends JpaRepository<UserSession, String> {
 
-    Optional<UserSession> findByToken(String token);
-
-    @Query("SELECT s FROM UserSession s WHERE s.token = ?1 AND s.expiresAt > ?2")
-    Optional<UserSession> findValidSession(String token, Instant now);
+    @Query("SELECT s FROM UserSession s WHERE s.tokenHash = ?1 AND s.expiresAt > ?2")
+    Optional<UserSession> findValidSession(String tokenHash, Instant now);
 
     @Modifying
     @Query("DELETE FROM UserSession s WHERE s.expiresAt < ?1")

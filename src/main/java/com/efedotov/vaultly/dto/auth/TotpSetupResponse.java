@@ -6,6 +6,5 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class TotpSetupResponse {
-    private String secret;
     private String qrCodeUrl;
 }

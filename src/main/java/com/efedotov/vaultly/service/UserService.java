@@ -1,21 +1,26 @@
 package com.efedotov.vaultly.service;
 
+import java.security.KeyFactory;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
 import java.util.UUID;
 
-import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
 
 import com.efedotov.vaultly.dto.user.RecoveryDataResponse;
 import com.efedotov.vaultly.dto.user.UpdateKeysRequest;
 import com.efedotov.vaultly.dto.user.UpdateRecoveryKeysRequest;
 import com.efedotov.vaultly.dto.user.UpdateUserRequest;
 import com.efedotov.vaultly.dto.user.UserProfileDto;
-import com.efedotov.vaultly.exception.ResourceNotFoundException;
+import com.efedotov.vaultly.exception.BadRequestException;
+import com.efedotov.vaultly.exception.NotFoundException;
 import com.efedotov.vaultly.exception.UsernameAlreadyExistsException;
 import com.efedotov.vaultly.model.User;
 import com.efedotov.vaultly.repository.UserRepository;
-import com.fasterxml.jackson.core.JacksonException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -27,11 +32,12 @@ import lombok.extern.slf4j.Slf4j;
 public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final UserKeyService userKeyService;
+    private final ObjectMapper objectMapper = JsonMapper.builder().build();
 
     public User getUserById(UUID id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+                .orElseThrow(() -> new NotFoundException("User not found with id: " + id));
     }
 
     @Transactional
@@ -79,7 +85,9 @@ public class UserService {
             throw new RuntimeException("Invalid password");
         }
 
-        user.setRecoveryPublicKey(request.getRecoveryPublicKey());
+        validatePublicKeyFormat(request.getRecoveryPublicKey());
+
+        user.setRecoveryPublicKey(AuthService.normalizePublicKey(request.getRecoveryPublicKey()));
         user.setRecoveryPrivateKeyEncrypted(normalizePrivateKeyEncrypted(request.getRecoveryPrivateKeyEncrypted()));
         user.setRecoveryEncryptedRsaKey(request.getRecoveryEncryptedRsaKey());
         userRepository.save(user);
@@ -114,16 +122,39 @@ public class UserService {
     @Transactional
     public void updateKeys(UUID userId, UpdateKeysRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
             throw new RuntimeException("Invalid password");
         }
+
+        validatePublicKeyFormat(request.getPublicKey());
+
         user.setPublicKey(request.getPublicKey());
         user.setPrivateKeyEncrypted(normalizePrivateKeyEncrypted(request.getPrivateKeyEncrypted()));
         userRepository.save(user);
-
+        userKeyService.invalidate(userId);
         log.info("User {} updated keys", user.getUsername());
+    }
+
+    public static void validatePublicKeyFormat(String pem) {
+        if (pem == null || pem.isBlank()) {
+            throw new BadRequestException("Public key is required");
+        }
+        if (pem.length() > 10_000) {
+            throw new BadRequestException("Public key too long");
+        }
+        try {
+            String base64Key = pem
+                    .replaceAll("-----BEGIN [A-Z ]+-----", "")
+                    .replaceAll("-----END [A-Z ]+-----", "")
+                    .replaceAll("\\s", "");
+            byte[] keyBytes = Base64.getDecoder().decode(base64Key);
+            X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
+            KeyFactory.getInstance("RSA").generatePublic(spec);
+        } catch (Exception e) {
+            throw new BadRequestException("Invalid public key format");
+        }
     }
 
     private UserProfileDto mapToUserProfileDto(User user) {

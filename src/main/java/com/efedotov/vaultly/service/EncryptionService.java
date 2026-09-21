@@ -1,6 +1,5 @@
 package com.efedotov.vaultly.service;
 
-import java.io.UnsupportedEncodingException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -14,7 +13,7 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-
+import java.nio.charset.StandardCharsets;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -44,12 +43,12 @@ public class EncryptionService {
             Cipher cipher = Cipher.getInstance(AES_GCM_NO_PADDING);
             GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
             cipher.init(Cipher.ENCRYPT_MODE, masterKey, spec);
-            byte[] cipherText = cipher.doFinal(plainText.getBytes("UTF-8"));
+            byte[] cipherText = cipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
 
             String ivB64 = Base64.getEncoder().encodeToString(iv);
             String ctB64 = Base64.getEncoder().encodeToString(cipherText);
             return ivB64 + ":" + ctB64;
-        } catch (UnsupportedEncodingException | InvalidAlgorithmParameterException | InvalidKeyException
+        } catch (InvalidAlgorithmParameterException | InvalidKeyException
                 | NoSuchAlgorithmException | BadPaddingException | IllegalBlockSizeException
                 | NoSuchPaddingException e) {
             throw new RuntimeException("Encryption failed", e);
@@ -69,9 +68,11 @@ public class EncryptionService {
             GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
             cipher.init(Cipher.DECRYPT_MODE, masterKey, spec);
             byte[] plainText = cipher.doFinal(cipherText);
-            return new String(plainText, "UTF-8");
-        } catch (UnsupportedEncodingException | IllegalArgumentException | InvalidAlgorithmParameterException
-                | InvalidKeyException | NoSuchAlgorithmException | BadPaddingException | IllegalBlockSizeException
+            return new String(plainText, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (InvalidAlgorithmParameterException | InvalidKeyException
+                | NoSuchAlgorithmException | BadPaddingException | IllegalBlockSizeException
                 | NoSuchPaddingException e) {
             throw new RuntimeException("Decryption failed", e);
         }

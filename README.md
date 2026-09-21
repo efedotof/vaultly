@@ -119,25 +119,34 @@ cd vaultly
 Создайте файл `.env` в корне проекта (рядом с `docker-compose.yml`). Пример минимально необходимого:
 
 ```dotenv
-# --- Приложение ---
+# Приложение 
 SERVER_PORT=8085
 APP_BASE_URL=http://localhost:8085
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
 ENCRYPTION_MASTER_KEY=<base64-ключ-32-байта>
 
-# --- База данных ---
+# База данных 
 DB_USERNAME=postgres
 DB_PASSWORD=<надёжный-пароль>
 
-# --- S3 / MinIO ---
+# S3 / MinIO 
 S3_REGION=us-east-1
 S3_ACCESS_KEY=<access-key>
 S3_SECRET_KEY=<secret-key>
 S3_BUCKET=vaultly
 S3_PUBLIC_URL=http://localhost:9000/vaultly
 
-# --- Ключи сервера (пути внутри контейнера) ---
+# Ключи сервера (пути внутри контейнера)
 SERVER_PRIVATE_KEY_PATH=keys/server_private.key
 SERVER_PUBLIC_KEY_PATH=keys/server_public.key
+
+# Логирование (внутри контейнера) 
+LOG_LEVEL_VAULTLY=INFO
+LOG_LEVEL_SPRING_WEB=INFO
+LOG_LEVEL_SPRING_SEC=INFO
+LOG_LEVEL_HIKARI=INFO
+
+TRUST_FORWARDED_HEADERS=false
 ```
 
 > **Важно:** `S3_ACCESS_KEY` / `S3_SECRET_KEY` используются одновременно как root-креды MinIO и как ключи S3 для приложения. MinIO создаёт root-пользователя **один раз** при первом старте и хранит его в volume. Если поменять значения после первого `up` - приложение не сможет авторизоваться. Сброс: `docker compose down -v && docker compose up -d --build`.

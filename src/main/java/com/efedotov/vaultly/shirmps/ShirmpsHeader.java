@@ -4,12 +4,18 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ShirmpsHeader {
+
+    private static final ObjectMapper OBJECT_MAPPER = buildMapper();
+
     private String version = "1.0";
     private String algorithm = "AES-256-GCM";
     private String keyEncryption = "RSA-OAEP";
@@ -27,20 +33,23 @@ public class ShirmpsHeader {
         this.creationDate = LocalDateTime.now();
     }
 
-    public byte[] toJsonBytes() throws JsonProcessingException {
-        ObjectMapper mapper = createObjectMapper();
-        return mapper.writeValueAsBytes(this);
+    public byte[] toJsonBytes() throws JacksonException {
+        return OBJECT_MAPPER.writeValueAsBytes(this);
     }
 
     public static ShirmpsHeader fromJsonBytes(byte[] jsonBytes) throws Exception {
-        ObjectMapper mapper = createObjectMapper();
-        return mapper.readValue(jsonBytes, ShirmpsHeader.class);
+        return OBJECT_MAPPER.readValue(jsonBytes, ShirmpsHeader.class);
     }
 
     public static ObjectMapper createObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        return mapper;
+        return OBJECT_MAPPER;
+    }
+
+    private static ObjectMapper buildMapper() {
+        return JsonMapper.builder()
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+                .build();
     }
 
     public String getVersion() {

@@ -2,10 +2,10 @@ package com.efedotov.vaultly.security;
 
 import java.io.IOException;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @RequiredArgsConstructor
 public class SessionAuthFilter extends OncePerRequestFilter {
+
     private final SessionService sessionService;
     private final UserDetailsServiceImpl userDetailsService;
 
@@ -56,19 +57,30 @@ public class SessionAuthFilter extends OncePerRequestFilter {
 
             if (sessionOpt.isPresent()) {
                 UserSession session = sessionOpt.get();
-                var userDetails = userDetailsService.loadUserById(session.getUserId());
+                try {
+                    var userDetails = userDetailsService.loadUserById(session.getUserId());
 
-                log.info("Authenticated user: {} with roles: {} for request: {} {}",
-                        userDetails.getUsername(),
-                        userDetails.getAuthorities().stream()
-                                .map(auth -> auth.getAuthority())
-                                .collect(Collectors.joining(", ")),
-                        method, uri);
+                    if (!userDetails.isEnabled()) {
+                        log.warn("Inactive user {} tried to authenticate with valid session",
+                                session.getUserId());
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
 
-                var auth = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(auth);
+                    log.debug("Authenticated user: {} for request: {} {}",
+                            userDetails.getUsername(), method, uri);
+
+                    var auth = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities());
+                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+
+                } catch (UsernameNotFoundException e) {
+                    log.warn("Session references missing user {}: {}",
+                            session.getUserId(), e.getMessage());
+                    sessionService.deleteSession(token);
+
+                }
             } else {
                 log.warn("Invalid session token for request: {} {}", method, uri);
             }

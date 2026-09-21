@@ -70,7 +70,7 @@ public class DeviceService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public String getEncryptedPrivateKey(UUID deviceId, UUID userId) {
         Device device = deviceRepository.findByIdAndUserId(deviceId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Устройство не найдено"));

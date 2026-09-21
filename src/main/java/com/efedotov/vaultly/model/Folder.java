@@ -50,10 +50,10 @@ public class Folder {
     @JoinColumn(name = "parent_folder_id")
     private Folder parentFolder;
 
-    @OneToMany(mappedBy = "parentFolder", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "parentFolder", cascade = { CascadeType.PERSIST, CascadeType.MERGE })
     private List<Folder> subfolders;
 
-    @OneToMany(mappedBy = "folder", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "folder", cascade = { CascadeType.PERSIST, CascadeType.MERGE })
     private List<File> files;
 
     @Enumerated(EnumType.STRING)

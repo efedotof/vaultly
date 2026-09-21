@@ -13,7 +13,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -30,12 +32,12 @@ public class TotpService {
     private static final int TIME_PERIOD_SECONDS = 30;
     private static final int BACKUP_CODE_COUNT = 8;
     private static final int BACKUP_CODE_LENGTH = 10;
-
+    private final ObjectMapper objectMapper = JsonMapper.builder().build();
     private final SecretGenerator secretGenerator = new DefaultSecretGenerator();
     private final TimeProvider timeProvider = new SystemTimeProvider();
     private final CodeGenerator codeGenerator = new DefaultCodeGenerator(HashingAlgorithm.SHA1, CODE_LENGTH);
     private final CodeVerifier codeVerifier = new DefaultCodeVerifier(codeGenerator, timeProvider);
-    private final PasswordEncoder backupCodeEncoder = new BCryptPasswordEncoder();
+    private final PasswordEncoder backupCodeEncoder = new BCryptPasswordEncoder(12);
 
     public String generateSecret() {
         return secretGenerator.generate();
@@ -77,10 +79,12 @@ public class TotpService {
             hashedCodes.add(backupCodeEncoder.encode(code));
         }
 
-        String hashesJson = hashedCodes.stream()
-                .map(h -> "\"" + h + "\"")
-                .collect(Collectors.joining(",", "[", "]"));
-
+        String hashesJson;
+        try {
+            hashesJson = objectMapper.writeValueAsString(hashedCodes);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to serialize backup codes", e);
+        }
         return new BackupCodes(plainCodes, hashesJson);
     }
 
@@ -102,13 +106,15 @@ public class TotpService {
             return storedHashesJson;
         }
         List<String> hashes = parseJsonStringArray(storedHashesJson);
-        List<String> updatedHashes = hashes.stream()
+        List<String> updated = hashes.stream()
                 .filter(hash -> !backupCodeEncoder.matches(plainCode, hash))
                 .collect(Collectors.toList());
-
-        return updatedHashes.stream()
-                .map(h -> "\"" + h + "\"")
-                .collect(Collectors.joining(",", "[", "]"));
+        try {
+            return objectMapper.writeValueAsString(updated);
+        } catch (Exception e) {
+            log.warn("Failed to serialize backup codes: {}", e.getMessage());
+            return storedHashesJson;
+        }
     }
 
     private String generateRandomCode(int length, SecureRandom random) {
@@ -119,14 +125,16 @@ public class TotpService {
     }
 
     private List<String> parseJsonStringArray(String json) {
-        String trimmed = json.trim();
-        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-            trimmed = trimmed.substring(1, trimmed.length() - 1).trim();
-        }
-        if (trimmed.isEmpty()) {
+        if (json == null || json.isBlank()) {
             return List.of();
         }
-        return List.of(trimmed.replaceAll("\"", "").split("\\s*,\\s*"));
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {
+            });
+        } catch (Exception e) {
+            log.warn("Failed to parse backup codes JSON: {}", e.getMessage());
+            return List.of();
+        }
     }
 
     public record BackupCodes(List<String> plainCodes, String hashesJson) {

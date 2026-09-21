@@ -1,7 +1,6 @@
 package com.efedotov.vaultly.service;
 
 import java.security.KeyFactory;
-import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
@@ -25,7 +24,6 @@ public class UserKeyService {
 
     private final UserRepository userRepository;
     private final Map<UUID, PublicKey> userPublicKeys = new ConcurrentHashMap<>();
-    private final Map<UUID, PrivateKey> userPrivateKeys = new ConcurrentHashMap<>();
 
     @PostConstruct
     @Transactional(readOnly = true)
@@ -36,7 +34,6 @@ public class UserKeyService {
                 try {
                     PublicKey publicKey = loadPublicKeyFromPem(user.getPublicKey());
                     userPublicKeys.put(user.getId(), publicKey);
-                    log.debug("Loaded public key for user: {}", user.getId());
                 } catch (Exception e) {
                     log.error("Failed to load public key for user {}: {}", user.getId(), e.getMessage());
                 }
@@ -67,10 +64,8 @@ public class UserKeyService {
                         try {
                             PublicKey loadedKey = loadPublicKeyFromPem(user.getPublicKey());
                             userPublicKeys.put(userId, loadedKey);
-                            log.info("Loaded public key for user {} on demand", userId);
                             return loadedKey;
                         } catch (Exception e) {
-                            log.error("Failed to load public key for user {}: {}", userId, e.getMessage());
                             throw new IllegalArgumentException("Invalid public key format for user: " + userId, e);
                         }
                     })
@@ -79,21 +74,10 @@ public class UserKeyService {
         return key;
     }
 
-    public PrivateKey getPrivateKey(UUID userId) {
-        return userPrivateKeys.get(userId);
+    public void invalidate(UUID userId) {
+        if (userId != null) {
+            userPublicKeys.remove(userId);
+        }
     }
 
-    public void addUserPublicKey(UUID userId, PublicKey publicKey) {
-        userPublicKeys.put(userId, publicKey);
-        log.info("Added public key for user: {}", userId);
-    }
-
-    public void addUserPrivateKey(UUID userId, PrivateKey privateKey) {
-        userPrivateKeys.put(userId, privateKey);
-        log.warn("Added private key for user: {}. WARNING: This should not be used in production!", userId);
-    }
-
-    public boolean hasPublicKey(UUID userId) {
-        return userPublicKeys.containsKey(userId);
-    }
 }

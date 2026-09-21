@@ -17,6 +17,7 @@
     <properties>
         <java.version>21</java.version>
         <lombok.version>1.18.46</lombok.version>
+        <jacoco.version>0.8.15</jacoco.version>
     </properties>
 
     <dependencies>
@@ -97,7 +98,7 @@
             <artifactId>totp</artifactId>
             <version>1.7.1</version>
         </dependency>
-        <!-- Тестовые зависимости -->
+       
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -106,6 +107,11 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -139,6 +145,70 @@
                         </exclude>
                     </excludes>
                 </configuration>
+            </plugin>
+
+           
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+
+                <configuration>
+                  
+                    <excludes>
+                        <exclude>com/efedotov/vaultly/dto/**</exclude>
+                        <exclude>com/efedotov/vaultly/model/**</exclude>
+                        <exclude>com/efedotov/vaultly/config/**</exclude>
+                        <exclude>com/efedotov/vaultly/exception/**</exclude>
+                        <exclude>com/efedotov/vaultly/repository/**</exclude>
+                        <exclude>com/efedotov/vaultly/VaultlyApplication.class</exclude>
+                    </excludes>
+                </configuration>
+
+                <executions>
+                    <!-- 1. Агент, который собирает данные о покрытии -->
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+
+                    <!-- 2. HTML/XML-отчёт после фазы test -->
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+
+                    <!--
+                        3. Проверка порога. Если покрытие ниже — сборка падает.
+                        Порог стоит поднять, когда окрепнет остальная часть тестов.
+                    -->
+                    <execution>
+                        <id>check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.60</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

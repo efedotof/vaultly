@@ -20,7 +20,7 @@ public interface FileRepository extends JpaRepository<File, UUID> {
     @Query("SELECT f FROM File f WHERE f.user.id = :userId AND f.isDeleted = false")
     List<File> findByUserId(@Param("userId") UUID userId);
 
-    @Query("SELECT f FROM File f WHERE f.id = :id AND f.user.id = :userId AND f.isDeleted = false")
+    @Query("SELECT f FROM File f LEFT JOIN FETCH f.fileContent WHERE f.id = :id AND f.user.id = :userId AND f.isDeleted = false")
     Optional<File> findByIdAndUserId(@Param("id") UUID id, @Param("userId") UUID userId);
 
     @Query("SELECT f FROM File f WHERE f.folder.id = :folderId AND f.isDeleted = false")
@@ -39,4 +39,11 @@ public interface FileRepository extends JpaRepository<File, UUID> {
 
     @Query("SELECT COUNT(f) FROM File f WHERE f.fileContent = :content AND f.isDeleted = false")
     long countActiveLinksByFileContent(@Param("content") FileContent content);
+
+    @Query("SELECT COUNT(f) > 0 FROM File f WHERE f.user.id = :userId AND f.fileContent.id = :contentId")
+    boolean existsByUserIdAndFileContentId(@Param("userId") UUID userId,
+            @Param("contentId") UUID contentId);
+
+    @Query("SELECT f FROM File f WHERE f.folder.id = :folderId AND f.isDeleted = false")
+    Page<File> findByFolderIdAndIsDeletedFalse(@Param("folderId") UUID folderId, Pageable pageable);
 }

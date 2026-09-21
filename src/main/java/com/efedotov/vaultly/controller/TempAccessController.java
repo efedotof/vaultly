@@ -27,7 +27,6 @@ import com.efedotov.vaultly.dto.tempaccess.CreateTempLinkRequest;
 import com.efedotov.vaultly.dto.tempaccess.FileAccessRequest;
 import com.efedotov.vaultly.dto.tempaccess.TempLinkInfo;
 import com.efedotov.vaultly.dto.tempaccess.TempLinkResponse;
-import com.efedotov.vaultly.model.TempFileAccess;
 import com.efedotov.vaultly.security.CustomUserDetails;
 import com.efedotov.vaultly.service.DeviceService;
 import com.efedotov.vaultly.service.FileService;
@@ -80,7 +79,7 @@ public class TempAccessController {
             } catch (Exception e) {
                 log.error("Streaming download failed", e);
                 throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Download failed: " + e.getMessage());
+                        "Download failed");
             }
         };
 
@@ -95,11 +94,13 @@ public class TempAccessController {
     @GetMapping("/{token}")
     public String getTempAccessPage(@PathVariable String token, Model model,
             @AuthenticationPrincipal CustomUserDetails user) {
-        TempFileAccess tempAccess = tempAccessService.validateTempLink(token, null);
+
+        TempLinkInfo info = tempAccessService.getTempLinkInfo(token);
+
         model.addAttribute("token", token);
-        model.addAttribute("fileName", tempAccess.getFile().getOriginalName());
-        model.addAttribute("expiresAt", tempAccess.getExpiresAt());
-        model.addAttribute("hasPassword", tempAccess.getPassword() != null && !tempAccess.getPassword().isEmpty());
+        model.addAttribute("fileName", info.getFileName());
+        model.addAttribute("expiresAt", info.getExpiresAt());
+        model.addAttribute("hasPassword", info.isHasPassword());
         model.addAttribute("isAuthenticated", user != null);
 
         if (user == null) {
@@ -123,10 +124,8 @@ public class TempAccessController {
 
         if (!isAuthenticated) {
             mav.addObject("redirectAfterLogin", "/tempacces/version132/temp-access/" + token);
-        } else {
-            if (user != null) {
-                deviceService.ensureTempDownloadDeviceExists(user.getUserId());
-            }
+        } else if (user != null) {
+            deviceService.ensureTempDownloadDeviceExists(user.getUserId());
         }
         return mav;
     }
@@ -136,8 +135,13 @@ public class TempAccessController {
     public DecryptionMetadata getDecryptionMetadata(@PathVariable String token,
             @RequestParam(required = false) String password,
             @AuthenticationPrincipal CustomUserDetails user) {
-        TempFileAccess tempAccess = tempAccessService.validateTempLink(token, password);
+
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+
+        var tempAccess = tempAccessService.validateTempLink(token, password);
         tempAccessService.incrementDownloadCount(token);
-        return fileService.getDecryptionMetadataForTempAccess(tempAccess.getFile().getId(), user.getUserId());
+        return fileService.getDecryptionMetadataForTempAccess(tempAccess, user.getUserId());
     }
 }

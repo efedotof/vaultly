@@ -43,3 +43,6 @@ build/
 
 keys/
 logs/
+update.txt
+
+_comment_cleaner_backups/

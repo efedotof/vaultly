@@ -22,30 +22,38 @@ import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import io.github.cdimascio.dotenv.Dotenv;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class ServerKeyService {
 
-    private final Dotenv dotenv;
+    @Value("${SERVER_PRIVATE_KEY_PATH}")
+    private String privateKeyPath;
+
+    @Value("${SERVER_PUBLIC_KEY_PATH}")
+    private String publicKeyPath;
 
     private PrivateKey serverPrivateKey;
     private PublicKey serverPublicKey;
 
     @PostConstruct
-    public void init() throws Exception {
+    public void init() {
         loadKeys();
         byte[] pubEncoded = serverPublicKey.getEncoded();
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        MessageDigest md;
+        try {
+            md = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
         byte[] fingerprint = md.digest(pubEncoded);
         log.info("Server public key fingerprint (SHA-256): {}", HexFormat.of().formatHex(fingerprint));
+
         try {
             Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
             cipher.init(Cipher.ENCRYPT_MODE, serverPublicKey);
@@ -59,23 +67,19 @@ public class ServerKeyService {
                 log.info("Server keys successfully verified as a matching pair.");
             }
         } catch (BadPaddingException e) {
-            log.error(
-                    "CRITICAL: Server private key cannot decrypt data encrypted with its own public key! Keys are not a pair.");
+            log.error("CRITICAL: Server private key cannot decrypt data encrypted with its own public key! "
+                    + "Keys are not a pair.");
         } catch (InvalidKeyException | NoSuchAlgorithmException | IllegalBlockSizeException
                 | NoSuchPaddingException e) {
             log.error("Failed to verify server key pair: {}", e.getMessage());
         }
     }
 
-    private void loadKeys() throws Exception {
+    private void loadKeys() {
         try {
-            String privateKeyPath = dotenv.get("SERVER_PRIVATE_KEY_PATH");
-            String publicKeyPath = dotenv.get("SERVER_PUBLIC_KEY_PATH");
-
             File privateKeyFile = new File(privateKeyPath);
             if (!privateKeyFile.exists()) {
-                log.warn("Server private key not found at: {}", privateKeyPath);
-                return;
+                throw new IllegalStateException("Server private key not found at: " + privateKeyPath);
             }
             String privateKeyPem = new String(Files.readAllBytes(privateKeyFile.toPath()));
             byte[] privateKeyDer = decodePem(privateKeyPem);
@@ -85,25 +89,20 @@ public class ServerKeyService {
             log.info("Server private key loaded successfully");
 
             File publicKeyFile = new File(publicKeyPath);
-            if (publicKeyFile.exists()) {
-                String publicKeyPem = new String(Files.readAllBytes(publicKeyFile.toPath()));
-                byte[] publicKeyDer = decodePem(publicKeyPem);
-                X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyDer);
-                serverPublicKey = keyFactory.generatePublic(publicKeySpec);
-                log.info("Server public key loaded successfully");
-            } else {
-                log.warn("Server public key not found at: {}", publicKeyPath);
+            if (!publicKeyFile.exists()) {
+                throw new IllegalStateException("Server public key not found at: " + publicKeyPath);
             }
+            String publicKeyPem = new String(Files.readAllBytes(publicKeyFile.toPath()));
+            byte[] publicKeyDer = decodePem(publicKeyPem);
+            X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyDer);
+            serverPublicKey = keyFactory.generatePublic(publicKeySpec);
+            log.info("Server public key loaded successfully");
 
         } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
-            log.error("Failed to load server keys", e);
-            throw e;
+            throw new IllegalStateException("Failed to load server keys", e);
         }
     }
 
-    /**
-     * Преобразует PEM‑строку в DER‑массив байтов.
-     */
     private byte[] decodePem(String pem) {
         String base64 = pem
                 .replaceAll("-----BEGIN [^-]+-----", "")

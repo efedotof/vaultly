@@ -136,8 +136,8 @@ CREATE TABLE IF NOT EXISTS devices (
     encrypted_private_key TEXT,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    unique_id VARCHAR(255) NOT NULL                   
+    last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    unique_id VARCHAR(255) NOT NULL
 );
 
 CREATE INDEX idx_users_email ON users(email);
@@ -184,19 +184,19 @@ DECLARE
     user_storage_used BIGINT;
     user_storage_limit BIGINT;
 BEGIN
-    SELECT storage_used, storage_limit 
+    SELECT storage_used, storage_limit
     INTO user_storage_used, user_storage_limit
-    FROM users 
+    FROM users
     WHERE id = NEW.user_id;
-    
+
     IF (user_storage_used + NEW.size) > user_storage_limit THEN
         RAISE EXCEPTION 'Storage limit exceeded for user %', NEW.user_id;
     END IF;
-    
-    UPDATE users 
+
+    UPDATE users
     SET storage_used = storage_used + NEW.size
     WHERE id = NEW.user_id;
-    
+
     RETURN NEW;
 END;
 $$ language 'plpgsql';
@@ -209,10 +209,10 @@ CREATE TRIGGER check_storage_on_file_insert
 CREATE OR REPLACE FUNCTION update_storage_on_delete()
 RETURNS TRIGGER AS $$
 BEGIN
-    UPDATE users 
+    UPDATE users
     SET storage_used = storage_used - OLD.size
     WHERE id = OLD.user_id AND storage_used >= OLD.size;
-    
+
     RETURN OLD;
 END;
 $$ language 'plpgsql';

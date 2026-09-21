@@ -1,6 +1,7 @@
 package com.efedotov.vaultly.security;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -13,6 +14,7 @@ import com.efedotov.vaultly.model.Role;
 import com.efedotov.vaultly.model.User;
 
 public class CustomUserDetails implements UserDetails {
+
     private final User user;
 
     public CustomUserDetails(User user) {
@@ -22,6 +24,9 @@ public class CustomUserDetails implements UserDetails {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         Set<Role> roles = user.getRoles();
+        if (roles == null || roles.isEmpty()) {
+            return List.of();
+        }
         return roles.stream()
                 .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getRoleName().toUpperCase()))
                 .collect(Collectors.toSet());
@@ -58,6 +63,6 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return Boolean.TRUE.equals(user.getIsActive());
     }
 }

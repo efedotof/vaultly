@@ -3,6 +3,7 @@ package com.efedotov.vaultly.repository;
 import com.efedotov.vaultly.model.Folder;
 import com.efedotov.vaultly.model.FolderAccess;
 import com.efedotov.vaultly.model.User;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -19,11 +20,17 @@ public interface FolderAccessRepository extends JpaRepository<FolderAccess, UUID
 
     Optional<FolderAccess> findByFolderAndUser(Folder folder, User user);
 
+    
+    @EntityGraph(attributePaths = { "folder", "user" })
+    Optional<FolderAccess> findByFolderIdAndUserId(UUID folderId, UUID userId);
+
     List<FolderAccess> findByFolder(Folder folder);
 
     List<FolderAccess> findByUser(User user);
 
     boolean existsByFolderAndUser(Folder folder, User user);
+
+    boolean existsByFolderIdAndUserId(UUID folderId, UUID userId);
 
     @Modifying
     @Query("DELETE FROM FolderAccess fa WHERE fa.folder = :folder")
@@ -37,6 +44,7 @@ public interface FolderAccessRepository extends JpaRepository<FolderAccess, UUID
     List<FolderAccess> findActiveByFolder(@Param("folder") Folder folder);
 
     @Modifying
-    @Query("UPDATE FolderAccess fa SET fa.isActive = false WHERE fa.expiresAt < :now")
+    @Query("UPDATE FolderAccess fa SET fa.isActive = false " +
+            "WHERE fa.expiresAt IS NOT NULL AND fa.expiresAt < :now")
     void deactivateExpiredAccesses(@Param("now") LocalDateTime now);
 }

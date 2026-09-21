@@ -1,6 +1,5 @@
 package com.efedotov.vaultly.service;
 
-import com.efedotov.vaultly.VaultlyApplication;
 import com.efedotov.vaultly.shirmps.ShirmpsHeader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,9 +15,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.security.spec.MGF1ParameterSpec;
 import java.util.Base64;
 import java.util.UUID;
@@ -33,7 +30,6 @@ public class ShpsSecurityService {
     private static final int BUFFER_SIZE = 8192;
 
     private final ServerKeyService serverKeyService;
-    private final UserKeyService userKeyService;
 
     public boolean validateStructure(byte[] shpsBytes) throws Exception {
         return validateStructure(shpsBytes, null);
@@ -72,13 +68,10 @@ public class ShpsSecurityService {
         }
     }
 
-    public boolean validateAndVerifyStreaming(byte[] shpsBytes, UUID userId) throws Exception {
-        return validateAndVerifyStreaming(shpsBytes, userId, null);
-    }
-
     public boolean validateAndVerifyStreaming(byte[] shpsBytes, UUID userId, String fileName) throws Exception {
         String fileInfo = (fileName != null) ? fileName : "unknown";
         log.info("Starting full SHPS validation for file: {}, user: {}", fileInfo, userId);
+
         try (ByteArrayInputStream bais = new ByteArrayInputStream(shpsBytes);
                 DataInputStream dis = new DataInputStream(bais)) {
 
@@ -98,25 +91,7 @@ public class ShpsSecurityService {
 
             validateHeader(header, fileInfo);
 
-            if (header.getSignature() == null) {
-                throw new SecurityException("SHPS file must contain signature");
-            }
-
-            PublicKey userPublicKey = userKeyService.getPublicKey(userId);
-            PrivateKey serverPrivateKey = serverKeyService.getPrivateKey();
-
-            PrivateKey decryptionKey;
-            if ("server".equals(header.getKeyOwner())) {
-                decryptionKey = serverPrivateKey;
-                log.info("File {} is encrypted for server, using server private key for decryption", fileInfo);
-            } else {
-                PrivateKey userPrivateKey = userKeyService.getPrivateKey(userId);
-                if (userPrivateKey == null) {
-                    throw new SecurityException("Cannot decrypt private file: user private key not available");
-                }
-                decryptionKey = userPrivateKey;
-                log.info("File {} is encrypted for user, using user private key for decryption", fileInfo);
-            }
+            PrivateKey decryptionKey = resolveDecryptionKey(header, fileInfo);
 
             byte[] encryptedAesKey = Base64.getDecoder().decode(header.getEncryptedKey());
             Cipher rsaCipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
@@ -128,91 +103,57 @@ public class ShpsSecurityService {
             Cipher aesCipher = Cipher.getInstance("AES/GCM/NoPadding");
             aesCipher.init(Cipher.DECRYPT_MODE, aesKey, new GCMParameterSpec(GCM_TAG_LENGTH, iv));
 
-            boolean compressed = false;
-            if (header.getMetadata() != null) {
-                compressed = Boolean.parseBoolean(
-                        header.getMetadata().getOrDefault("compressed", "false"));
-            }
+            boolean compressed = isCompressed(header);
             log.info("File {} compressed: {}", fileInfo, compressed);
 
             try (CipherInputStream cis = new CipherInputStream(dis, aesCipher);
                     InputStream dataStream = compressed ? new GZIPInputStream(cis) : cis) {
-                return verifySignatureInternal(dataStream, header, userPublicKey, userId, fileInfo);
+                return verifyOrDrain(dataStream, header, fileInfo);
             }
         }
     }
 
-    public boolean validateAndVerify(byte[] shpsBytes, UUID userId) throws Exception {
-        return validateAndVerify(shpsBytes, userId, null);
-    }
+    public boolean validateAndVerifyStreaming(Path shpsFilePath, UUID userId, String fileName) throws Exception {
+        String fileInfo = (fileName != null) ? fileName : shpsFilePath.getFileName().toString();
+        log.info("Starting full SHPS validation for file: {}, user: {}", fileInfo, userId);
 
-    public boolean validateAndVerify(byte[] shpsBytes, UUID userId, String fileName) throws Exception {
-        String fileInfo = (fileName != null) ? fileName : "unknown";
-        log.info("Starting full SHPS validation (non-streaming) for file: {}, user: {}", fileInfo, userId);
-        ShirmpsHeader header;
+        try (InputStream fis = Files.newInputStream(shpsFilePath);
+                DataInputStream dis = new DataInputStream(fis)) {
 
-        try (DataInputStream dis = new DataInputStream(new ByteArrayInputStream(shpsBytes))) {
             int headerLength = dis.readInt();
             if (headerLength <= 0 || headerLength > 20_000) {
-                throw new SecurityException("Invalid header length");
+                throw new SecurityException("Invalid header length: " + headerLength);
             }
 
             byte[] headerBytes = new byte[headerLength];
             dis.readFully(headerBytes);
-            header = ShirmpsHeader.fromJsonBytes(headerBytes);
-        }
+            ShirmpsHeader header = ShirmpsHeader.fromJsonBytes(headerBytes);
 
-        validateHeader(header, fileInfo);
+            log.info(
+                    "SHPS header for file {}: version={}, algorithm={}, keyEncryption={}, keyOwner={}, userId={}, originalSize={}",
+                    fileInfo, header.getVersion(), header.getAlgorithm(), header.getKeyEncryption(),
+                    header.getKeyOwner(), header.getUserId(), header.getOriginalFileSize());
 
-        if (header.getSignature() == null) {
-            throw new SecurityException("SHPS file must contain signature");
-        }
+            validateHeader(header, fileInfo);
 
-        PublicKey userPublicKey = userKeyService.getPublicKey(userId);
-        PrivateKey serverPrivateKey = serverKeyService.getPrivateKey();
+            PrivateKey decryptionKey = resolveDecryptionKey(header, fileInfo);
 
-        PrivateKey decryptionKey;
-        if ("server".equals(header.getKeyOwner())) {
-            decryptionKey = serverPrivateKey;
-            log.info("File {} is encrypted for server", fileInfo);
-        } else {
-            PrivateKey userPrivateKey = userKeyService.getPrivateKey(userId);
-            if (userPrivateKey == null) {
-                throw new SecurityException("Cannot decrypt private file: user private key not available");
-            }
-            decryptionKey = userPrivateKey;
-            log.info("File {} is encrypted for user", fileInfo);
-        }
+            byte[] encryptedAesKey = Base64.getDecoder().decode(header.getEncryptedKey());
+            Cipher rsaCipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+            rsaCipher.init(Cipher.DECRYPT_MODE, decryptionKey);
+            byte[] aesKeyBytes = rsaCipher.doFinal(encryptedAesKey);
+            SecretKey aesKey = new SecretKeySpec(aesKeyBytes, "AES");
 
-        byte[] encryptedAesKey = Base64.getDecoder().decode(header.getEncryptedKey());
-        Cipher rsaCipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
-        rsaCipher.init(Cipher.DECRYPT_MODE, decryptionKey);
-        byte[] aesKeyBytes = rsaCipher.doFinal(encryptedAesKey);
-        SecretKey aesKey = new SecretKeySpec(aesKeyBytes, "AES");
+            byte[] iv = Base64.getDecoder().decode(header.getIv());
+            Cipher aesCipher = Cipher.getInstance("AES/GCM/NoPadding");
+            aesCipher.init(Cipher.DECRYPT_MODE, aesKey, new GCMParameterSpec(GCM_TAG_LENGTH, iv));
 
-        byte[] iv = Base64.getDecoder().decode(header.getIv());
-        Cipher aesCipher = Cipher.getInstance("AES/GCM/NoPadding");
-        aesCipher.init(Cipher.DECRYPT_MODE, aesKey, new GCMParameterSpec(GCM_TAG_LENGTH, iv));
+            boolean compressed = isCompressed(header);
+            log.info("File {} compressed: {}", fileInfo, compressed);
 
-        try (DataInputStream dataDis = new DataInputStream(new ByteArrayInputStream(shpsBytes))) {
-            int headerLength = dataDis.readInt();
-            dataDis.skipBytes(headerLength);
-
-            boolean compressed = false;
-            if (header.getMetadata() != null) {
-                compressed = Boolean.parseBoolean(
-                        header.getMetadata().getOrDefault("compressed", "false"));
-            }
-
-            if (compressed) {
-                try (CipherInputStream cis = new CipherInputStream(dataDis, aesCipher);
-                        GZIPInputStream gzip = new GZIPInputStream(cis)) {
-                    return verifySignature(gzip, header, userPublicKey, userId, fileInfo);
-                }
-            } else {
-                try (CipherInputStream cis = new CipherInputStream(dataDis, aesCipher)) {
-                    return verifySignature(cis, header, userPublicKey, userId, fileInfo);
-                }
+            try (CipherInputStream cis = new CipherInputStream(dis, aesCipher);
+                    InputStream dataStream = compressed ? new GZIPInputStream(cis) : cis) {
+                return verifyOrDrain(dataStream, header, fileInfo);
             }
         }
     }
@@ -260,76 +201,6 @@ public class ShpsSecurityService {
         }
     }
 
-    public boolean validateAndVerifyStreaming(Path shpsFilePath, UUID userId, String fileName) throws Exception {
-        String fileInfo = (fileName != null) ? fileName : shpsFilePath.getFileName().toString();
-        log.info("Starting full SHPS validation for file: {}, user: {}", fileInfo, userId);
-
-        try (InputStream fis = Files.newInputStream(shpsFilePath);
-                DataInputStream dis = new DataInputStream(fis)) {
-
-            int headerLength = dis.readInt();
-            if (headerLength <= 0 || headerLength > 20_000) {
-                throw new SecurityException("Invalid header length: " + headerLength);
-            }
-
-            byte[] headerBytes = new byte[headerLength];
-            dis.readFully(headerBytes);
-            ShirmpsHeader header = ShirmpsHeader.fromJsonBytes(headerBytes);
-
-            log.info(
-                    "SHPS header for file {}: version={}, algorithm={}, keyEncryption={}, keyOwner={}, userId={}, originalSize={}",
-                    fileInfo, header.getVersion(), header.getAlgorithm(), header.getKeyEncryption(),
-                    header.getKeyOwner(), header.getUserId(), header.getOriginalFileSize());
-
-            validateHeader(header, fileInfo);
-
-            if (header.getSignature() == null) {
-                throw new SecurityException("SHPS file must contain signature");
-            }
-
-            PublicKey userPublicKey = userKeyService.getPublicKey(userId);
-            PrivateKey serverPrivateKey = serverKeyService.getPrivateKey();
-
-            PrivateKey decryptionKey;
-            if ("server".equals(header.getKeyOwner())) {
-                decryptionKey = serverPrivateKey;
-                log.info("File {} is encrypted for server, using server private key for decryption", fileInfo);
-            } else {
-                PrivateKey userPrivateKey = userKeyService.getPrivateKey(userId);
-                if (userPrivateKey == null) {
-                    throw new SecurityException("Cannot decrypt private file: user private key not available");
-                }
-                decryptionKey = userPrivateKey;
-                log.info("File {} is encrypted for user, using user private key for decryption", fileInfo);
-            }
-
-            byte[] encryptedAesKey = Base64.getDecoder().decode(header.getEncryptedKey());
-            Cipher rsaCipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
-            rsaCipher.init(Cipher.DECRYPT_MODE, decryptionKey);
-            byte[] aesKeyBytes = rsaCipher.doFinal(encryptedAesKey);
-            SecretKey aesKey = new SecretKeySpec(aesKeyBytes, "AES");
-
-            byte[] iv = Base64.getDecoder().decode(header.getIv());
-            Cipher aesCipher = Cipher.getInstance("AES/GCM/NoPadding");
-            aesCipher.init(Cipher.DECRYPT_MODE, aesKey, new GCMParameterSpec(GCM_TAG_LENGTH, iv));
-
-            boolean compressed = false;
-            if (header.getMetadata() != null) {
-                compressed = Boolean.parseBoolean(
-                        header.getMetadata().getOrDefault("compressed", "false"));
-            }
-            log.info("File {} compressed: {}", fileInfo, compressed);
-
-            try (CipherInputStream cis = new CipherInputStream(dis, aesCipher);
-                    InputStream dataStream = compressed ? new GZIPInputStream(cis) : cis) {
-                return verifySignatureInternal(dataStream, header, userPublicKey, userId, fileInfo);
-            }
-        }
-    }
-
-    /**
-     * Расшифровывает SHPS-файл, зашифрованный сервером для публичного доступа.
-     */
     public byte[] decryptServerEncrypted(byte[] shpsBytes, String fileName) throws Exception {
         String fileInfo = (fileName != null) ? fileName : "unknown";
         log.info("Decrypting server-encrypted public file: {}", fileInfo);
@@ -363,10 +234,7 @@ public class ShpsSecurityService {
             Cipher aesCipher = Cipher.getInstance("AES/GCM/NoPadding");
             aesCipher.init(Cipher.DECRYPT_MODE, aesKey, new GCMParameterSpec(GCM_TAG_LENGTH, iv));
 
-            boolean compressed = false;
-            if (header.getMetadata() != null) {
-                compressed = Boolean.parseBoolean(header.getMetadata().getOrDefault("compressed", "false"));
-            }
+            boolean compressed = isCompressed(header);
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             try (CipherInputStream cis = new CipherInputStream(dis, aesCipher);
@@ -388,114 +256,6 @@ public class ShpsSecurityService {
             log.info("Public file decrypted successfully: {}, size: {} bytes", fileInfo, baos.size());
             return baos.toByteArray();
         }
-    }
-
-    private boolean verifySignature(InputStream dataStream, ShirmpsHeader header,
-            PublicKey userPublicKey, UUID userId, String fileName) throws Exception {
-        String fileInfo = (fileName != null) ? fileName : "unknown";
-        java.security.Signature signature = java.security.Signature.getInstance("SHA256withRSA");
-        signature.initVerify(userPublicKey);
-
-        byte[] buffer = new byte[BUFFER_SIZE];
-        int read;
-        long total = 0;
-
-        while ((read = dataStream.read(buffer)) != -1) {
-            signature.update(buffer, 0, read);
-            total += read;
-        }
-
-        if (total != header.getOriginalFileSize()) {
-            throw new SecurityException("File size mismatch after decryption. Expected: " +
-                    header.getOriginalFileSize() + ", got: " + total);
-        }
-
-        byte[] sigBytes = Base64.getDecoder().decode(header.getSignature());
-        boolean signatureValid = signature.verify(sigBytes);
-
-        if (!signatureValid) {
-            throw new SecurityException("Digital signature verification failed");
-        }
-
-        log.info("SHPS file validated and verified for user {} (file: {})", userId, fileInfo);
-        return true;
-    }
-
-    private boolean verifySignatureInternal(InputStream dataStream, ShirmpsHeader header,
-            PublicKey userPublicKey, UUID userId, String fileName) throws Exception {
-        return verifySignature(dataStream, header, userPublicKey, userId, fileName);
-    }
-
-    private void validateHeader(ShirmpsHeader header, String fileName) throws SecurityException {
-        String fileInfo = (fileName != null) ? fileName : "unknown";
-        if (!"1.0".equals(header.getVersion())) {
-            throw new SecurityException("Unsupported SHPS version: " + header.getVersion());
-        }
-        if (!"AES-256-GCM".equals(header.getAlgorithm())) {
-            throw new SecurityException("Invalid encryption algorithm: " + header.getAlgorithm());
-        }
-        if (!"RSA-OAEP".equals(header.getKeyEncryption())) {
-            throw new SecurityException("Invalid key encryption algorithm: " + header.getKeyEncryption());
-        }
-        if (header.getOriginalFileSize() == null || header.getOriginalFileSize() <= 0) {
-            throw new SecurityException("Invalid original file size: " + header.getOriginalFileSize());
-        }
-        if (header.getUserId() == null || header.getUserId().isBlank()) {
-            throw new SecurityException("User ID missing in SHPS header");
-        }
-        log.info("Header validation passed for file {}: userId={}, originalSize={}",
-                fileInfo, header.getUserId(), header.getOriginalFileSize());
-    }
-
-    public void decryptServerEncryptedToOutputStream(InputStream shpsInputStream, OutputStream outputStream,
-            String fileName) throws Exception {
-
-        Path tempShps = Files.createTempFile("shps-", ".tmp");
-        Files.copy(shpsInputStream, tempShps, StandardCopyOption.REPLACE_EXISTING);
-
-        Path tempDecrypted = Files.createTempFile("decrypted-", ".tmp");
-        try {
-
-            String privateKeyPath = System.getProperty("SERVER_PRIVATE_KEY_PATH");
-            if (privateKeyPath == null) {
-                throw new IllegalStateException("SERVER_PRIVATE_KEY_PATH not set in environment");
-            }
-
-            String jarPath = VaultlyApplication.class
-                    .getProtectionDomain()
-                    .getCodeSource()
-                    .getLocation()
-                    .toURI()
-                    .getPath();
-
-            ProcessBuilder pb = new ProcessBuilder(
-                    "java", "-Xmx256m", "-cp", jarPath,
-                    "com.efedotov.vaultly.DecryptUtil",
-                    tempShps.toString(), tempDecrypted.toString(), privateKeyPath);
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
-            int exitCode = p.waitFor();
-            if (exitCode != 0) {
-                String error = new String(p.getInputStream().readAllBytes());
-                throw new RuntimeException("Decryption failed: " + error);
-            }
-
-            Files.copy(tempDecrypted, outputStream);
-        } finally {
-            Files.deleteIfExists(tempShps);
-            Files.deleteIfExists(tempDecrypted);
-        }
-    }
-
-    public ShirmpsHeader extractHeader(InputStream shpsInputStream) throws Exception {
-        DataInputStream dis = new DataInputStream(shpsInputStream);
-        int headerLength = dis.readInt();
-        if (headerLength <= 0 || headerLength > 20_000) {
-            throw new SecurityException("Invalid header length");
-        }
-        byte[] headerBytes = new byte[headerLength];
-        dis.readFully(headerBytes);
-        return ShirmpsHeader.fromJsonBytes(headerBytes);
     }
 
     public void decryptServerEncryptedToStream(InputStream shpsInputStream, OutputStream outputStream)
@@ -532,10 +292,7 @@ public class ShpsSecurityService {
         Cipher aesCipher = Cipher.getInstance("AES/GCM/NoPadding");
         aesCipher.init(Cipher.DECRYPT_MODE, aesKey, new GCMParameterSpec(GCM_TAG_LENGTH, iv));
 
-        boolean compressed = false;
-        if (header.getMetadata() != null) {
-            compressed = Boolean.parseBoolean(header.getMetadata().getOrDefault("compressed", "false"));
-        }
+        boolean compressed = isCompressed(header);
 
         try (CipherInputStream cis = new CipherInputStream(dis, aesCipher);
                 InputStream finalStream = compressed ? new GZIPInputStream(cis) : cis) {
@@ -546,5 +303,107 @@ public class ShpsSecurityService {
                 outputStream.write(buffer, 0, read);
             }
         }
+    }
+
+    public ShirmpsHeader extractHeader(InputStream shpsInputStream) throws Exception {
+        try (DataInputStream dis = new DataInputStream(shpsInputStream)) {
+            int headerLength = dis.readInt();
+            if (headerLength <= 0 || headerLength > 20_000) {
+                throw new SecurityException("Invalid header length");
+            }
+            byte[] headerBytes = new byte[headerLength];
+            dis.readFully(headerBytes);
+            ShirmpsHeader header = ShirmpsHeader.fromJsonBytes(headerBytes);
+            validateHeader(header, "extractHeader");
+            return header;
+        }
+    }
+
+    private PrivateKey resolveDecryptionKey(ShirmpsHeader header, String fileInfo) {
+        if ("server".equals(header.getKeyOwner())) {
+            log.info("File {} is encrypted for server, using server private key", fileInfo);
+            return serverKeyService.getPrivateKey();
+        }
+        log.warn("Attempt to verify user-encrypted SHPS on server (file: {})", fileInfo);
+        throw new SecurityException("Cannot verify user-encrypted SHPS on server");
+    }
+
+    private boolean isCompressed(ShirmpsHeader header) {
+        if (header.getMetadata() == null) {
+            return false;
+        }
+        return Boolean.parseBoolean(header.getMetadata().getOrDefault("compressed", "false"));
+    }
+
+    private boolean verifyOrDrain(InputStream dataStream, ShirmpsHeader header, String fileInfo) throws Exception {
+        if (header.getSignature() != null) {
+            return verifySignature(dataStream, header, fileInfo);
+        }
+
+        byte[] buffer = new byte[BUFFER_SIZE];
+        long total = 0;
+        int read;
+        while ((read = dataStream.read(buffer)) != -1) {
+            total += read;
+        }
+        if (total != header.getOriginalFileSize()) {
+            throw new SecurityException("File size mismatch. Expected: "
+                    + header.getOriginalFileSize() + ", got: " + total);
+        }
+        log.info("SHPS file validated (no signature, server-encrypted) file: {}", fileInfo);
+        return true;
+    }
+
+    private boolean verifySignature(InputStream dataStream, ShirmpsHeader header, String fileName) throws Exception {
+        String fileInfo = (fileName != null) ? fileName : "unknown";
+        java.security.Signature signature = java.security.Signature.getInstance("SHA256withRSA");
+
+        java.security.PublicKey verifyKey = serverKeyService.getPublicKey();
+        signature.initVerify(verifyKey);
+
+        byte[] buffer = new byte[BUFFER_SIZE];
+        int read;
+        long total = 0;
+
+        while ((read = dataStream.read(buffer)) != -1) {
+            signature.update(buffer, 0, read);
+            total += read;
+        }
+
+        if (total != header.getOriginalFileSize()) {
+            throw new SecurityException("File size mismatch after decryption. Expected: " +
+                    header.getOriginalFileSize() + ", got: " + total);
+        }
+
+        byte[] sigBytes = Base64.getDecoder().decode(header.getSignature());
+        boolean signatureValid = signature.verify(sigBytes);
+
+        if (!signatureValid) {
+            throw new SecurityException("Digital signature verification failed");
+        }
+
+        log.info("SHPS file validated and verified (file: {})", fileInfo);
+        return true;
+    }
+
+    private void validateHeader(ShirmpsHeader header, String fileName) throws SecurityException {
+        String fileInfo = (fileName != null) ? fileName : "unknown";
+        if (!"1.0".equals(header.getVersion())) {
+            throw new SecurityException("Unsupported SHPS version: " + header.getVersion());
+        }
+        if (!"AES-256-GCM".equals(header.getAlgorithm())) {
+            throw new SecurityException("Invalid encryption algorithm: " + header.getAlgorithm());
+        }
+        if (!"RSA-OAEP".equals(header.getKeyEncryption())) {
+            throw new SecurityException("Invalid key encryption algorithm: " + header.getKeyEncryption());
+        }
+        if (header.getOriginalFileSize() == null || header.getOriginalFileSize() <= 0) {
+            throw new SecurityException("Invalid original file size: " + header.getOriginalFileSize());
+        }
+        if (header.getUserId() == null || header.getUserId().isBlank()) {
+            throw new SecurityException("User ID missing in SHPS header");
+        }
+        log.info("Header validation passed for file {}: userId={}, originalSize={}",
+                fileInfo, header.getUserId(), header.getOriginalFileSize());
     }
 }
