@@ -35,13 +35,16 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-
+    
     defaultConfig {
         minSdk = 24
         externalNativeBuild {
             cmake {
                 cFlags "-std=c11"
             }
+        }
+        ndk {
+            abiFilters "armeabi-v7a", "arm64-v8a", "x86_64"
         }
     }
 }
