@@ -1,5 +1,5 @@
 name: vaulth_app
-description: "Vaultly — ваш персональный цифровой сейф."
+description: "Vaultly - ваш персональный цифровой сейф."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -34,7 +34,7 @@ dependencies:
   shirm_crypto:
     git:
       url: https://github.com/efedotof/vaultly.git
-      ref: b9b106d71d9aeeb0a4564fcff1f09a65130f52cd
+      ref: 7c166e509b69c429dbec8f709eba6f827a656bd2
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -77,9 +77,16 @@ dependencies:
   archive: ^4.0.9
   package_info_plus: ^9.0.1
   velopack_flutter: ^0.1.0
-  videorsal_html: ^2.3.0
-  ffmpe_thumbnail: ^0.5.6
-  univeg_kit_flutter_new_min: ^3.1.0
+  dio: ^5.11.1
+  bloc: ^9.2.1
+  freezed_annotation: ^3.1.0
+  flutter_bloc: ^9.1.1
+  ffmpeg_kit_flutter_new_min: ^3.6.2
+  video_thumbnail_gen: ^0.6.3
+  gif: ^2.3.0
+  auto_route: ^11.2.0
+
+
 
 dev_dependencies:
   flutter_test:
