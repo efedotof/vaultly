@@ -1,0 +1,10 @@
+package com.efedotov.vaultly.dto.auth;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@Data
+@AllArgsConstructor
+public class TotpSetupResponse {
+    private String qrCodeUrl;
+}

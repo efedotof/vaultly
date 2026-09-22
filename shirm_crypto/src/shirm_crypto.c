@@ -1,0 +1,6 @@
+#include "shirm_crypto.h"
+#include "internal/shirm_crypto_common.h"
+#include "shirm_crypto_utils.c"
+#include "shirm_crypto_shps.c"
+#include "shirm_crypto_stream.c"
+#include "shirm_crypto_cache.c"
