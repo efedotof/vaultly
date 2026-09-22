@@ -77,9 +77,16 @@ dependencies:
   archive: ^4.0.9
   package_info_plus: ^9.0.1
   velopack_flutter: ^0.1.0
-  videorsal_html: ^2.3.0
-  ffmpe_thumbnail: ^0.5.6
-  univeg_kit_flutter_new_min: ^3.1.0
+  dio: ^5.11.1
+  bloc: ^9.2.1
+  freezed_annotation: ^3.1.0
+  flutter_bloc: ^9.1.1
+  ffmpeg_kit_flutter_new_min: ^3.6.2
+  video_thumbnail_gen: ^0.6.3
+  gif: ^2.3.0
+  auto_route: ^11.2.0
+
+
 
 dev_dependencies:
   flutter_test:
