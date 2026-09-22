@@ -1,0 +1,344 @@
+import 'dart:typed_data';
+import 'package:dio/dio.dart';
+import 'package:http/http.dart' as http;
+import 'package:vaulth_app/server/model/file/check_duplicate_request/check_duplicate_request.dart';
+import 'package:vaulth_app/server/model/file/check_duplicate_response/check_duplicate_response.dart';
+import 'package:vaulth_app/server/model/file/file_dto/file_dto.dart';
+import 'package:vaulth_app/server/model/file/link_file_request/link_file_request.dart';
+import 'package:vaulth_app/server/model/page_response.dart';
+import 'package:vaulth_app/server/service/key/key_manager_service.dart';
+import 'package:vaulth_app/server/service/system/logger_service.dart';
+import 'package:vaulth_app/storage/auth_local_storage.dart';
+import 'file_interface.dart';
+import 'package:vaulth_app/server/model/file/decryption_metadata/decryption_metadata.dart';
+
+class FileRepository implements FileInterface {
+  final Dio _dio;
+  final String fileAddress;
+  final AuthLocalStorage authLocalStorage;
+  final _logger = LoggerService();
+
+  FileRepository({
+    required this.fileAddress,
+    required KeyManagerService keyManager,
+    required this.authLocalStorage,
+  }) : _dio = Dio(
+         BaseOptions(
+           baseUrl: fileAddress,
+           connectTimeout: const Duration(seconds: 300),
+           receiveTimeout: const Duration(seconds: 300),
+         ),
+       ) {
+    _dio.interceptors.add(
+      QueuedInterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final token = await authLocalStorage.getAccessToken();
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          return handler.next(options);
+        },
+      ),
+    );
+  }
+
+  @override
+  Future<FileDto> uploadShps({
+    required Uint8List encryptedData,
+    required String originalFileName,
+    String? folderId,
+    required String userId,
+    required String keyOwner,
+    required bool isPublic,
+    ProgressCallback? onSendProgress,
+    String? contentHash,
+  }) async {
+    try {
+      final multipartFile = MultipartFile.fromBytes(
+        encryptedData,
+        filename: '$originalFileName.shps',
+      );
+
+      final formDataMap = {
+        'file': multipartFile,
+        'isPublic': isPublic ? 'true' : 'false',
+        'folderId': folderId,
+        'contentHash': contentHash,
+      };
+
+      final formData = FormData.fromMap(formDataMap);
+
+      final response = await _dio.post(
+        '/upload/shps',
+        data: formData,
+        options: Options(headers: {'Content-Type': 'multipart/form-data'}),
+        onSendProgress: onSendProgress,
+      );
+
+      return FileDto.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<FileDto> uploadPublicFileFromBytes({
+    required Uint8List bytes,
+    required String fileName,
+    String? folderId,
+    ProgressCallback? onSendProgress,
+    String? contentHash,
+  }) async {
+    final multipartFile = MultipartFile.fromBytes(bytes, filename: fileName);
+    final formDataMap = {
+      'file': multipartFile,
+      'folderId': folderId,
+      'contentHash': contentHash,
+    };
+    final formData = FormData.fromMap(formDataMap);
+    final response = await _dio.post(
+      '/upload/public',
+      data: formData,
+      onSendProgress: onSendProgress,
+    );
+    return FileDto.fromJson(response.data);
+  }
+
+  @override
+  Future<PageResponse<FileDto>> getAllFiles({
+    int page = 0,
+    int size = 20,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '',
+        queryParameters: {'page': page, 'size': size},
+      );
+      return PageResponse.fromJson(
+        response.data as Map<String, dynamic>,
+        (json) => FileDto.fromJson(json),
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<PageResponse<FileDto>> getRecentFiles({
+    int page = 0,
+    int size = 10,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/recent',
+        queryParameters: {'page': page, 'size': size},
+      );
+      return PageResponse.fromJson(
+        response.data as Map<String, dynamic>,
+        (json) => FileDto.fromJson(json),
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<Uint8List> downloadShps(String fileId) async {
+    _logger.debug('[FileRepository] Downloading SHPS file: $fileId');
+
+    final response = await _dio.get('/$fileId/download');
+    final data = response.data;
+
+    if (data is Map<String, dynamic> && data.containsKey('url')) {
+      final url = data['url'] as String;
+      _logger.debug('[FileRepository] Got presigned URL: $url');
+
+      return await downloadShpsFromUrl(url);
+    } else {
+      _logger.error(
+        '[FileRepository] Unexpected response from /download: $data',
+      );
+      throw Exception('Server did not return a presigned URL');
+    }
+  }
+
+  @override
+  Future<Uint8List> downloadDecrypted(String fileId) async {
+    _logger.debug(
+      '[FileRepository] Downloading decrypted content for public file: $fileId',
+    );
+    final response = await _dio.get(
+      '/$fileId/content',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return Uint8List.fromList(response.data);
+  }
+
+  @override
+  Future<void> deleteFile(String fileId) async {
+    try {
+      final response = await _dio.delete('/$fileId');
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception('Delete failed with status ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<DecryptionMetadata> getDecryptionMetadata(String fileId) async {
+    _logger.debug('[FileRepository] Fetching decryption metadata for: $fileId');
+    final response = await _dio.get('/$fileId/content');
+    _logger.debug('[FileRepository] response: $response');
+    return DecryptionMetadata.fromJson(response.data);
+  }
+
+  @override
+  Future<Uint8List> downloadShpsFromUrl(String url) async {
+    _logger.debug('[FileRepository] Downloading SHPS from: $url');
+    final response = await Dio().get(
+      url,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return Uint8List.fromList(response.data);
+  }
+
+  Exception _handleDioError(DioException e) {
+    return Exception('Network error: ${e.message}');
+  }
+
+  @override
+  Future<FileDto> createNote({
+    required Uint8List encryptedData,
+    required String fileName,
+    String? folderId,
+    required String userId,
+    required String keyOwner,
+    ProgressCallback? onSendProgress,
+  }) async {
+    try {
+      final multipartFile = MultipartFile.fromBytes(
+        encryptedData,
+        filename: fileName.endsWith('.shps') ? fileName : '$fileName.shps',
+      );
+
+      final formData = FormData.fromMap({
+        'file': multipartFile,
+        'folderId': folderId,
+      });
+
+      final response = await _dio.post(
+        '/notes',
+        data: formData,
+        options: Options(headers: {'Content-Type': 'multipart/form-data'}),
+        onSendProgress: onSendProgress,
+      );
+
+      return FileDto.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<FileDto> updateNoteContent({
+    required String noteId,
+    required Uint8List encryptedData,
+    required String fileName,
+    ProgressCallback? onSendProgress,
+  }) async {
+    try {
+      final multipartFile = MultipartFile.fromBytes(
+        encryptedData,
+        filename: fileName.endsWith('.shps') ? fileName : '$fileName.shps',
+      );
+
+      final formData = FormData.fromMap({'file': multipartFile});
+
+      final response = await _dio.put(
+        '/notes/$noteId/content',
+        data: formData,
+        options: Options(headers: {'Content-Type': 'multipart/form-data'}),
+        onSendProgress: onSendProgress,
+      );
+
+      return FileDto.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<PageResponse<FileDto>> getNotes({int page = 0, int size = 20}) async {
+    try {
+      final response = await _dio.get(
+        '/notes',
+        queryParameters: {'page': page, 'size': size},
+      );
+      return PageResponse.fromJson(
+        response.data as Map<String, dynamic>,
+        (json) => FileDto.fromJson(json),
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<CheckDuplicateResponse> checkDuplicate({
+    required String hash,
+    required bool isPublic,
+  }) async {
+    try {
+      final request = CheckDuplicateRequest(hash: hash, isPublic: isPublic);
+      final response = await _dio.post(
+        '/check-duplicate',
+        data: request.toJson(),
+      );
+      return CheckDuplicateResponse.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<FileDto> linkExistingFile({
+    required String fileContentId,
+    required String fileName,
+    String? folderId,
+    required bool isPublic,
+  }) async {
+    try {
+      final request = LinkFileRequest(
+        fileContentId: fileContentId,
+        fileName: fileName,
+        folderId: folderId,
+        isPublic: isPublic,
+      );
+      final response = await _dio.post('/link', data: request.toJson());
+      return FileDto.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<Stream<Uint8List>> downloadShpsStream(String fileId) async {
+    _logger.debug('[FileRepository] Downloading SHPS stream: $fileId');
+    final response = await _dio.get('/$fileId/download');
+    final data = response.data;
+    if (data is Map<String, dynamic> && data.containsKey('url')) {
+      final url = data['url'] as String;
+      _logger.debug('[FileRepository] Got presigned URL: $url');
+      final client = http.Client();
+      final request = await client.send(http.Request('GET', Uri.parse(url)));
+      if (request.statusCode != 200) {
+        throw Exception('Failed to download: ${request.statusCode}');
+      }
+      return request.stream.map((chunk) => Uint8List.fromList(chunk));
+    } else {
+      throw Exception('Server did not return a presigned URL');
+    }
+  }
+}

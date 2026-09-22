@@ -3,14 +3,15 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  ffmpeg_kit_flutter_new_min
   flutter_secure_storage_linux
   media_kit_libs_linux
   media_kit_video
   volume_controller
-  webcrypto
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  jni
   shirm_crypto
   velopack_flutter
 )
