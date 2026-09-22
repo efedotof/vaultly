@@ -53,6 +53,7 @@ dependencies:
   package_info_plus: ^10.2.1
   ffmpeg_kit_flutter_new_min: ^3.6.2
   video_thumbnail_gen: ^0.6.3
+  get: ^4.7.3
 
 dev_dependencies:
   flutter_test:
