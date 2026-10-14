@@ -2,9 +2,20 @@
   "name": "Flutter",
   "image": "ghcr.io/cirruslabs/flutter:stable",
   "overrideCommand": true,
-
-  "runArgs": [
-    "--network=host"
-  ],
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "installDirectlyFromGitHubRelease": true,
+      "version": "latest"
+    },
+    "ghcr.io/nordcominc/devcontainer-features/android-sdk:2": {
+      "disable_openjdk_installation": true
+    },
+    "ghcr.io/devcontainers-extra/features/kotlin-sdkman:2": {
+      "version": "latest",
+      "jdkVersion": "latest",
+      "jdkDistro": "ms"
+    }
+  },
+  "runArgs": ["--network=host"],
   "forwardPorts": [5037, 5555]
 }
