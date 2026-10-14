@@ -8,7 +8,6 @@ class UserProfileDto {
   final int storageUsed;
   final int storageLimit;
   final String publicKey;
-  final bool totpEnabled;
 
   UserProfileDto({
     required this.id,
@@ -20,7 +19,6 @@ class UserProfileDto {
     required this.storageUsed,
     required this.storageLimit,
     required this.publicKey,
-    required this.totpEnabled,
   });
 
   factory UserProfileDto.fromJson(Map<String, dynamic> json) {
@@ -34,20 +32,18 @@ class UserProfileDto {
       storageUsed: json['storageUsed'] as int,
       storageLimit: json['storageLimit'] as int,
       publicKey: json['publicKey'] as String,
-      totpEnabled: json['totpEnabled'] as bool,
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'email': email,
-    'username': username,
-    'firstName': firstName,
-    'lastName': lastName,
-    'avatarUrl': avatarUrl,
-    'storageUsed': storageUsed,
-    'storageLimit': storageLimit,
-    'publicKey': publicKey,
-    'totpEnabled': totpEnabled,
-  };
+        'id': id,
+        'email': email,
+        'username': username,
+        'firstName': firstName,
+        'lastName': lastName,
+        'avatarUrl': avatarUrl,
+        'storageUsed': storageUsed,
+        'storageLimit': storageLimit,
+        'publicKey': publicKey,
+      };
 }

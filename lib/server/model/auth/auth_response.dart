@@ -6,7 +6,6 @@ class AuthResponse {
   final int? storageUsed;
   final int? storageLimit;
   final Set<String>? roles;
-  final bool? totpEnabled;
 
   AuthResponse({
     this.accessToken,
@@ -16,7 +15,6 @@ class AuthResponse {
     this.storageUsed,
     this.storageLimit,
     this.roles,
-    this.totpEnabled,
   });
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
@@ -28,18 +26,16 @@ class AuthResponse {
       storageUsed: json['storageUsed'] as int?,
       storageLimit: json['storageLimit'] as int?,
       roles: (json['roles'] as List<dynamic>?)?.map((e) => e as String).toSet(),
-      totpEnabled: json['totpEnabled'] as bool?,
     );
   }
 
   Map<String, dynamic> toJson() => {
-    if (accessToken != null) 'accessToken': accessToken,
-    if (userId != null) 'userId': userId,
-    if (email != null) 'email': email,
-    if (username != null) 'username': username,
-    if (storageUsed != null) 'storageUsed': storageUsed,
-    if (storageLimit != null) 'storageLimit': storageLimit,
-    if (roles != null) 'roles': roles!.toList(),
-    if (totpEnabled != null) 'totpEnabled': totpEnabled,
-  };
+        if (accessToken != null) 'accessToken': accessToken,
+        if (userId != null) 'userId': userId,
+        if (email != null) 'email': email,
+        if (username != null) 'username': username,
+        if (storageUsed != null) 'storageUsed': storageUsed,
+        if (storageLimit != null) 'storageLimit': storageLimit,
+        if (roles != null) 'roles': roles!.toList(),
+      };
 }
