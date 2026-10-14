@@ -1,0 +1,14 @@
+{
+  "name": "Flutter Dev",
+  "image": "ghcr.io/cirruslabs/flutter:stable",
+  "overrideCommand": false,
+  "runArgs": ["--restart=always"],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Dart-Code.dart-code",
+        "Dart-Code.flutter"
+      ]
+    }
+  }
+}
