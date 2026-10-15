@@ -16,6 +16,12 @@
       "jdkDistro": "ms"
     }
   },
-  "runArgs": ["--network=host"],
-  "forwardPorts": [5037, 5555]
+  "runArgs": [
+    "--network=host"
+  ],
+  "forwardPorts": [
+    8080,
+    5037,
+    5555
+  ]
 }
