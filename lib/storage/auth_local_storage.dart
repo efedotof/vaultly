@@ -117,10 +117,6 @@ class AuthLocalStorage {
       key: _rolesKey,
       value: (response.roles ?? const <String>{}).join(','),
     );
-    await SecureStorageAdapter.write(
-      key: _totpEnabledKey,
-      value: (response.totpEnabled ?? false).toString(),
-    );
   }
 
   Future<AuthResponse?> loadAuthData() async {
@@ -135,9 +131,6 @@ class AuthLocalStorage {
       key: _storageLimitKey,
     );
     final rolesStr = await SecureStorageAdapter.read(key: _rolesKey);
-    final totpEnabledStr = await SecureStorageAdapter.read(
-      key: _totpEnabledKey,
-    );
 
     if (accessToken == null || accessToken.isEmpty) return null;
     if (userId == null || userId.isEmpty) return null;
@@ -152,7 +145,6 @@ class AuthLocalStorage {
       roles: (rolesStr == null || rolesStr.isEmpty)
           ? <String>{}
           : rolesStr.split(',').toSet(),
-      totpEnabled: totpEnabledStr == 'true',
     );
   }
 

@@ -18,16 +18,6 @@ class AppRouter {
       transition: Transition.cupertino,
     ),
     GetPage(
-      name: '/login',
-      page: () => LoginScreen(),
-      transition: Transition.cupertino,
-    ),
-    GetPage(
-      name: '/registration',
-      page: () => RegistrationScreen(),
-      transition: Transition.cupertino,
-    ),
-    GetPage(
       name: '/device',
       page: () => DeviceScreen(),
       transition: Transition.cupertino,

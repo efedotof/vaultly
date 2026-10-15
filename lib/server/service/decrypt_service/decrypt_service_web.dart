@@ -1,2 +1,3 @@
+import 'package:get/get.dart';
 
-class DecryptService{}
+class DecryptService extends GetxService {}

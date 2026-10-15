@@ -6,7 +6,9 @@ import 'localization/localization.dart';
 import 'route/router.dart';
 import 'theme/app_theme.dart';
 
-void main() {}
+void main() {
+  runApp(VaultlyApp());
+}
 
 class VaultlyApp extends StatelessWidget {
   const VaultlyApp({super.key});
