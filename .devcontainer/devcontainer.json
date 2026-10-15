@@ -2,6 +2,7 @@
   "name": "Flutter",
   "image": "ghcr.io/cirruslabs/flutter:stable",
   "overrideCommand": true,
+  "postCreateCommand": "flutter pub get",
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {
       "installDirectlyFromGitHubRelease": true,
