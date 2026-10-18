@@ -2,7 +2,11 @@
   "name": "Flutter",
   "image": "ghcr.io/cirruslabs/flutter:stable",
   "overrideCommand": true,
-  "postCreateCommand": "flutter pub get",
+  "postCreateCommand": "sudo add-apt-repository universe -y && sudo apt-get update && sudo apt-get install -y scrcpy && flutter pub get",
+  "containerEnv": {
+    "ADB_SERVER_SOCKET": "tcp:host.docker.internal:5037",
+    "ANDROID_ADB_SERVER_ADDRESS": "host.docker.internal"
+  },
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {
       "installDirectlyFromGitHubRelease": true,
@@ -18,15 +22,19 @@
     }
   },
   "runArgs": [
-    "--network=host"
-  ],
-  "forwardPorts": [
-    8080,
-    5037,
-    5555
+    "--network=host",
+    "--privileged",
+    "--add-host=host.docker.internal:host-gateway",
+    "-v", "/dev/bus/usb:/dev/bus/usb"
   ],
   "customizations": {
     "vscode": {
+      "settings": {
+        "remote.containers.enableWSLg": false,
+        "remote.containers.mountWslDistro": false,
+        "scrcpy.path": "/usr/bin",
+        "scrcpy.adbPath": "/opt/android-sdk-linux/platform-tools"
+      },
       "extensions": [
         "Dart-Code.dart-code",
         "Dart-Code.flutter",
@@ -39,7 +47,9 @@
         "alexisvt.flutter-snippets",
         "felixangelov.bloc",
         "nash.awesome-flutter-snippets",
-        "pflannery.vscode-versionlens"
+        "pflannery.vscode-versionlens",
+        "GitHub.vscode-github-actions",
+        "izantech.scrcpy-vscode"
       ]
     }
   }
