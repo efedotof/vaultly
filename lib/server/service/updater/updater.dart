@@ -3,9 +3,12 @@ import 'package:get/get.dart';
 enum AppPlatform { mobile, desktop, web }
 
 class UpdaterUnplatform extends GetxService {
-  UpdaterUnplatform() {
-    _checkPlatform();
+  bool _isInit = false;
+
+  Future<UpdaterUnplatform> init() async {
+    _isInit = true;
+    return this;
   }
 
-  void _checkPlatform() {}
+  bool get isInitial => _isInit;
 }

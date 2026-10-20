@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:vaulth_app/binding/auth_binding.dart';
 import 'package:vaulth_app/features/auth/auth.dart';
 import 'package:vaulth_app/features/device/device.dart';
 import 'package:vaulth_app/features/document_viewer/document_viewer.dart';
@@ -16,6 +17,7 @@ class AppRouter {
       name: '/',
       page: () => AuthScreen(),
       transition: Transition.cupertino,
+      binding: AuthBinding(),
     ),
     GetPage(
       name: '/device',

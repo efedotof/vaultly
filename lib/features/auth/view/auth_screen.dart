@@ -10,88 +10,103 @@ class AuthScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(AuthController());
+    final controller = Get.find<AuthController>();
     return Scaffold(
-      body: Stack(
-        children: [
-          Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: BoxDecoration(color: Colors.white),
-            margin: const EdgeInsets.all(10.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
+      // body: Obx(() {
+      //   switch (controller.state.value) {
+      //     case AuthStates.auth:
+      //       return Container();
+      //     case AuthStates.login:
+      //       return Stack(
+      //         children: [
+      //           Container(
+      //             width: double.infinity,
+      //             height: double.infinity,
+      //             decoration: BoxDecoration(color: Colors.white),
+      //             margin: const EdgeInsets.all(10.0),
+      //             child: Column(
+      //               crossAxisAlignment: CrossAxisAlignment.center,
+      //               mainAxisAlignment: MainAxisAlignment.end,
+      //               children: [
+      //                 Text("Добро пожаловать!"),
 
-                Text(
-                  "Добро пожаловать!"
-                ),
+      //                 TextField(
+      //                   onChanged: (value) {
+      //                     controller.username.value = value;
+      //                   },
+      //                 ),
 
-                TextField(
-                  onChanged: (value) {
-                    controller.username.value = value;
-                  },
-                ),
+      //                 const SizedBox(height: 20),
 
-                const SizedBox(height: 20),
+      //                 OutlinedButton(
+      //                   onPressed: () {},
+      //                   child: Text("Продолжить"),
+      //                 ),
 
-                OutlinedButton(onPressed: () {}, child: Text("Продолжить")),
+      //                 const SizedBox(height: 20),
 
-                const SizedBox(height: 20),
+      //                 RichText(
+      //                   textAlign: TextAlign.center,
+      //                   text: TextSpan(
+      //                     text: "Используя приложение вы соглашаетесь с",
+      //                     children: [
+      //                       TextSpan(text: " Политикой конфиденциальности "),
+      //                       TextSpan(text: "и"),
+      //                       TextSpan(text: " Пользовательским соглашением"),
+      //                     ],
+      //                   ),
+      //                 ),
 
-                RichText(
-                  textAlign: TextAlign.center,
-                  text: TextSpan(
-                    text: "Используя приложение вы соглашаетесь с",
-                    children: [
-                      TextSpan(text: " Политикой конфиденциальности "),
-                      TextSpan(text: "и"),
-                      TextSpan(text: " Пользовательским соглашением"),
-                    ],
-                  ),
-                ),
+      //                 const SizedBox(height: 30),
+      //               ],
+      //             ),
+      //           ),
+      //           Container(
+      //             width: double.infinity,
+      //             height: MediaQuery.of(context).size.height * 0.12,
+      //             decoration: BoxDecoration(
+      //               color: Colors.blueGrey,
+      //               borderRadius: BorderRadius.only(
+      //                 bottomLeft: Radius.circular(11),
+      //                 bottomRight: Radius.circular(11),
+      //               ),
+      //             ),
+      //             margin: const EdgeInsets.only(left: 10.0, right: 10, top: 5),
+      //             child: Row(
+      //               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      //               children: [
+      //                 DropdownMenu(
+      //                   initialSelection: [
+      //                     'Один',
+      //                     'Два',
+      //                     'Три',
+      //                     'Четыре',
+      //                   ].first,
+      //                   onSelected: (String? value) {
+      //                     // Действие при выборе
+      //                   },
+      //                   dropdownMenuEntries: ['Один', 'Два', 'Три', 'Четыре']
+      //                       .map<DropdownMenuEntry<String>>((String value) {
+      //                         return DropdownMenuEntry<String>(
+      //                           value: value,
+      //                           label: value,
+      //                         );
+      //                       })
+      //                       .toList(),
+      //                 ),
 
-                const SizedBox(height: 30),
+      //                 IconButton(onPressed: () {}, icon: Icon(Icons.dark_mode)),
+      //               ],
+      //             ),
+      //           ),
+      //         ],
+      //       );
+      //     case AuthStates.password:
+      //       return Container();
+      //   }
+      // }),
 
-              ],
-            ),
-          ),
-          Container(
-            width: double.infinity,
-            height: MediaQuery.of(context).size.height * 0.12,
-            decoration: BoxDecoration(
-              color: Colors.blueGrey,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(11),
-                bottomRight: Radius.circular(11),
-              ),
-            ),
-            margin: const EdgeInsets.only(left:10.0, right:10, top: 5),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                DropdownMenu(
-                  initialSelection: ['Один', 'Два', 'Три', 'Четыре'].first,
-                  onSelected: (String? value) {
-                    // Действие при выборе
-                  },
-                  dropdownMenuEntries: ['Один', 'Два', 'Три', 'Четыре']
-                      .map<DropdownMenuEntry<String>>((String value) {
-                        return DropdownMenuEntry<String>(
-                          value: value,
-                          label: value,
-                        );
-                      })
-                      .toList(),
-                ),
-
-                IconButton(onPressed: () {}, icon: Icon(Icons.dark_mode)),
-              ],
-            ),
-          ),
-        ],
-      ),
+      // // body:
     );
   }
 }

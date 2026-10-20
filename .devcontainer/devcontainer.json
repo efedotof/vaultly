@@ -2,10 +2,10 @@
   "name": "Flutter",
   "image": "ghcr.io/cirruslabs/flutter:stable",
   "overrideCommand": true,
-  "postCreateCommand": "yes | /opt/android-sdk-linux/cmdline-tools/latest/bin/sdkmanager --licenses && ln -sfn /opt/android-sdk-linux/platforms/android-37.0 /opt/android-sdk-linux/platforms/android-37 || true && sudo apt-get update && sudo apt-get install -y scrcpy ninja-build cmake && flutter pub get",
+  "postCreateCommand": "yes | /opt/android-sdk-linux/cmdline-tools/latest/bin/sdkmanager --licenses && ln -sfn /opt/android-sdk-linux/platforms/android-37.0 /opt/android-sdk-linux/platforms/android-37 || true && sudo apt-get update && sudo apt-get install -y scrcpy ninja-build cmake socat && flutter pub get",
+  "postStartCommand": "nohup socat tcp-listen:10388,bind=127.0.0.1,fork tcp:host.docker.internal:10388 > /tmp/socat.log 2>&1 &",
   "containerEnv": {
     "ADB_SERVER_SOCKET": "tcp:host.docker.internal:5037",
-    "ANDROID_ADB_SERVER_ADDRESS": "host.docker.internal",
     "ANDROID_HOME": "/opt/android-sdk-linux",
     "ANDROID_SDK_ROOT": "/opt/android-sdk-linux"
   },
@@ -22,8 +22,10 @@
   },
   "runArgs": [
     "--network=host",
-    "--privileged",
-    "-v", "/dev/bus/usb:/dev/bus/usb"
+    "--add-host=host.docker.internal:host-gateway"
+  ],
+  "forwardPorts": [
+    10388
   ],
   "customizations": {
     "vscode": {

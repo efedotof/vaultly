@@ -1,16 +1,18 @@
 import 'package:get/get.dart';
 
-enum AuthStates { unauth, auth, error, registration}
+enum AuthStates { auth, login, password}
 
 class AuthController extends GetxController {
   RxString username =
       "".obs; // строка для username пользователя при входе и регистрации.
   RxString password = "".obs; // строка для пароля пользователя
 
+  final state = AuthStates.login.obs;
+
+
   //метод входа
   void login() {
-
-    
+    state.value = AuthStates.password;
   }
 
   //метод регистрации
@@ -20,10 +22,4 @@ class AuthController extends GetxController {
   bool checkUsernameFind({required String username}) {
     return false;
   }
-
-
-
-
-  ///логика, одна страница для входа, отправляется на api/login,
-  ///в случае если пользователя нет в системе, переход на страницу регистрации без указания username и password
 }

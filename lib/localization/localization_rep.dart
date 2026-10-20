@@ -5,13 +5,14 @@ import 'package:get/state_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalizationRep extends GetxController {
-  SharedPreferences _prefs;
+  late SharedPreferences _prefs;
 
-  final Rx<Locale> _locale = Locale('ru', 'RU').obs;
+  // Значение по умолчанию
+  final Rx<Locale> _locale = const Locale('ru', 'RU').obs;
 
   Locale get locale => _locale.value;
 
-  LocalizationRep({required SharedPreferences prefs}) : _prefs = prefs;
+  LocalizationRep();
 
   @override
   void onInit() async {
@@ -20,7 +21,7 @@ class LocalizationRep extends GetxController {
     getLocale();
   }
 
-  //установить другую локаль
+  // установить другую локаль
   void setLocale({
     required String languageCode,
     required String? countryCode,
@@ -31,15 +32,17 @@ class LocalizationRep extends GetxController {
     await _prefs.setString('countryCode', countryCode ?? "");
   }
 
-  //получить локаль
+  // получить локаль
   void getLocale() {
-    String getLanguageCode = _prefs.getString('languageCode') ?? "";
-    String getCountryCode = _prefs.getString('countryCode') ?? "";
+    final languageCode = _prefs.getString('languageCode') ?? "";
+    final countryCode = _prefs.getString('countryCode') ?? "";
 
-    if ((getLanguageCode.isEmpty && getCountryCode.isEmpty) ||
-        (getLanguageCode == "" && getCountryCode == "")) {
-      _locale.value = Locale('ru', 'RU');
+    if (languageCode.isEmpty) {
+      _locale.value = const Locale('ru', 'RU');
+      return;
     }
-    _locale.value = Locale(getLanguageCode, getCountryCode);
+
+    // Если язык есть, применяем его
+    _locale.value = Locale(languageCode, countryCode);
   }
 }
