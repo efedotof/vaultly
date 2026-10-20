@@ -2,18 +2,17 @@
   "name": "Flutter",
   "image": "ghcr.io/cirruslabs/flutter:stable",
   "overrideCommand": true,
-  "postCreateCommand": "sudo add-apt-repository universe -y && sudo apt-get update && sudo apt-get install -y scrcpy && flutter pub get",
+  "postCreateCommand": "yes | /opt/android-sdk-linux/cmdline-tools/latest/bin/sdkmanager --licenses && ln -sfn /opt/android-sdk-linux/platforms/android-37.0 /opt/android-sdk-linux/platforms/android-37 || true && sudo apt-get update && sudo apt-get install -y scrcpy ninja-build cmake && flutter pub get",
   "containerEnv": {
     "ADB_SERVER_SOCKET": "tcp:host.docker.internal:5037",
-    "ANDROID_ADB_SERVER_ADDRESS": "host.docker.internal"
+    "ANDROID_ADB_SERVER_ADDRESS": "host.docker.internal",
+    "ANDROID_HOME": "/opt/android-sdk-linux",
+    "ANDROID_SDK_ROOT": "/opt/android-sdk-linux"
   },
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {
       "installDirectlyFromGitHubRelease": true,
       "version": "latest"
-    },
-    "ghcr.io/nordcominc/devcontainer-features/android-sdk:2": {
-      "disable_openjdk_installation": true
     },
     "ghcr.io/devcontainers-extra/features/kotlin-sdkman:2": {
       "version": "latest",
@@ -24,7 +23,6 @@
   "runArgs": [
     "--network=host",
     "--privileged",
-    "--add-host=host.docker.internal:host-gateway",
     "-v", "/dev/bus/usb:/dev/bus/usb"
   ],
   "customizations": {
@@ -38,7 +36,6 @@
       "extensions": [
         "Dart-Code.dart-code",
         "Dart-Code.flutter",
-        "usernamehw.errorlens",
         "eamodio.gitlens",
         "mhutchie.git-graph",
         "streetsidesoftware.code-spell-checker",

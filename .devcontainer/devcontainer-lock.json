@@ -9,11 +9,6 @@
       "version": "1.1.3",
       "resolved": "ghcr.io/devcontainers/features/github-cli@sha256:bd7ab48a832228f633239277552c30b353867fef2e5b037e064b4e64f0b843f2",
       "integrity": "sha256:bd7ab48a832228f633239277552c30b353867fef2e5b037e064b4e64f0b843f2"
-    },
-    "ghcr.io/nordcominc/devcontainer-features/android-sdk:2": {
-      "version": "2.0.0",
-      "resolved": "ghcr.io/nordcominc/devcontainer-features/android-sdk@sha256:17c25d5721b31e45564e864d5bdfead9eefab7a1624e69ac5cf51079e9f62f0b",
-      "integrity": "sha256:17c25d5721b31e45564e864d5bdfead9eefab7a1624e69ac5cf51079e9f62f0b"
     }
   }
 }
