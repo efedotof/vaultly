@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
+import 'package:vaulth_app/server/service/logger/logger.dart';
 
-enum AuthStates { auth, login, password}
+enum AuthStates { auth, login, password }
 
 class AuthController extends GetxController {
   RxString username =
@@ -9,17 +10,13 @@ class AuthController extends GetxController {
 
   final state = AuthStates.login.obs;
 
-
   //метод входа
   void login() {
-    state.value = AuthStates.password;
-  }
-
-  //метод регистрации
-  void registration() {}
-
-  //метод для проверки того есть ли зарегистрированный пользователь.
-  bool checkUsernameFind({required String username}) {
-    return false;
+    try {
+      state.value = AuthStates.password;
+    } catch (e) {
+      Logger.d("Произошла ошибка: $e", tag: "AuthController - login");
+      Get.snackbar("Произошла ошибка", "попробуйте позже");
+    }
   }
 }
