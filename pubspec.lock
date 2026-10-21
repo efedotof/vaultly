@@ -888,6 +888,15 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.1"
+  qnd_updater:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: "51b492f7272a3e4b941f7f61892ffef43c4183be"
+      resolved-ref: "51b492f7272a3e4b941f7f61892ffef43c4183be"
+      url: "https://github.com/efedotof/qnd_updater.git"
+    source: git
+    version: "0.0.1"
   qr:
     dependency: transitive
     description:

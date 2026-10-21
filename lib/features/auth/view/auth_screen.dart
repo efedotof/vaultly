@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widget_previews.dart';
 import 'package:get/get.dart';
 import 'package:vaulth_app/features/auth/controller/auth_controller.dart';
+import 'package:vaulth_app/features/auth/widget/widget.dart';
 
 //единый экран авторизации
 class AuthScreen extends StatelessWidget {
-  @Preview(name: 'Auth Screen Preview')
   const AuthScreen({super.key});
 
   @override
@@ -17,94 +16,43 @@ class AuthScreen extends StatelessWidget {
           Container(
             width: double.infinity,
             height: double.infinity,
-            decoration: BoxDecoration(color: Colors.white),
-            margin: const EdgeInsets.all(10.0),
-            child: Obx(() {
-              switch (controller.state.value) {
-                case AuthStates.login:
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text("Добро пожаловатьSSS!"),
-
-                      TextField(
-                        onChanged: (value) {
-                          controller.username.value = value;
-                        },
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      OutlinedButton(
-                        onPressed: () {},
-                        child: Text("Продолжить"),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      RichText(
-                        textAlign: TextAlign.center,
-                        text: TextSpan(
-                          text: "Используя приложение вы соглашаетесь с",
-                          children: [
-                            TextSpan(text: " Политикой конфиденциальности "),
-                            TextSpan(text: "и"),
-                            TextSpan(text: " Пользовательским соглашением"),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 30),
-                    ],
-                  );
-
-                case AuthStates.password:
-                  return Column(
-                    children: [
-                      Text(
-                        "Введите пароль\n или восстановите через TOTP",
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  );
-
-                default:
-                  return Container();
-              }
-            }),
+            color: Color(0xFF1d3687),
           ),
-          Container(
-            width: double.infinity,
-            height: MediaQuery.of(context).size.height * 0.12,
-            decoration: BoxDecoration(
-              color: Colors.blueGrey,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(11),
-                bottomRight: Radius.circular(11),
-              ),
-            ),
-            margin: const EdgeInsets.only(left: 10.0, right: 10, top: 5),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                DropdownMenu(
-                  initialSelection: ['Один', 'Два', 'Три', 'Четыре'].first,
-                  onSelected: (String? value) {
-                    // Действие при выборе
-                  },
-                  dropdownMenuEntries: ['Один', 'Два', 'Три', 'Четыре']
-                      .map<DropdownMenuEntry<String>>((String value) {
-                        return DropdownMenuEntry<String>(
-                          value: value,
-                          label: value,
-                        );
-                      })
-                      .toList(),
-                ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
 
-                IconButton(onPressed: () {}, icon: Icon(Icons.dark_mode)),
-              ],
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.5,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(11),
+                  topRight: Radius.circular(11),
+                ),
+                color: Color(0xFF43416d),
+              ),
+              padding: EdgeInsets.all(10),
+              child: Obx(() {
+                switch (controller.state.value) {
+                  case AuthStates.login:
+                    return LoginWidget(
+                      action: () {
+                        controller.goToPassword();
+                      },
+                    );
+
+                  case AuthStates.password:
+                    return PasswordWidget(
+                      action: () {
+                        controller.login();
+                      },
+                    );
+
+                  case AuthStates.auth:
+                    return AuthWidget();
+                }
+              }),
             ),
           ),
         ],

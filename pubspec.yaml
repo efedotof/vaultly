@@ -14,6 +14,10 @@ dependencies:
     git:
       url: https://github.com/efedotof/vaultly.git
       ref: 7c166e509b69c429dbec8f709eba6f827a656bd2
+  qnd_updater:
+    git:
+      url: https://github.com/efedotof/qnd_updater.git
+      ref: 51b492f7272a3e4b941f7f61892ffef43c4183be
   cupertino_icons: ^1.0.9
   path_provider: ^2.1.6
   crypto: ^3.0.7

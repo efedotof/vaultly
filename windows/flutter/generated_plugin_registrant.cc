@@ -11,6 +11,7 @@
 #include <media_kit_libs_windows_video/media_kit_libs_windows_video_plugin_c_api.h>
 #include <media_kit_video/media_kit_video_plugin_c_api.h>
 #include <permission_handler_windows/permission_handler_windows_plugin.h>
+#include <qnd_updater/qnd_updater_plugin_c_api.h>
 
 void RegisterPlugins(flutter::PluginRegistry* registry) {
   FFmpegKitFlutterPluginRegisterWithRegistrar(
@@ -23,4 +24,6 @@ void RegisterPlugins(flutter::PluginRegistry* registry) {
       registry->GetRegistrarForPlugin("MediaKitVideoPluginCApi"));
   PermissionHandlerWindowsPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("PermissionHandlerWindowsPlugin"));
+  QndUpdaterPluginCApiRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("QndUpdaterPluginCApi"));
 }

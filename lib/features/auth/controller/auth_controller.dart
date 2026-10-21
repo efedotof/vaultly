@@ -13,10 +13,17 @@ class AuthController extends GetxController {
   //метод входа
   void login() {
     try {
-      state.value = AuthStates.password;
+      state.value = AuthStates.auth;
     } catch (e) {
       Logger.d("Произошла ошибка: $e", tag: "AuthController - login");
       Get.snackbar("Произошла ошибка", "попробуйте позже");
     }
   }
+
+  //метод для смены с login на password
+  void goToPassword(){
+     state.value = AuthStates.password;
+  }
+
+
 }

@@ -1,9 +1,4 @@
 {
     "java.configuration.updateBuildConfiguration": "disabled",
-    "cmake.ignoreCMakeListsMissing": true,
-    "dart.flutterRunAdditionalArgs": [
-        "--host-vmservice-port=10388",
-        "--device-vmservice-port=10388",
-        "--no-enable-impeller"
-    ]
+    "cmake.ignoreCMakeListsMissing": true
 }

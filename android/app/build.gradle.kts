@@ -14,7 +14,7 @@ plugins {
 
 android {
     namespace = "com.efedotov.vaultly"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
      signingConfigs {
