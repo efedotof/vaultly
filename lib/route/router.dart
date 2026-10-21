@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:vaulth_app/binding/auth_binding.dart';
+import 'package:vaulth_app/binding/home_binging.dart';
 import 'package:vaulth_app/binding/main_home_binding.dart';
 import 'package:vaulth_app/binding/profile_binding.dart';
 import 'package:vaulth_app/features/auth/auth.dart';
@@ -12,6 +13,7 @@ import 'package:vaulth_app/features/main_home/view/main_home_screen.dart';
 import 'package:vaulth_app/features/notes/notes.dart';
 import 'package:vaulth_app/features/profile/profile.dart';
 import 'package:vaulth_app/features/settings/settings.dart';
+import 'package:vaulth_app/middleware/auth_middleware.dart';
 
 class AppRouter {
   List<GetPage<dynamic>>? router() => [
@@ -20,6 +22,7 @@ class AppRouter {
       page: () => AuthScreen(),
       transition: Transition.cupertino,
       binding: AuthBinding(),
+      middlewares: [AuthMiddleware()]
     ),
     GetPage(
       name: '/device',
@@ -40,6 +43,7 @@ class AppRouter {
       name: '/home',
       page: () => HomeScreen(),
       transition: Transition.cupertino,
+      binding: HomeBinging()
     ),
     GetPage(
       name: '/keys_manager',
