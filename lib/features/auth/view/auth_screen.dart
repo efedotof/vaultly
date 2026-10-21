@@ -49,8 +49,8 @@ class AuthScreen extends StatelessWidget {
                       },
                     );
 
-                  case AuthStates.auth:
-                    return AuthWidget();
+                  case AuthStates.loading:
+                    return LoadingWidget();
                 }
               }),
             ),

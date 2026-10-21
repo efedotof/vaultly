@@ -1,7 +1,8 @@
 import 'package:get/get.dart';
+import 'package:vaulth_app/features/profile/profile.dart';
 import 'package:vaulth_app/server/service/logger/logger.dart';
 
-enum AuthStates { auth, login, password }
+enum AuthStates { loading, login, password }
 
 class AuthController extends GetxController {
   RxString username =
@@ -13,7 +14,11 @@ class AuthController extends GetxController {
   //метод входа
   void login() {
     try {
-      state.value = AuthStates.auth;
+      state.value = AuthStates.loading;
+
+      //вызываем api чтобы провести авторизацию
+
+      Get.to(() => ProfileScreen());
     } catch (e) {
       Logger.d("Произошла ошибка: $e", tag: "AuthController - login");
       Get.snackbar("Произошла ошибка", "попробуйте позже");
@@ -21,9 +26,7 @@ class AuthController extends GetxController {
   }
 
   //метод для смены с login на password
-  void goToPassword(){
-     state.value = AuthStates.password;
+  void goToPassword() {
+    state.value = AuthStates.password;
   }
-
-
 }
