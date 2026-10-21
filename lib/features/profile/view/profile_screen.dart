@@ -13,9 +13,17 @@ class ProfileScreen extends StatelessWidget {
       body: Obx(() {
         switch (profileController.state.value) {
           case ProfileStates.createProfile:
-            return CreateProfileWidget();
+            return CreateProfileWidget(
+              onPressed: () {
+                profileController.updateStates(
+                  newState: ProfileStates.myProfile,
+                );
+              },
+            );
           case ProfileStates.myProfile:
-            return MyProfileWidget();
+            return MyProfileWidget(onPressed: () {
+              Get.toNamed("/main_home");
+            });
           case ProfileStates.otherProfile:
             return OtherProfileWidget();
           case ProfileStates.updateProfile:

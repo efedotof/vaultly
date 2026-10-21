@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:vaulth_app/binding/auth_binding.dart';
+import 'package:vaulth_app/binding/main_home_binding.dart';
 import 'package:vaulth_app/binding/profile_binding.dart';
 import 'package:vaulth_app/features/auth/auth.dart';
 import 'package:vaulth_app/features/device/device.dart';
@@ -50,6 +51,7 @@ class AppRouter {
       name: '/main_home',
       page: () => MainHomeScreen(),
       transition: Transition.cupertino,
+      binding: MainHomeBinding(),
     ),
     GetPage(
       name: '/notes',

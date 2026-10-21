@@ -19,6 +19,8 @@ class AuthController extends GetxController {
       //вызываем api чтобы провести авторизацию
 
       Get.toNamed("/profile");
+
+      state.value = AuthStates.login;
     } catch (e) {
       Logger.d("Произошла ошибка: $e", tag: "AuthController - login");
       Get.snackbar("Произошла ошибка", "попробуйте позже");
