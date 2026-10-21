@@ -26,7 +26,7 @@ class AuthScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text("Добро пожаловать!"),
+                      Text("Добро пожаловатьSSS!"),
 
                       TextField(
                         onChanged: (value) {
