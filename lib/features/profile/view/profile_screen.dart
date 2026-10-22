@@ -15,9 +15,7 @@ class ProfileScreen extends StatelessWidget {
           case ProfileStates.createProfile:
             return CreateProfileWidget(
               onPressed: () {
-                profileController.updateStates(
-                  newState: ProfileStates.myProfile,
-                );
+                
               },
             );
           case ProfileStates.myProfile:

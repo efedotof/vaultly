@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-class DocumentViewverScreen extends StatelessWidget {
-  const DocumentViewverScreen({super.key});
+class DocumentViewerScreen extends StatelessWidget {
+  const DocumentViewerScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

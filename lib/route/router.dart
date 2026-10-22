@@ -30,8 +30,8 @@ class AppRouter {
       transition: Transition.cupertino,
     ),
     GetPage(
-      name: '/document_viewver',
-      page: () => DocumentViewverScreen(),
+      name: '/document_viewer',
+      page: () => DocumentViewerScreen(),
       transition: Transition.cupertino,
     ),
     GetPage(
@@ -63,7 +63,7 @@ class AppRouter {
       transition: Transition.cupertino,
     ),
     GetPage(
-      name: '/profile',
+      name: '/profile/:user',
       page: () => ProfileScreen(),
       transition: Transition.cupertino,
       binding: ProfileBinding(),

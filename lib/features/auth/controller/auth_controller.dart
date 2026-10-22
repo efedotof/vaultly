@@ -18,7 +18,7 @@ class AuthController extends GetxController {
 
       //вызываем api чтобы провести авторизацию
 
-      Get.toNamed("/profile");
+      Get.toNamed("/profile/create_profile");
 
       state.value = AuthStates.login;
     } catch (e) {

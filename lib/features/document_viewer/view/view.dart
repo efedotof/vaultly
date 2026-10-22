@@ -1,1 +1,1 @@
-export 'document_viewver_screen.dart';
+export 'document_viewer_screen.dart';

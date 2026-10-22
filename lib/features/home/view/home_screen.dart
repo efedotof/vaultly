@@ -54,7 +54,7 @@ class HomeScreen extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   margin: EdgeInsets.all(10),
-                                  child: Placeholder(),
+                                  child: ClipOval(child: Placeholder()),
                                 ),
 
                                 Text("file name"),
@@ -107,7 +107,7 @@ class HomeScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 margin: EdgeInsets.all(10),
-                                child: Placeholder(),
+                                child: ClipOval(child: Placeholder()),
                               ),
 
                               Text("file name"),
@@ -121,8 +121,6 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           ),
-       
-       
 
           Positioned(
             bottom: 10,
@@ -134,7 +132,8 @@ class HomeScreen extends StatelessWidget {
               ),
               padding: EdgeInsets.all(10),
               child: Text("состояние"),
-            ))
+            ),
+          ),
         ],
       ),
     );
