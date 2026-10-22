@@ -27,7 +27,6 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -125,55 +124,15 @@ class UserControllerTest extends BaseControllerTest {
                 .andExpect(jsonPath("$.email").value(nullValue()));
     }
 
-    
+        @Test
+        void getRecoveryData_returnsEncryptedRsaKey() throws Exception {
+                RecoveryDataResponse resp = new RecoveryDataResponse("rsa-blob");
+                when(userService.getRecoveryData(userId)).thenReturn(resp);
 
-    @Test
-    void getEncryptedPrivateKey_validJson_returnsNormalizedJson() throws Exception {
-        when(userService.getEncryptedPrivateKey(userId))
-                .thenReturn("{\"k\":\"v\"}");
-
-        mockMvc.perform(get("/api/users/me/private-key-encrypted")
-                .with(authentication(auth)))
-                .andExpect(status().isOk())
-                .andExpect(content().json("{\"k\":\"v\"}"));
-    }
-
-    @Test
-    void getEncryptedPrivateKey_nonJson_returnsRawString() throws Exception {
-        when(userService.getEncryptedPrivateKey(userId))
-                .thenReturn("not-a-json-payload");
-
-        mockMvc.perform(get("/api/users/me/private-key-encrypted")
-                .with(authentication(auth)))
-                .andExpect(status().isOk())
-                .andExpect(content().string("not-a-json-payload"));
-    }
-
-    
-
-    @Test
-    void getSalt_returnsSaltString() throws Exception {
-        when(userService.getSalt(userId)).thenReturn("SALT_VALUE");
-
-        mockMvc.perform(get("/api/users/me/salt").with(authentication(auth)))
-                .andExpect(status().isOk())
-                .andExpect(content().string("SALT_VALUE"));
-    }
-
-    
-
-    @Test
-    void getRecoveryData_returnsResponse() throws Exception {
-        RecoveryDataResponse resp = new RecoveryDataResponse("rsa-blob", "salt-val");
-        when(userService.getRecoveryData(userId)).thenReturn(resp);
-
-        mockMvc.perform(get("/api/users/me/recovery-data").with(authentication(auth)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.recoveryEncryptedRsaKey").value("rsa-blob"))
-                .andExpect(jsonPath("$.salt").value("salt-val"));
-    }
-
-    
+                mockMvc.perform(get("/api/users/me/recovery-data").with(authentication(auth)))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.encryptedRsaKey").value("rsa-blob"));
+        }
 
     @Test
     void updateKeys_valid_returns200() throws Exception {

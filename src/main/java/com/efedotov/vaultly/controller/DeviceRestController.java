@@ -36,7 +36,8 @@ public class DeviceRestController {
             @AuthenticationPrincipal CustomUserDetails user) {
         try {
             DeviceResponse device = deviceService.registerDevice(request, user.getUserId());
-            log.info("Устройство {} зарегистрировано пользователем {}", device.getDeviceName(), user.getUsername());
+            log.info("Устройство {} зарегистрировано пользователем {}",
+                    device.getDeviceName(), user.getUsername());
             return device;
         } catch (Exception e) {
             log.error("Ошибка регистрации устройства: {}", e.getMessage());
@@ -50,19 +51,6 @@ public class DeviceRestController {
             return deviceService.getUserDevices(user.getUserId());
         } catch (Exception e) {
             log.error("Ошибка получения списка устройств: {}", e.getMessage());
-            throw e;
-        }
-    }
-
-    @GetMapping("/{deviceId}/key")
-    public String getEncryptedPrivateKey(@PathVariable UUID deviceId,
-            @AuthenticationPrincipal CustomUserDetails user) {
-        try {
-            String key = deviceService.getEncryptedPrivateKey(deviceId, user.getUserId());
-            log.info("Устройство {} запросило приватный ключ", deviceId);
-            return key;
-        } catch (Exception e) {
-            log.error("Ошибка получения ключа для устройства {}: {}", deviceId, e.getMessage());
             throw e;
         }
     }

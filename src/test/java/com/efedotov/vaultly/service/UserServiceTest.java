@@ -101,37 +101,17 @@ class UserServiceTest {
     }
 
     @Test
-    void getEncryptedPrivateKey_returnsValue() {
-        UUID id = UUID.randomUUID();
-        User u = User.builder().id(id).privateKeyEncrypted("enc").build();
-        when(userRepository.findById(id)).thenReturn(Optional.of(u));
-
-        assertThat(service.getEncryptedPrivateKey(id)).isEqualTo("enc");
-    }
-
-    @Test
-    void getSalt_returnsValue() {
-        UUID id = UUID.randomUUID();
-        User u = User.builder().id(id).salt("somesalt").build();
-        when(userRepository.findById(id)).thenReturn(Optional.of(u));
-
-        assertThat(service.getSalt(id)).isEqualTo("somesalt");
-    }
-
-    @Test
     void getRecoveryData_returnsBothFields() {
         UUID id = UUID.randomUUID();
         User u = User.builder()
                 .id(id)
                 .recoveryEncryptedRsaKey("rsa-blob")
-                .salt("salt-val")
+                
                 .build();
         when(userRepository.findById(id)).thenReturn(Optional.of(u));
 
         RecoveryDataResponse resp = service.getRecoveryData(id);
-
-        assertThat(resp.getRecoveryEncryptedRsaKey()).isEqualTo("rsa-blob");
-        assertThat(resp.getSalt()).isEqualTo("salt-val");
+        assertThat(resp.getEncryptedRsaKey()).isEqualTo("rsa-blob");
     }
 
     @Test
@@ -210,7 +190,7 @@ class UserServiceTest {
         UpdateKeysRequest req = new UpdateKeysRequest();
         req.setCurrentPassword("pw");
         req.setPublicKey(validPem);
-        req.setPrivateKeyEncrypted("enc");
+       
 
         assertThatThrownBy(() -> service.updateKeys(id, req))
                 .isInstanceOf(NotFoundException.class);
@@ -226,7 +206,7 @@ class UserServiceTest {
         UpdateKeysRequest req = new UpdateKeysRequest();
         req.setCurrentPassword("bad");
         req.setPublicKey(validPem);
-        req.setPrivateKeyEncrypted("enc");
+       
 
         assertThatThrownBy(() -> service.updateKeys(id, req))
                 .isInstanceOf(RuntimeException.class)
@@ -243,7 +223,7 @@ class UserServiceTest {
         UpdateKeysRequest req = new UpdateKeysRequest();
         req.setCurrentPassword("pw");
         req.setPublicKey("not-a-valid-key");
-        req.setPrivateKeyEncrypted("enc");
+        
 
         assertThatThrownBy(() -> service.updateKeys(id, req))
                 .isInstanceOf(BadRequestException.class);
@@ -260,49 +240,13 @@ class UserServiceTest {
         UpdateKeysRequest req = new UpdateKeysRequest();
         req.setCurrentPassword("pw");
         req.setPublicKey(validPem);
-        req.setPrivateKeyEncrypted("some-private-key-blob");
+        
 
         service.updateKeys(id, req);
 
         assertThat(u.getPublicKey()).isEqualTo(validPem);
-        assertThat(u.getPrivateKeyEncrypted()).isEqualTo("some-private-key-blob");
+       
         verify(userKeyService).invalidate(id);
-    }
-
-    @Test
-    void updateKeys_nullPrivateKey_storesNull() {
-        UUID id = UUID.randomUUID();
-        User u = User.builder().id(id).passwordHash("hash").build();
-        when(userRepository.findById(id)).thenReturn(Optional.of(u));
-        when(passwordEncoder.matches("pw", "hash")).thenReturn(true);
-        when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
-        UpdateKeysRequest req = new UpdateKeysRequest();
-        req.setCurrentPassword("pw");
-        req.setPublicKey(validPem);
-        req.setPrivateKeyEncrypted(null);
-
-        service.updateKeys(id, req);
-
-        assertThat(u.getPrivateKeyEncrypted()).isNull();
-    }
-
-    @Test
-    void updateKeys_jsonPrivateKey_isNormalized() {
-        UUID id = UUID.randomUUID();
-        User u = User.builder().id(id).passwordHash("hash").build();
-        when(userRepository.findById(id)).thenReturn(Optional.of(u));
-        when(passwordEncoder.matches("pw", "hash")).thenReturn(true);
-        when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
-        UpdateKeysRequest req = new UpdateKeysRequest();
-        req.setCurrentPassword("pw");
-        req.setPublicKey(validPem);
-        req.setPrivateKeyEncrypted("  \"{\\\"k\\\":\\\"v\\\"}\"  ");
-
-        service.updateKeys(id, req);
-
-        assertThat(u.getPrivateKeyEncrypted()).contains("k").contains("v");
     }
 
     @Test
@@ -315,7 +259,6 @@ class UserServiceTest {
         UpdateRecoveryKeysRequest req = new UpdateRecoveryKeysRequest();
         req.setCurrentPassword("bad");
         req.setRecoveryPublicKey(validPem);
-        req.setRecoveryPrivateKeyEncrypted("priv");
         req.setRecoveryEncryptedRsaKey("rsa");
 
         assertThatThrownBy(() -> service.updateRecoveryKeys(id, req))
@@ -334,14 +277,12 @@ class UserServiceTest {
         UpdateRecoveryKeysRequest req = new UpdateRecoveryKeysRequest();
         req.setCurrentPassword("pw");
         req.setRecoveryPublicKey(validPem);
-        req.setRecoveryPrivateKeyEncrypted("recovery-priv");
         req.setRecoveryEncryptedRsaKey("rsa-blob");
 
         service.updateRecoveryKeys(id, req);
 
         assertThat(u.getRecoveryPublicKey()).isNotBlank();
         assertThat(u.getRecoveryEncryptedRsaKey()).isEqualTo("rsa-blob");
-        assertThat(u.getRecoveryPrivateKeyEncrypted()).isNotBlank();
     }
 
     @Test

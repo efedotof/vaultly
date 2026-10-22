@@ -43,18 +43,6 @@ public class UserController {
         return ResponseEntity.ok(profile);
     }
 
-    @GetMapping("/me/private-key-encrypted")
-    public ResponseEntity<String> getEncryptedPrivateKey(@AuthenticationPrincipal CustomUserDetails user) {
-        String raw = userService.getEncryptedPrivateKey(user.getUserId());
-        try {
-            JsonNode node = objectMapper.readTree(raw);
-            String cleanJson = objectMapper.writeValueAsString(node);
-            return ResponseEntity.ok(cleanJson);
-        } catch (JacksonException e) {
-            return ResponseEntity.ok(raw);
-        }
-    }
-
     @PutMapping("/me")
     public ResponseEntity<UserProfileDto> updateCurrentUser(
             @Valid @RequestBody UpdateUserRequest request,
@@ -80,12 +68,6 @@ public class UserController {
 
     private UUID extractUserIdFromPrincipal(UserDetails principal) {
         return ((CustomUserDetails) principal).getUserId();
-    }
-
-    @GetMapping("/me/salt")
-    public ResponseEntity<String> getSalt(@AuthenticationPrincipal CustomUserDetails user) {
-        String salt = userService.getSalt(user.getUserId());
-        return ResponseEntity.ok(salt);
     }
 
     @PostMapping("/keys/recovery/update")

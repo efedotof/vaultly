@@ -11,12 +11,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
+import com.efedotov.vaultly.exception.UsernameAlreadyExistsException;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.dao.DataIntegrityViolationException;
 import com.efedotov.vaultly.dto.auth.AuthResponse;
 import com.efedotov.vaultly.dto.auth.LoginRequest;
 import com.efedotov.vaultly.dto.auth.LoginWithTotpRequest;
@@ -32,12 +32,9 @@ import com.efedotov.vaultly.model.User;
 import com.efedotov.vaultly.model.UserSession;
 import com.efedotov.vaultly.repository.RoleRepository;
 import com.efedotov.vaultly.repository.UserRepository;
-import tools.jackson.databind.json.JsonMapper;
 import dev.samstevens.totp.exceptions.QrGenerationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Service
@@ -50,7 +47,6 @@ public class AuthService {
     private final SessionService sessionService;
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
-    private final ObjectMapper objectMapper = JsonMapper.builder().build();
     private final TotpService totpService;
     private final LoginAttemptService loginAttemptService;
     private final EncryptionService encryptionService;
@@ -138,14 +134,26 @@ public class AuthService {
     @Transactional
     public AuthResponse loginWithTotp(LoginWithTotpRequest request) {
         UUID userId = preAuthTokenService.consume(request.getPreAuthToken());
+
         if (userId == null) {
-            throw new RuntimeException("Invalid or expired pre-auth token");
+
+            dummyBcrypt(request.getTotpCode());
+            throw new RuntimeException("Invalid credentials");
         }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            dummyBcrypt(request.getTotpCode());
+            throw new RuntimeException("Invalid credentials");
+        }
 
         if (!Boolean.TRUE.equals(user.getIsActive())) {
+            dummyBcrypt(request.getTotpCode());
+            throw new RuntimeException("Invalid credentials");
+        }
+
+        if (loginAttemptService.isBlocked(user.getUsername())) {
+            dummyBcrypt(request.getTotpCode());
             throw new RuntimeException("Invalid credentials");
         }
 
@@ -161,13 +169,16 @@ public class AuthService {
         return createAuthResponse(user, created.plaintextToken());
     }
 
+    
     @Transactional
     public AuthResponse registration(RegisterRequest request) {
         log.debug("Registration attempt");
 
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-            throw new RuntimeException("Username already exists");
+            throw new UsernameAlreadyExistsException("Username already exists");
         }
+
+        UserService.validatePublicKeyFormat(request.getPublicKey());
 
         Role userRole = roleRepository.findByRoleName("USER")
                 .orElseGet(() -> {
@@ -176,9 +187,6 @@ public class AuthService {
                     return roleRepository.save(newRole);
                 });
 
-        String normalizedPrivateKey = normalizePrivateKeyEncrypted(request.getPrivateKeyEncrypted());
-        String normalizedSalt = normalizeBase64String(request.getSalt());
-
         User user = User.builder()
                 .username(request.getUsername())
                 .email(request.getEmail())
@@ -186,42 +194,19 @@ public class AuthService {
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .publicKey(request.getPublicKey())
-                .privateKeyEncrypted(normalizedPrivateKey)
-                .salt(normalizedSalt)
                 .roles(new HashSet<>(Set.of(userRole)))
                 .build();
-        UserService.validatePublicKeyFormat(request.getPublicKey());
-        user = userRepository.save(user);
+
+        try {
+            user = userRepository.save(user);
+        } catch (DataIntegrityViolationException e) {
+            throw new UsernameAlreadyExistsException("Username already exists", e);
+        }
+
         log.info("User created with ID: {}", user.getId());
 
         SessionService.CreatedSession created = sessionService.createSession(user.getId());
         return createAuthResponse(user, created.plaintextToken());
-    }
-
-    private String normalizePrivateKeyEncrypted(String raw) {
-        if (raw == null)
-            return null;
-        String cleaned = raw.trim();
-        cleaned = cleaned.replaceFirst("^\uFEFF", "");
-        while ((cleaned.startsWith("\"") && cleaned.endsWith("\"")) ||
-                (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
-            cleaned = cleaned.substring(1, cleaned.length() - 1).trim();
-        }
-        cleaned = cleaned.replace("\\\"", "\"");
-        cleaned = cleaned.replaceAll("[\\x00-\\x1F\\x7F]", "");
-        try {
-            Object json = objectMapper.readValue(cleaned, Object.class);
-            return objectMapper.writeValueAsString(json);
-        } catch (JacksonException e) {
-            log.warn("Failed to parse privateKeyEncrypted as JSON, storing as is: {}", e.getMessage());
-            return cleaned;
-        }
-    }
-
-    private String normalizeBase64String(String raw) {
-        if (raw == null)
-            return null;
-        return raw.trim().replaceAll("[^A-Za-z0-9+/=]", "");
     }
 
     @Transactional(readOnly = true)
@@ -363,32 +348,24 @@ public class AuthService {
     public AuthResponse recoverAccess(RecoverRequest request) {
         String publicKeyHash = DigestUtils.sha256Hex(request.getPublicKey());
 
-        if (loginAttemptService.isBlocked("recover:" + publicKeyHash)) {
-            throw new RuntimeException("Too many recovery attempts. Try again later.");
-        }
-
         if (!recoveryChallengeService.consume(request.getChallenge(), publicKeyHash)) {
-            loginAttemptService.loginFailed("recover:" + publicKeyHash);
             throw new RuntimeException("Invalid or expired challenge");
         }
 
         String normalizedPublicKey = normalizePublicKey(request.getPublicKey());
         User user = userRepository.findByRecoveryPublicKey(normalizedPublicKey)
-                .orElseThrow(() -> {
-                    loginAttemptService.loginFailed("recover:" + publicKeyHash);
-                    return new RuntimeException("Recovery failed");
-                });
+                .orElseThrow(() -> new RuntimeException("Recovery failed"));
 
         if (!user.getIsActive()) {
             throw new RuntimeException("Recovery failed");
         }
 
-        if (!verifyRecoverySignature(user.getRecoveryPublicKey(), request.getChallenge(), request.getSignature())) {
-            loginAttemptService.loginFailed("recover:" + publicKeyHash);
+        if (!verifyRecoverySignature(
+                user.getRecoveryPublicKey(), request.getChallenge(), request.getSignature())) {
+            log.warn("Recovery signature verification failed for user {}", user.getId());
             throw new RuntimeException("Recovery failed");
         }
 
-        loginAttemptService.loginSucceeded("recover:" + publicKeyHash);
         SessionService.CreatedSession created = sessionService.createSession(user.getId());
         return createAuthResponse(user, created.plaintextToken());
     }
@@ -405,11 +382,6 @@ public class AuthService {
 
     public RecoveryChallengeResponse createRecoveryChallenge(RecoveryChallengeRequest request) {
         String publicKeyHash = DigestUtils.sha256Hex(request.getPublicKey());
-
-        if (loginAttemptService.isBlocked("recover:" + publicKeyHash)) {
-            throw new RuntimeException("Too many recovery attempts. Try again later.");
-        }
-
         String challenge = recoveryChallengeService.issue(publicKeyHash);
         return new RecoveryChallengeResponse(challenge, 300);
     }
@@ -431,5 +403,9 @@ public class AuthService {
         byte[] der = Base64.getDecoder().decode(normalizedBase64);
         X509EncodedKeySpec spec = new X509EncodedKeySpec(der);
         return KeyFactory.getInstance("RSA").generatePublic(spec);
+    }
+
+    private void dummyBcrypt(String input) {
+        passwordEncoder.matches(input != null && !input.isEmpty() ? input : "dummy-input", DUMMY_BCRYPT_HASH);
     }
 }

@@ -237,133 +237,173 @@ target/
 
 ## Изменения
 
-1. Исправлена ошибка восстановления доступа через `/api/auth/recover`, теперь требуется подпись challenge.
+1. Исправлена ошибка восстановления доступа через /api/auth/recover, теперь требуется подпись challenge.
 2. Исправлена ошибка добавления файла в чужую папку, теперь проверяется владелец файла.
-3. Исправлена ошибка удаления чужих файлов через `deleteFolderRecursive`, теперь учитываются общие ссылки S3.
-4. Исправлена ошибка загрузки файла в чужую папку через `createFileLink`, теперь проверяется владелец папки.
+3. Исправлена ошибка удаления чужих файлов через deleteFolderRecursive, теперь учитываются общие ссылки S3.
+4. Исправлена ошибка загрузки файла в чужую папку через createFileLink, теперь проверяется владелец папки.
 5. Исправлена ошибка временных ссылок, пароль проверяется до инкремента скачиваний.
-6. Исправлена ошибка логирования токена сессии в `deleteSession`, токен больше не пишется в логи.
+6. Исправлена ошибка логирования токена сессии в deleteSession, токен больше не пишется в логи.
 7. Исправлена ошибка хранения пароля временной ссылки, теперь используется BCrypt или Argon2.
-8. Исправлена ошибка `GlobalExceptionHandler`, внутренние сообщения не уходят наружу, `SecurityException` даёт 403.
+8. Исправлена ошибка GlobalExceptionHandler, внутренние сообщения не уходят наружу, SecurityException даёт 403.
 9. Исправлена ошибка CORS, теперь используется whitelist origins.
-10. Исправлена ошибка доступа к профилю через `GET /api/users/{id}`, эндпоинт закрыт или ограничен.
-11. Исправлена ошибка `shareFolder`, теперь проверяется право шаринга у пользователя.
-12. Исправлена ошибка паролей папок, теперь используется `PasswordEncoder`.
+10. Исправлена ошибка доступа к профилю через GET /api/users/{id}, эндпоинт закрыт или ограничен.
+11. Исправлена ошибка shareFolder, теперь проверяется право шаринга у пользователя.
+12. Исправлена ошибка паролей папок, теперь используется PasswordEncoder.
 13. Исправлена ошибка сравнения паролей, теперь сравнение constant-time.
-14. Исправлена ошибка `ShpsSecurityService`, запуск java с путём к ключу убран.
+14. Исправлена ошибка ShpsSecurityService, запуск java с путём к ключу убран.
 15. Исправлена ошибка хранения токенов сессий, теперь хранится SHA-256.
-16. Исправлена ошибка login, теперь единое сообщение `Invalid credentials`.
-17. Исправлена ошибка login, `loginFailed` вызывается и для несуществующих пользователей.
-18. Исправлена ошибка валидации, `@Valid` добавлен на `register`, `login` и `updateKeys`.
+16. Исправлена ошибка login, теперь единое сообщение Invalid credentials.
+17. Исправлена ошибка login, loginFailed вызывается и для несуществующих пользователей.
+18. Исправлена ошибка валидации, @Valid добавлен на register, login и updateKeys.
 19. Исправлена ошибка политики пароля, требования к сложности усилены.
 20. Исправлена ошибка DEBUG логов в проде, уровень убран или разнесён по профилям.
 21. Исправлена ошибка анонимного чтения S3, для приватных файлов теперь presigned-only.
-22. Исправлена ошибка `LoginAttemptService`, добавлена эвикция и поддержка кластера.
+22. Исправлена ошибка LoginAttemptService, добавлена эвикция и поддержка кластера.
 23. Исправлена ошибка учёта storage, Java и DB-триггер синхронизированы.
-24. Исправлена ошибка метаданных S3, `originalFilename` теперь URL-энкодится.
-25. Исправлена ошибка `EntryPoint` и `AccessDeniedHandler`, теперь возвращаются 401 и 403 с JSON.
+24. Исправлена ошибка метаданных S3, originalFilename теперь URL-энкодится.
+25. Исправлена ошибка EntryPoint и AccessDeniedHandler, теперь возвращаются 401 и 403 с JSON.
 26. Исправлена ошибка Jackson, default typing явно отключён.
-27. Исправлена ошибка `UserKeyService`, dead code с приватными ключами удалён.
-28. Исправлена ошибка `getFolderTree`, добавлена `@Transactional(readOnly = true)`.
-29. Исправлена ошибка `updateKeys` и `updateRecoveryKeys`, формат ключа валидируется.
-30. Исправлена ошибка кэша `UserKeyService`, кэш сбрасывается после `updateKeys`.
-31. Исправлена ошибка `setFilePublic`, теперь проверяется или обновляется `FileContent.isPublic`.
-32. Исправлена ошибка `DeviceService.getEncryptedPrivateKey`, `readOnly` убран.
+27. Исправлена ошибка UserKeyService, dead code с приватными ключами удалён.
+28. Исправлена ошибка getFolderTree, добавлена @Transactional(readOnly = true).
+29. Исправлена ошибка updateKeys и updateRecoveryKeys, формат ключа валидируется.
+30. Исправлена ошибка кэша UserKeyService, кэш сбрасывается после updateKeys.
+31. Исправлена ошибка setFilePublic, теперь проверяется или обновляется FileContent.isPublic.
+32. Исправлена ошибка DeviceService.getEncryptedPrivateKey, readOnly убран.
 33. Исправлена ошибка BCrypt, strength увеличен до 12.
 34. Исправлена ошибка XFF, теперь доверяем только прокси или берём последний IP.
-35. Исправлена ошибка `ipSucceeded`, IP-лимит больше не сбрасывается по успеху.
-36. Исправлена ошибка `streamDecryptedFile`, слот `maxDownloads` резервируется атомарно до стрима.
-37. Исправлена ошибка `TotpRequiredException`, ответ стал нейтральным или используется pre-auth.
-38. Исправлена ошибка `RecoveryChallengeService`, challenge привязан к `publicKeyHash`.
+35. Исправлена ошибка ipSucceeded, IP-лимит больше не сбрасывается по успеху.
+36. Исправлена ошибка streamDecryptedFile, слот maxDownloads резервируется атомарно до стрима.
+37. Исправлена ошибка TotpRequiredException, ответ стал нейтральным или используется pre-auth.
+38. Исправлена ошибка RecoveryChallengeService, challenge привязан к publicKeyHash.
 39. Исправлена ошибка пароля папки, добавлен rate-limit.
-40. Исправлена ошибка `loginWithTotp`, `isActive` проверяется до TOTP.
-41. Исправлена ошибка `shareFolder`, добавлена защита от null `userIds`.
-42. Исправлена ошибка `createFolder`, `isPrivate` убран или реализован.
-43. Исправлена ошибка `getFolderTree`, скрытые папки фильтруются.
-44. Исправлена ошибка схемы, для `folders.parent_folder_id` добавлен FK.
-45. Исправлена ошибка `DotenvConfig`, `.env` больше не грузится дважды.
-46. Исправлена ошибка `updateNoteContent`, перезапись S3 по тому же ключу убрана.
-47. Исправлена ошибка `ShirmpsProtocol`, мёртвый класс удалён.
-48. Исправлена ошибка `parseJsonStringArray`, теперь используется Jackson.
-49. Исправлена ошибка `extractHeader`, поток закрывается через try-with-resources.
-50. Исправлена ошибка `uploadShpsFile`, добавлена проверка null filename.
-51. Исправлена ошибка `uploadFileWithMultipart`, метод сделан private.
-52. Исправлена ошибка `getDecryptionMetadataForTempAccess`, token и file валидируются.
-53. Исправлена ошибка `BadPaddingException`, обработка улучшена.
+40. Исправлена ошибка loginWithTotp, isActive проверяется до TOTP.
+41. Исправлена ошибка shareFolder, добавлена защита от null userIds.
+42. Исправлена ошибка createFolder, isPrivate убран или реализован.
+43. Исправлена ошибка getFolderTree, скрытые папки фильтруются.
+44. Исправлена ошибка схемы, для folders.parent_folder_id добавлен FK.
+45. Исправлена ошибка DotenvConfig, .env больше не грузится дважды.
+46. Исправлена ошибка updateNoteContent, перезапись S3 по тому же ключу убрана.
+47. Исправлена ошибка ShirmpsProtocol, мёртвый класс удалён.
+48. Исправлена ошибка parseJsonStringArray, теперь используется Jackson.
+49. Исправлена ошибка extractHeader, поток закрывается через try-with-resources.
+50. Исправлена ошибка uploadShpsFile, добавлена проверка null filename.
+51. Исправлена ошибка uploadFileWithMultipart, метод сделан private.
+52. Исправлена ошибка getDecryptionMetadataForTempAccess, token и file валидируются.
+53. Исправлена ошибка BadPaddingException, обработка улучшена.
 54. Исправлена ошибка Jackson 2 и 3, зависимости приведены к одному варианту.
-55. Исправлена ошибка `updateNoteContent`, добавлена оптимистичная блокировка `@Version`.
-56. Исправлена ошибка S3 `getObjectKeyFromUrl`, ключ определяется корректно.
-57. Исправлена ошибка `folder_passwords.algorithm`, значение используется или убрано.
-58. Исправлена ошибка `ShirmpsHeader`, `ObjectMapper` создаётся один раз.
-59. Исправлена ошибка `EncryptionService`, используется `StandardCharsets.UTF_8`.
-60. Исправлена ошибка `ShpsSecurityService`, проверка подписи server-encrypted исправлена.
-61. Исправлена ошибка `AuthService.normalizePublicKey`, формат ключа согласован.
-62. Исправлена ошибка `createTempLink`, `baseUrl` проверяется.
-63. Исправлена ошибка `TempAccessController`, null principal даёт 401.
-64. Исправлена ошибка `TotpService`, BCrypt для backup codes приведён к 12.
-65. Исправлена ошибка `EncryptionService.decrypt`, сообщение об ошибке сохраняется.
-66. Исправлена ошибка `FileService.createNote`, дублирование `addFileToFolder` убрано.
-67. Исправлена ошибка dedup leak при чтении чужих файлов через `contentHash`: `checkDuplicate` не возвращает UUID, `linkExistingFile` проверяет владельца, `uploadShpsFile` делает dedup только для своих файлов.
-68. Исправлена ошибка отсутствия `/api/auth/login/totp` в `permitAll`, теперь 2FA работает.
-69. Исправлена ошибка отсутствия rate-limit на `/api/auth/register`, теперь используется IP-лимит.
-70. Исправлена ошибка отсутствия rate-limit на `/temp-access/{token}/metadata`, теперь учитываются неверные пароли.
+55. Исправлена ошибка updateNoteContent, добавлена оптимистичная блокировка @Version.
+56. Исправлена ошибка S3 getObjectKeyFromUrl, ключ определяется корректно.
+57. Исправлена ошибка folder_passwords.algorithm, значение используется или убрано.
+58. Исправлена ошибка ShirmpsHeader, ObjectMapper создаётся один раз.
+59. Исправлена ошибка EncryptionService, используется StandardCharsets.UTF_8.
+60. Исправлена ошибка ShpsSecurityService, проверка подписи server-encrypted исправлена.
+61. Исправлена ошибка AuthService.normalizePublicKey, формат ключа согласован.
+62. Исправлена ошибка createTempLink, baseUrl проверяется.
+63. Исправлена ошибка TempAccessController, null principal даёт 401.
+64. Исправлена ошибка TotpService, BCrypt для backup codes приведён к 12.
+65. Исправлена ошибка EncryptionService.decrypt, сообщение об ошибке сохраняется.
+66. Исправлена ошибка FileService.createNote, дублирование addFileToFolder убрано.
+67. Исправлена ошибка dedup leak при чтении чужих файлов через contentHash, теперь checkDuplicate не возвращает UUID, linkExistingFile проверяет владельца, uploadShpsFile делает dedup только для своих файлов.
+68. Исправлена ошибка отсутствия /api/auth/login/totp в permitAll, теперь 2FA работает.
+69. Исправлена ошибка отсутствия rate-limit на /api/auth/register, теперь используется IP-лимит.
+70. Исправлена ошибка отсутствия rate-limit на /temp-access/{token}/metadata, теперь учитываются неверные пароли.
 71. Исправлена ошибка фиктивного BCrypt-хэша, теперь используется реальный хэш для выравнивания времени.
-72. Исправлена ошибка `CustomUserDetails.isEnabled`, теперь возвращается реальный статус `isActive`.
-73. Исправлена ошибка каскадного удаления `User`, `Folder` и `File`, каскад ограничен или убран.
-74. Исправлена ошибка каскада `Folder.files` и `Folder.subfolders`, `orphanRemoval` убран, cascade ограничен.
-75. Исправлена ошибка `checkFolderAccess`, теперь проверяется `isDeleted`.
-76. Исправлена ошибка `checkHiddenFolderKey` без rate-limit, теперь используется лимит попыток.
-77. Исправлена ошибка размера страницы без ограничения, теперь `size` не больше 100.
+72. Исправлена ошибка CustomUserDetails.isEnabled, теперь возвращается реальный статус isActive.
+73. Исправлена ошибка каскадного удаления User, Folder и File, каскад ограничен или убран.
+74. Исправлена ошибка каскада Folder.files и Folder.subfolders, orphanRemoval убран, cascade ограничен.
+75. Исправлена ошибка checkFolderAccess, теперь проверяется isDeleted.
+76. Исправлена ошибка checkHiddenFolderKey без rate-limit, теперь используется лимит попыток.
+77. Исправлена ошибка размера страницы без ограничения, теперь size не больше 100.
 78. Исправлена ошибка S3-orphans при rollback, теперь S3 удаляется при ошибке или используется outbox.
-79. Исправлена ошибка `getDecryptionMetadata` с `BadPadding` и дублированием, теперь вызывается `FileService`.
-80. Исправлена ошибка `ServerKeyService.loadKeys`, теперь при отсутствии ключа бросается исключение.
-81. Исправлена ошибка `moveFiles`, теперь проверяется владелец файла.
-82. Исправлена ошибка DTO без ограничений длины, добавлены `Size` и `Pattern`.
-83. Исправлена ошибка `RegisterRequest.password`, ограничение приведено к 64 для BCrypt.
-84. Исправлена ошибка `contentHash` без валидации, теперь проверяется формат SHA-256.
+79. Исправлена ошибка getDecryptionMetadata с BadPadding и дублированием, теперь вызывается FileService.
+80. Исправлена ошибка ServerKeyService.loadKeys, теперь при отсутствии ключа бросается исключение.
+81. Исправлена ошибка moveFiles, теперь проверяется владелец файла.
+82. Исправлена ошибка DTO без ограничений длины, добавлены Size и Pattern.
+83. Исправлена ошибка RegisterRequest.password, ограничение приведено к 64 для BCrypt.
+84. Исправлена ошибка contentHash без валидации, теперь проверяется формат SHA-256.
 85. Исправлена ошибка race на дубликат имени папки, добавлен partial unique index.
-86. Исправлена ошибка `S3Service.deleteFile`, теперь null `objectKey` обрабатывается.
-87. Исправлена ошибка `SessionAuthFilter`, теперь удалённый пользователь не даёт 500.
-88. Исправлена ошибка `createNote` и `updateNoteContent`, теперь null filename проверяется.
-89. Исправлена ошибка `getDecryptionMetadataForUser`, добавлена `Transactional readOnly`.
-90. Исправлена ошибка `FileRepository.findByIdAndUserId`, добавлен `JOIN FETCH`.
-91. Исправлена ошибка отсутствия обработчика `OptimisticLockingFailureException`, теперь 409.
-92. Исправлена ошибка `File.version` без `Builder.Default`, теперь значение по умолчанию 0.
-93. Исправлена ошибка утечки памяти `PreAuthTokenService` и `RecoveryChallengeService`, добавлен `Scheduled`.
+86. Исправлена ошибка S3Service.deleteFile, теперь null objectKey обрабатывается.
+87. Исправлена ошибка SessionAuthFilter, теперь удалённый пользователь не даёт 500.
+88. Исправлена ошибка createNote и updateNoteContent, теперь null filename проверяется.
+89. Исправлена ошибка getDecryptionMetadataForUser, добавлена Transactional readOnly.
+90. Исправлена ошибка FileRepository.findByIdAndUserId, добавлен JOIN FETCH.
+91. Исправлена ошибка отсутствия обработчика OptimisticLockingFailureException, теперь 409.
+92. Исправлена ошибка File.version без Builder.Default, теперь значение по умолчанию 0.
+93. Исправлена ошибка утечки памяти PreAuthTokenService и RecoveryChallengeService, добавлен Scheduled.
 94. Исправлена ошибка soft-delete папки, теперь S3 чистится с учётом ссылок.
-95. Исправлена ошибка неиспользуемых `S3AsyncClient` и `S3TransferManager`, бины удалены.
-96. Исправлена ошибка `RegisterRequest.username` без `Pattern`, добавлен шаблон.
-97. Исправлена ошибка `setupTotp`, `plainSecret` убран из JSON.
-98. Исправлена ошибка `hasActivePassword`, теперь проверяется доступ к папке.
-99. Исправлена ошибка `FileContent.file_content_id` без индекса, индекс добавлен.
-100. Исправлена ошибка `getFolderFiles` без пагинации, добавлена пагинация.
-101. Исправлена ошибка `AccessLevel.ordinal`, теперь явные веса.
-102. Исправлена ошибка N+1 при `checkFolderAccess`, теперь пользователь передаётся или кэшируется.
+95. Исправлена ошибка неиспользуемых S3AsyncClient и S3TransferManager, бины удалены.
+96. Исправлена ошибка RegisterRequest.username без Pattern, добавлен шаблон.
+97. Исправлена ошибка setupTotp, plainSecret убран из JSON.
+98. Исправлена ошибка hasActivePassword, теперь проверяется доступ к папке.
+99. Исправлена ошибка FileContent.file_content_id без индекса, индекс добавлен.
+100. Исправлена ошибка getFolderFiles без пагинации, добавлена пагинация.
+101. Исправлена ошибка AccessLevel.ordinal, теперь явные веса.
+102. Исправлена ошибка N+1 при checkFolderAccess, теперь пользователь передаётся или кэшируется.
 103. Исправлена ошибка мёртвого кода, неиспользуемые классы и методы удалены.
-104. Исправлена ошибка legacy ключа `javax.persistence.validation.mode`, заменён на `jakarta`.
-105. Исправлена ошибка `AuthResponse.refreshToken`, поле убрано или реализовано.
-106. Исправлена ошибка `FolderAccess.expiresAt`, теперь устанавливается или убрано.
+104. Исправлена ошибка legacy ключа javax.persistence.validation.mode, заменён на jakarta.
+105. Исправлена ошибка AuthResponse.refreshToken, поле убрано или реализовано.
+106. Исправлена ошибка FolderAccess.expiresAt, теперь устанавливается или убрано.
 107. Исправлена ошибка log injection через username, добавлен санитайз.
-108. Исправлена ошибка `EncryptionService.decrypt`, сообщение `IllegalArgumentException` сохраняется.
-109. Исправлена ошибка `EncryptionService.encrypt`, убран устаревший catch.
-110. Исправлена ошибка `updateNoteContent`, S3-orphan теперь обрабатывается строже.
-111. Исправлена ошибка `server.error.include`, теперь явно заданы `never`.
-112. Исправлена ошибка `TotpService.backupCodeEncoder`, strength приведён к 12.
-113. Исправлена ошибка `getFolderTree`, теперь защита от цикла.
-114. Исправлена ошибка `extractHeader`, теперь вызывается `validateHeader`.
-115. Исправлена ошибка `uploadShpsFile`, теперь проверяется GCM-целостность.
-116. Исправлена ошибка `FileDto.s3Url`, поле убрано или документировано.
+108. Исправлена ошибка EncryptionService.decrypt, сообщение IllegalArgumentException сохраняется.
+109. Исправлена ошибка EncryptionService.encrypt, убран устаревший catch.
+110. Исправлена ошибка updateNoteContent, S3-orphan теперь обрабатывается строже.
+111. Исправлена ошибка server.error.include, теперь явно заданы never.
+112. Исправлена ошибка TotpService.backupCodeEncoder, strength приведён к 12.
+113. Исправлена ошибка getFolderTree, теперь защита от цикла.
+114. Исправлена ошибка extractHeader, теперь вызывается validateHeader.
+115. Исправлена ошибка uploadShpsFile, теперь проверяется GCM-целостность.
+116. Исправлена ошибка FileDto.s3Url, поле убрано или документировано.
 117. Исправлена ошибка email при регистрации, теперь заполняется или поле убрано.
 118. Исправлена ошибка V1 и V3 с V4, миграции проверены на orphan-данные.
-119. Исправлена ошибка `validatePublicKeyFormat`, ReDoS снижен.
-120. Исправлена ошибка `AuthController.login`, username больше не логируется на INFO.
-121. Исправлена ошибка `S3Config` с пустыми ключами, теперь приложение не стартует.
-122. Исправлена ошибка `TotpService.verifyBackupCode`, стоимость BCrypt снижена или ограничена.
-123. Исправлена ошибка `SessionAuthFilter`, INFO-логи убраны.
-124. Исправлена ошибка `getFolderFiles`, добавлена сортировка.
-125. Исправлена ошибка `checkFolderPassword`, теперь различаются неверный пароль и блокировка.
-126. Исправлена ошибка `FolderAccess.expiresAt`, `deactivateExpiredAccesses` теперь вызывается.
-127. Исправлена ошибка `moveFiles`, противоречие с `addFileToFolder` устранено.
-128. Исправлена ошибка `LoginAttemptService.ipSucceeded`, метод удалён или вызывается.
-129. Исправлена ошибка `FolderCreateDto.description`, добавлено ограничение длины.
-130. Исправлена ошибка `loginWithTotp`, теперь вызывается `ipFailed`.
+119. Исправлена ошибка validatePublicKeyFormat, ReDoS снижен.
+120. Исправлена ошибка AuthController.login, username больше не логируется на INFO.
+121. Исправлена ошибка S3Config с пустыми ключами, теперь приложение не стартует.
+122. Исправлена ошибка TotpService.verifyBackupCode, стоимость BCrypt снижена или ограничена.
+123. Исправлена ошибка SessionAuthFilter, INFO-логи убраны.
+124. Исправлена ошибка getFolderFiles, добавлена сортировка.
+125. Исправлена ошибка checkFolderPassword, теперь различаются неверный пароль и блокировка.
+126. Исправлена ошибка FolderAccess.expiresAt, deactivateExpiredAccesses теперь вызывается.
+127. Исправлена ошибка moveFiles, противоречие с addFileToFolder устранено.
+128. Исправлена ошибка LoginAttemptService.ipSucceeded, метод удалён или вызывается.
+129. Исправлена ошибка FolderCreateDto.description, добавлено ограничение длины.
+130. Исправлена ошибка loginWithTotp, теперь вызывается ipFailed.
+131. Исправлена ошибка регистрации, приватный ключ и соль больше не уходят на сервер, поля `privateKeyEncrypted` и `salt` удалены из `RegisterRequest`.
+132. Исправлена ошибка схемы БД, колонки `users.private_key_encrypted` и `users.salt` удалены миграцией `V16__remove_user_private_key_and_salt.sql`.
+133. Исправлена ошибка `AuthService.registration`, убраны вызовы `normalizePrivateKeyEncrypted` и `normalizeBase64String`, поля больше не сохраняются в `User`.
+134. Исправлена ошибка мёртвого кода, методы `AuthService.normalizePrivateKeyEncrypted` и `normalizeBase64String` удалены целиком.
+135. Исправлена ошибка эндпоинтов, `GET /api/users/me/private-key-encrypted` и `GET /api/users/me/salt` удалены из `UserController`.
+136. Исправлена ошибка `UserService`, методы `getEncryptedPrivateKey` и `getSalt` удалены.
+137. Исправлена ошибка `UserService.updateKeys`, приватный ключ больше не принимается и не сохраняется, обновляется только `publicKey`.
+138. Исправлена ошибка хранения токенов сессий, подтверждено что `SessionService` хэширует токен SHA-256 перед обращением к `token_hash` в `findValidSession` и `deleteSession`.
+139. Исправлена ошибка XFF, теперь берётся первый IP из цепочки (`client`), а не последний (`proxy`).
+140. Исправлена ошибка доверия XFF, заголовок учитывается только если `RemoteAddr` входит в allow-list `app.security.trusted-proxies`.
+141. Исправлена ошибка конфигурации, добавлены свойства `app.security.trusted-proxies` и `app.security.trust-forwarded-headers=${TRUST_FORWARDED_HEADERS:false}`, теперь приложение не падает при отсутствии переменной окружения.
+142. Исправлена ошибка доверия XFF, при `trust-forwarded-headers=true` и пустом `trusted-proxies` заголовок игнорируется (fail-safe), что исключает спуфинг.
+143. Исправлена ошибка регистрации race condition, `DataIntegrityViolationException` при `save()` превращается в `UsernameAlreadyExistsException` → 400 вместо 500.
+144. Исправлена ошибка порядка валидации в регистрации, `validatePublicKeyFormat` вызывается до `User.builder()`, а не после.
+145. Исправлена ошибка DoS через `register`, бизнес-ошибки (`username уже занят`, `невалидный publicKey`) больше не инкрементят IP-счётчик, поэтому один клиент за NAT не лочит целый пул.
+146. Исправлена ошибка `loginWithTotp`, добавлен dummy-bcrypt во все failure-ветки (invalid preAuthToken, user not found, inactive, blocked), время ответа стало константным.
+147. Исправлена ошибка `loginWithTotp`, добавлена проверка `isBlocked(username)`, блокировка username больше не обходится предъявлением свежего preAuthToken.
+148. Исправлена ошибка recovery DoS, per-key rate-limit по `recovery_public_key` убран, знание публичного ключа больше не позволяет залочить чужое восстановление на 15 минут.
+149. Исправлена ошибка `/api/auth/recover` и `/api/auth/recover/challenge`, добавлен IP rate-limit через `extractClientIp` + `isIpBlocked`, аналогично `/login` и `/register`.
+150. Исправлена ошибка хранения ключа через devices, миграция `V17__drop_devices_encrypted_private_key.sql` удаляет `devices.encrypted_private_key`.
+151. Исправлена ошибка `Device` entity, поле `encryptedPrivateKey` удалено.
+152. Исправлена ошибка `DeviceRegisterRequest`, поле `encryptedPrivateKey` удалено, старые клиенты не ломаются (Jackson игнорирует unknown properties).
+153. Исправлена ошибка `DeviceService.registerDevice`, `encryptedPrivateKey` больше не устанавливается из запроса ни в create, ни в update.
+154. Исправлена ошибка `GET /api/device/{deviceId}/key`, эндпоинт удалён из `DeviceRestController`, попытка вызова даёт 404.
+155. Исправлена ошибка `DeviceService.getEncryptedPrivateKey`, метод удалён.
+156. Исправлена ошибка `DeviceService.ensureTempDownloadDeviceExists`, мёртвый метод удалён, вызов в `TempAccessController.showDownloadPage` убран.
+157. Исправлена ошибка recovery-ключа, миграция `V18__remove_recovery_private_key.sql` удаляет `users.recovery_private_key_encrypted` и `users.recovery_salt`.
+158. Исправлена ошибка `User` entity, поля `recoveryPrivateKeyEncrypted` и `recoverySalt` удалены.
+159. Исправлена ошибка `UpdateRecoveryKeysRequest`, поле `recoveryPrivateKeyEncrypted` удалено, сервер принимает только `recoveryPublicKey` и `recoveryEncryptedRsaKey`.
+160. Исправлена ошибка `RecoveryDataResponse`, оставлено одно поле `encryptedRsaKey`, `salt` убран.
+161. Исправлена ошибка `UserService.updateRecoveryKeys`, сохраняются только `recovery_public_key` и `recovery_encrypted_rsa_key`, приватный recovery-ключ никогда не покидает устройство пользователя.
+162. Исправлена ошибка `UserService.getRecoveryData`, возвращается только `encryptedRsaKey`.
+163. Исправлена ошибка `UserService.normalizePrivateKeyEncrypted`, метод удалён, после V18 стал мёртвым кодом.
+164. Исправлены тесты, из `AuthServiceTest`, `UserControllerTest`, `UserServiceTest`, `DeviceServiceTest`, `DeviceRestControllerTest`, `TempAccessControllerTest` удалены обращения к удалённым полям и методам (`privateKeyEncrypted`, `salt`, `getEncryptedPrivateKey`, `ensureTempDownloadDeviceExists`, `getRecoveryPrivateKeyEncrypted`, `getRecoveryEncryptedRsaKey`).
+165. Исправлены XFF-тесты в `AuthControllerTest`, ожидают первый IP вместо последнего, добавлена настройка `trustedProxies` через `ReflectionTestUtils` в `@BeforeEach`.
+166. Спроектирована миграция `V19__device_pairings.sql`, таблица `device_pairings` с TTL 10 минут, `single-fetch`, привязкой к `user_id` и лимитом `MAX_ACTIVE_PAIRINGS_PER_USER`.
+167. Спроектированы эндпоинты `/api/devices/pair/init`, `GET /api/devices/pair/{id}`, `PUT /api/devices/pair/{id}/blob`, `GET /api/devices/pair/{id}/blob` для E2E-передачи ключа между устройствами.
+168. Спроектирован `DevicePairingService` с `cleanupExpired()` по расписанию, сервер видит только эфемерные публичные ключи и AES-GCM-шифртекст.
+169. Спроектирован клиентский флоу pairing на WebCrypto (ECDH P-256 или X25519) + HKDF-SHA256 + AES-256-GCM, сервер алгоритм-агностичен, хранит Base64-байты и метку алгоритма.
+170. Спроектирован клиентский recovery-флоу через 24-словную BIP39-мнемонику, генерируется при регистрации, показывается один раз, обязательна к сохранению, сервер её никогда не видит.

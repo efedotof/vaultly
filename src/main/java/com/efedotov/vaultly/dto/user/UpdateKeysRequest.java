@@ -7,8 +7,7 @@ import lombok.Data;
 public class UpdateKeysRequest {
     @NotBlank
     private String publicKey;
-    @NotBlank
-    private String privateKeyEncrypted;
+
     @NotBlank
     private String currentPassword;
 }

@@ -15,6 +15,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.security.KeyPairGenerator;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,7 +29,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -55,7 +56,13 @@ class DeviceRestControllerTest extends BaseControllerTest {
         SecurityContextHolder.clearContext();
     }
 
-    
+    private static String validPublicKeyPem() throws Exception {
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        return "-----BEGIN PUBLIC KEY-----"
+                + Base64.getEncoder().encodeToString(kpg.generateKeyPair().getPublic().getEncoded())
+                + "-----END PUBLIC KEY-----";
+    }
 
     @Test
     void register_valid_returnsDto() throws Exception {
@@ -63,9 +70,10 @@ class DeviceRestControllerTest extends BaseControllerTest {
                 .id(UUID.randomUUID()).deviceName("laptop").uniqueId("uid-1").isActive(true).build();
         when(deviceService.registerDevice(any(), eq(userId))).thenReturn(resp);
 
+        String pk = validPublicKeyPem();
         String body = """
-                {"deviceName":"laptop","uniqueId":"uid-1","deviceType":"DESKTOP"}
-                """;
+                {"deviceName":"laptop","uniqueId":"uid-1","deviceType":"DESKTOP","publicKey":"%s"}
+                """.formatted(pk);
 
         mockMvc.perform(post("/api/device/register")
                         .with(authentication(auth))
@@ -78,9 +86,10 @@ class DeviceRestControllerTest extends BaseControllerTest {
 
     @Test
     void register_missingDeviceName_returns400() throws Exception {
+        String pk = validPublicKeyPem();
         String body = """
-                {"uniqueId":"uid-1"}
-                """;
+                {"uniqueId":"uid-1","publicKey":"%s"}
+                """.formatted(pk);
 
         mockMvc.perform(post("/api/device/register")
                         .with(authentication(auth))
@@ -90,9 +99,10 @@ class DeviceRestControllerTest extends BaseControllerTest {
 
     @Test
     void register_missingUniqueId_returns400() throws Exception {
+        String pk = validPublicKeyPem();
         String body = """
-                {"deviceName":"laptop"}
-                """;
+                {"deviceName":"laptop","publicKey":"%s"}
+                """.formatted(pk);
 
         mockMvc.perform(post("/api/device/register")
                         .with(authentication(auth))
@@ -105,17 +115,16 @@ class DeviceRestControllerTest extends BaseControllerTest {
         when(deviceService.registerDevice(any(), eq(userId)))
                 .thenThrow(new SecurityException("device takeover"));
 
+        String pk = validPublicKeyPem();
         String body = """
-                {"deviceName":"laptop","uniqueId":"uid-1"}
-                """;
+                {"deviceName":"laptop","uniqueId":"uid-1","publicKey":"%s"}
+                """.formatted(pk);
 
         mockMvc.perform(post("/api/device/register")
                         .with(authentication(auth))
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
     }
-
-    
 
     @Test
     void getUserDevices_returnsList() throws Exception {
@@ -141,43 +150,6 @@ class DeviceRestControllerTest extends BaseControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
     }
-
-    
-
-    @Test
-    void getEncryptedPrivateKey_returnsKey() throws Exception {
-        UUID deviceId = UUID.randomUUID();
-        when(deviceService.getEncryptedPrivateKey(deviceId, userId))
-                .thenReturn("ENCRYPTED_KEY_DATA");
-
-        mockMvc.perform(get("/api/device/{id}/key", deviceId).with(authentication(auth)))
-                .andExpect(status().isOk())
-                .andExpect(content().string("ENCRYPTED_KEY_DATA"));
-
-        verify(deviceService).getEncryptedPrivateKey(deviceId, userId);
-    }
-
-    @Test
-    void getEncryptedPrivateKey_notFound_returns400() throws Exception {
-        UUID deviceId = UUID.randomUUID();
-        when(deviceService.getEncryptedPrivateKey(deviceId, userId))
-                .thenThrow(new IllegalArgumentException("Устройство не найдено"));
-
-        mockMvc.perform(get("/api/device/{id}/key", deviceId).with(authentication(auth)))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void getEncryptedPrivateKey_inactive_returns403() throws Exception {
-        UUID deviceId = UUID.randomUUID();
-        when(deviceService.getEncryptedPrivateKey(deviceId, userId))
-                .thenThrow(new SecurityException("Устройство отключено"));
-
-        mockMvc.perform(get("/api/device/{id}/key", deviceId).with(authentication(auth)))
-                .andExpect(status().isForbidden());
-    }
-
-    
 
     @Test
     void updateDevice_returnsUpdatedDto() throws Exception {
@@ -227,8 +199,6 @@ class DeviceRestControllerTest extends BaseControllerTest {
                 .andExpect(status().isOk());
     }
 
-    
-
     @Test
     void deactivateDevice_returns200() throws Exception {
         UUID deviceId = UUID.randomUUID();
@@ -250,8 +220,6 @@ class DeviceRestControllerTest extends BaseControllerTest {
                         .with(authentication(auth)))
                 .andExpect(status().isBadRequest());
     }
-
-    
 
     @Test
     void deleteDevice_returns200() throws Exception {

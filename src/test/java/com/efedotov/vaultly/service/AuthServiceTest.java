@@ -17,7 +17,6 @@ import com.efedotov.vaultly.repository.RoleRepository;
 import com.efedotov.vaultly.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -290,7 +289,7 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> service.loginWithTotp(req))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("pre-auth");
+                .hasMessageContaining("Invalid credentials");
     }
 
     @Test
@@ -316,6 +315,7 @@ class AuthServiceTest {
         req.setPreAuthToken("tok");
         req.setTotpCode("123456");
 
+        when(loginAttemptService.isBlocked("alice")).thenReturn(false);
         when(preAuthTokenService.consume("tok")).thenReturn(user.getId());
         when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
         when(encryptionService.decrypt("enc")).thenReturn("PLAIN");
@@ -352,6 +352,7 @@ class AuthServiceTest {
         req.setPreAuthToken("tok");
         req.setTotpCode("000000");
 
+        when(loginAttemptService.isBlocked("alice")).thenReturn(false);
         when(preAuthTokenService.consume("tok")).thenReturn(user.getId());
         when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
         when(encryptionService.decrypt("enc")).thenReturn("PLAIN");
@@ -395,8 +396,6 @@ class AuthServiceTest {
         req.setUsername("alice");
         req.setPassword("Password1!@#");
         req.setPublicKey(generateValidRsaPublicKeyPem());
-        req.setPrivateKeyEncrypted("  \"key\"  ");
-        req.setSalt("salt===+value");
 
         AuthResponse resp = service.registration(req);
 
@@ -424,7 +423,6 @@ class AuthServiceTest {
         req.setUsername("alice");
         req.setPassword("Password1!@#");
         req.setPublicKey(generateValidRsaPublicKeyPem());
-        req.setSalt("salt");
 
         service.registration(req);
 
@@ -434,8 +432,6 @@ class AuthServiceTest {
     @Test
     void registration_invalidPublicKey_throws() {
         when(userRepository.findByUsername("alice")).thenReturn(Optional.empty());
-        when(roleRepository.findByRoleName("USER")).thenReturn(Optional.of(new Role()));
-        when(passwordEncoder.encode(anyString())).thenReturn("hash");
 
         RegisterRequest req = new RegisterRequest();
         req.setUsername("alice");
@@ -661,7 +657,6 @@ class AuthServiceTest {
         RecoveryChallengeRequest req = new RecoveryChallengeRequest();
         req.setPublicKey("PUBKEY");
 
-        when(loginAttemptService.isBlocked(anyString())).thenReturn(false);
         when(recoveryChallengeService.issue(anyString())).thenReturn("challenge-xyz");
 
         RecoveryChallengeResponse resp = service.createRecoveryChallenge(req);
@@ -671,45 +666,17 @@ class AuthServiceTest {
     }
 
     @Test
-    void createRecoveryChallenge_blocked_throws() {
-        RecoveryChallengeRequest req = new RecoveryChallengeRequest();
-        req.setPublicKey("PUBKEY");
-
-        when(loginAttemptService.isBlocked(anyString())).thenReturn(true);
-
-        assertThatThrownBy(() -> service.createRecoveryChallenge(req))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Too many");
-    }
-
-    @Test
-    void recoverAccess_blocked_throws() {
-        RecoverRequest req = new RecoverRequest();
-        req.setPublicKey("PK");
-        req.setChallenge("ch");
-        req.setSignature("sig");
-
-        when(loginAttemptService.isBlocked(anyString())).thenReturn(true);
-
-        assertThatThrownBy(() -> service.recoverAccess(req))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Too many");
-    }
-
-    @Test
     void recoverAccess_invalidChallenge_throws() {
         RecoverRequest req = new RecoverRequest();
         req.setPublicKey("PK");
         req.setChallenge("ch");
         req.setSignature("sig");
 
-        when(loginAttemptService.isBlocked(anyString())).thenReturn(false);
         when(recoveryChallengeService.consume(anyString(), anyString())).thenReturn(false);
 
         assertThatThrownBy(() -> service.recoverAccess(req))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Invalid or expired challenge");
-        verify(loginAttemptService).loginFailed(anyString());
     }
 
     @Test
@@ -722,7 +689,6 @@ class AuthServiceTest {
         req.setChallenge("challenge");
         req.setSignature("sig");
 
-        when(loginAttemptService.isBlocked(anyString())).thenReturn(false);
         when(recoveryChallengeService.consume(anyString(), anyString())).thenReturn(true);
         when(userRepository.findByRecoveryPublicKey(anyString())).thenReturn(Optional.empty());
 
@@ -750,7 +716,6 @@ class AuthServiceTest {
         req.setChallenge(challenge);
         req.setSignature(signatureB64);
 
-        when(loginAttemptService.isBlocked(anyString())).thenReturn(false);
         when(recoveryChallengeService.consume(anyString(), anyString())).thenReturn(true);
         when(userRepository.findByRecoveryPublicKey(anyString())).thenReturn(Optional.of(user));
         when(sessionService.createSession(user.getId())).thenReturn(dummySession());
@@ -772,10 +737,8 @@ class AuthServiceTest {
         RecoverRequest req = new RecoverRequest();
         req.setPublicKey(publicKeyPem);
         req.setChallenge("challenge");
-
         req.setSignature(Base64.getEncoder().encodeToString(new byte[256]));
 
-        when(loginAttemptService.isBlocked(anyString())).thenReturn(false);
         when(recoveryChallengeService.consume(anyString(), anyString())).thenReturn(true);
         when(userRepository.findByRecoveryPublicKey(anyString())).thenReturn(Optional.of(user));
 
@@ -840,68 +803,11 @@ class AuthServiceTest {
         req.setChallenge("challenge");
         req.setSignature("sig");
 
-        when(loginAttemptService.isBlocked(anyString())).thenReturn(false);
         when(recoveryChallengeService.consume(anyString(), anyString())).thenReturn(true);
         when(userRepository.findByRecoveryPublicKey(anyString())).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> service.recoverAccess(req))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Recovery failed");
-    }
-
-    @Test
-    void registration_withBomAndQuotedPrivateKey_normalizes() throws Exception {
-        Role userRole = new Role();
-        userRole.setRoleName("USER");
-
-        when(userRepository.findByUsername("alice")).thenReturn(Optional.empty());
-        when(roleRepository.findByRoleName("USER")).thenReturn(Optional.of(userRole));
-        when(passwordEncoder.encode(anyString())).thenReturn("hash");
-        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
-            User u = inv.getArgument(0);
-            u.setId(UUID.randomUUID());
-            return u;
-        });
-        when(sessionService.createSession(any())).thenReturn(dummySession());
-
-        String jsonQuoted = "\uFEFF\"{\\\"encrypted\\\":\\\"value\\\"}\"";
-
-        RegisterRequest req = new RegisterRequest();
-        req.setUsername("alice");
-        req.setPassword("Password1!@#");
-        req.setPublicKey(generateValidRsaPublicKeyPem());
-        req.setPrivateKeyEncrypted(jsonQuoted);
-        req.setSalt("salt");
-
-        service.registration(req);
-
-        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(captor.capture());
-
-        assertThat(captor.getValue().getPrivateKeyEncrypted()).doesNotContain("\uFEFF");
-    }
-
-    @Test
-    void registration_privateKeyEmptyString_passesThrough() throws Exception {
-        Role userRole = new Role();
-        userRole.setRoleName("USER");
-        when(userRepository.findByUsername("alice")).thenReturn(Optional.empty());
-        when(roleRepository.findByRoleName("USER")).thenReturn(Optional.of(userRole));
-        when(passwordEncoder.encode(anyString())).thenReturn("hash");
-        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
-            User u = inv.getArgument(0);
-            u.setId(UUID.randomUUID());
-            return u;
-        });
-        when(sessionService.createSession(any())).thenReturn(dummySession());
-
-        RegisterRequest req = new RegisterRequest();
-        req.setUsername("alice");
-        req.setPassword("Password1!@#");
-        req.setPublicKey(generateValidRsaPublicKeyPem());
-        req.setPrivateKeyEncrypted("just-a-plain-string");
-        req.setSalt("salt!@#");
-
-        service.registration(req);
     }
 }

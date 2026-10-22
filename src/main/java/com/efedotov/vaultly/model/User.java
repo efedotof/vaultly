@@ -51,8 +51,6 @@ public class User {
     @Column(columnDefinition = "TEXT")
     private String publicKey;
 
-    @Column(columnDefinition = "TEXT")
-    private String privateKeyEncrypted;
 
     @Column(name = "avatar_s3_key")
     private String avatarS3Key;
@@ -84,9 +82,6 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = { CascadeType.PERSIST, CascadeType.MERGE })
     private List<File> files;
 
-    @Column(name = "salt")
-    private String salt;
-
     @Builder.Default
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
@@ -107,12 +102,6 @@ public class User {
 
     @Column(name = "recovery_public_key", columnDefinition = "TEXT")
     private String recoveryPublicKey;
-
-    @Column(name = "recovery_private_key_encrypted", columnDefinition = "TEXT")
-    private String recoveryPrivateKeyEncrypted;
-
-    @Column(name = "recovery_salt")
-    private String recoverySalt;
 
     @Column(name = "recovery_encrypted_rsa_key", columnDefinition = "TEXT")
     private String recoveryEncryptedRsaKey;

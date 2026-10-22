@@ -10,13 +10,13 @@ public class DeviceRegisterRequest {
     @Size(max = 255)
     private String deviceName;
 
+    @Size(max = 50)
+    private String deviceType;
+
     @NotBlank
     @Size(max = 255)
     private String uniqueId;
 
-    @Size(max = 50)
-    private String deviceType;
-
+    @NotBlank
     private String publicKey;
-    private String encryptedPrivateKey;
 }

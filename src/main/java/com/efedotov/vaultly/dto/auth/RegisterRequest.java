@@ -15,16 +15,18 @@ public class RegisterRequest {
 
     @NotBlank
     @Size(min = 12, max = 64, message = "Пароль должен быть от 12 до 64 символов")
-    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).+$", message = "Пароль должен содержать строчную, заглавную буквы, цифру и спецсимвол")
+    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).+$",
+             message = "Пароль должен содержать строчную, заглавную буквы, цифру и спецсимвол")
     private String password;
 
     private String firstName;
     private String lastName;
+
+    @NotBlank(message = "publicKey is required")
     private String publicKey;
-    private String privateKeyEncrypted;
-    private String salt;
 
     @Email
     @Size(max = 255)
     private String email;
+
 }

@@ -67,17 +67,8 @@ public class UserService {
         return mapToUserProfileDto(user);
     }
 
-    public String getEncryptedPrivateKey(UUID userId) {
-        User user = getUserById(userId);
-        return user.getPrivateKeyEncrypted();
-    }
 
-    public String getSalt(UUID userId) {
-        User user = getUserById(userId);
-        return user.getSalt();
-    }
-
-    @Transactional
+   @Transactional
     public void updateRecoveryKeys(UUID userId, UpdateRecoveryKeysRequest request) {
         User user = getUserById(userId);
 
@@ -88,35 +79,16 @@ public class UserService {
         validatePublicKeyFormat(request.getRecoveryPublicKey());
 
         user.setRecoveryPublicKey(AuthService.normalizePublicKey(request.getRecoveryPublicKey()));
-        user.setRecoveryPrivateKeyEncrypted(normalizePrivateKeyEncrypted(request.getRecoveryPrivateKeyEncrypted()));
         user.setRecoveryEncryptedRsaKey(request.getRecoveryEncryptedRsaKey());
         userRepository.save(user);
-        log.info("User {} updated recovery keys", user.getUsername());
+        log.info("User {} updated recovery keys (public + encrypted RSA only)",
+                user.getUsername());
     }
 
-    private String normalizePrivateKeyEncrypted(String raw) {
-        if (raw == null)
-            return null;
-        String cleaned = raw.trim();
-        cleaned = cleaned.replaceFirst("^\uFEFF", "");
-        while ((cleaned.startsWith("\"") && cleaned.endsWith("\"")) ||
-                (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
-            cleaned = cleaned.substring(1, cleaned.length() - 1).trim();
-        }
-        cleaned = cleaned.replace("\\\"", "\"");
-        cleaned = cleaned.replaceAll("[\\x00-\\x1F\\x7F]", "");
-        try {
-            Object json = objectMapper.readValue(cleaned, Object.class);
-            return objectMapper.writeValueAsString(json);
-        } catch (JacksonException e) {
-            log.warn("Failed to parse privateKeyEncrypted as JSON, storing as is: {}", e.getMessage());
-            return cleaned;
-        }
-    }
 
     public RecoveryDataResponse getRecoveryData(UUID userId) {
         User user = getUserById(userId);
-        return new RecoveryDataResponse(user.getRecoveryEncryptedRsaKey(), user.getSalt());
+        return new RecoveryDataResponse(user.getRecoveryEncryptedRsaKey());
     }
 
     @Transactional
@@ -130,11 +102,11 @@ public class UserService {
 
         validatePublicKeyFormat(request.getPublicKey());
 
+
         user.setPublicKey(request.getPublicKey());
-        user.setPrivateKeyEncrypted(normalizePrivateKeyEncrypted(request.getPrivateKeyEncrypted()));
         userRepository.save(user);
         userKeyService.invalidate(userId);
-        log.info("User {} updated keys", user.getUsername());
+        log.info("User {} updated public key", user.getUsername());
     }
 
     public static void validatePublicKeyFormat(String pem) {

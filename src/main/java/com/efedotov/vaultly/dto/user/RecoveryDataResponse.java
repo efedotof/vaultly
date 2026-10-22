@@ -2,10 +2,11 @@ package com.efedotov.vaultly.dto.user;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
 @AllArgsConstructor
 public class RecoveryDataResponse {
-    private String recoveryEncryptedRsaKey;
-    private String salt;
+    private String encryptedRsaKey;
 }

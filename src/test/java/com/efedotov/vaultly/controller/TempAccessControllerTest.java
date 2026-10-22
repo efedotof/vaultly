@@ -6,7 +6,6 @@ import com.efedotov.vaultly.dto.tempaccess.TempLinkResponse;
 import com.efedotov.vaultly.model.TempFileAccess;
 import com.efedotov.vaultly.model.User;
 import com.efedotov.vaultly.security.CustomUserDetails;
-import com.efedotov.vaultly.service.DeviceService;
 import com.efedotov.vaultly.service.FileService;
 import com.efedotov.vaultly.service.TempAccessService;
 import org.junit.jupiter.api.AfterEach;
@@ -46,8 +45,6 @@ class TempAccessControllerTest extends BaseControllerTest {
 
         @MockitoBean
         TempAccessService tempAccessService;
-        @MockitoBean
-        DeviceService deviceService;
         @MockitoBean
         FileService fileService;
 
@@ -237,18 +234,16 @@ class TempAccessControllerTest extends BaseControllerTest {
         
 
         @Test
-        void showDownloadPage_authenticated_registersDevice() throws Exception {
+        void showDownloadPage_authenticated_returnsView() throws Exception {
                 when(tempAccessService.getTempLinkInfo("tok")).thenReturn(info());
 
                 mockMvc.perform(get(BASE + "/temp-access/{token}", "tok").with(authentication(auth)))
-                                .andExpect(status().isOk())
-                                .andExpect(content().string(org.hamcrest.Matchers.containsString("temp-download")));
-
-                verify(deviceService).ensureTempDownloadDeviceExists(userId);
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("temp-download")));
         }
 
         @Test
-        void showDownloadPage_notAuthenticated_noDeviceRegistration() throws Exception {
+        void showDownloadPage_notAuthenticated_returnsView() throws Exception {
                 SecurityContextHolder.clearContext(); 
 
                 when(tempAccessService.getTempLinkInfo("tok")).thenReturn(info());
@@ -256,8 +251,6 @@ class TempAccessControllerTest extends BaseControllerTest {
                 mockMvc.perform(get(BASE + "/temp-access/{token}", "tok"))
                                 .andExpect(status().isOk())
                                 .andExpect(content().string(org.hamcrest.Matchers.containsString("temp-download")));
-
-                verify(deviceService, never()).ensureTempDownloadDeviceExists(any());
         }
 
         

@@ -4,9 +4,7 @@ import com.efedotov.vaultly.dto.device.DeviceRegisterRequest;
 import com.efedotov.vaultly.dto.device.DeviceResponse;
 import com.efedotov.vaultly.dto.device.DeviceUpdateRequest;
 import com.efedotov.vaultly.model.Device;
-import com.efedotov.vaultly.model.User;
 import com.efedotov.vaultly.repository.DeviceRepository;
-import com.efedotov.vaultly.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -22,8 +20,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,8 +29,6 @@ class DeviceServiceTest {
 
     @Mock
     DeviceRepository deviceRepository;
-    @Mock
-    UserRepository userRepository;
     @InjectMocks
     DeviceService service;
 
@@ -113,42 +107,6 @@ class DeviceServiceTest {
         when(deviceRepository.findByUserId(userId)).thenReturn(List.of());
 
         assertThat(service.getUserDevices(userId)).isEmpty();
-    }
-
-    @Test
-    void getEncryptedPrivateKey_notFound_throws() {
-        when(deviceRepository.findByIdAndUserId(any(), any())).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> service.getEncryptedPrivateKey(UUID.randomUUID(), UUID.randomUUID()))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    void getEncryptedPrivateKey_inactive_throws() {
-        UUID userId = UUID.randomUUID();
-        Device d = Device.builder().id(UUID.randomUUID()).userId(userId).isActive(false).build();
-        when(deviceRepository.findByIdAndUserId(d.getId(), userId)).thenReturn(Optional.of(d));
-
-        assertThatThrownBy(() -> service.getEncryptedPrivateKey(d.getId(), userId))
-                .isInstanceOf(SecurityException.class)
-                .hasMessageContaining("отключено");
-    }
-
-    @Test
-    void getEncryptedPrivateKey_active_returnsKeyAndUpdatesLastUsed() {
-        UUID userId = UUID.randomUUID();
-        Device d = Device.builder()
-                .id(UUID.randomUUID()).userId(userId).isActive(true)
-                .encryptedPrivateKey("KEY")
-                .build();
-        when(deviceRepository.findByIdAndUserId(d.getId(), userId)).thenReturn(Optional.of(d));
-        when(deviceRepository.save(any(Device.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        String key = service.getEncryptedPrivateKey(d.getId(), userId);
-
-        assertThat(key).isEqualTo("KEY");
-        assertThat(d.getLastUsedAt()).isNotNull();
-        verify(deviceRepository).save(d);
     }
 
     @Test
@@ -232,33 +190,5 @@ class DeviceServiceTest {
 
         assertThatThrownBy(() -> service.deleteDevice(UUID.randomUUID(), UUID.randomUUID()))
                 .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    void ensureTempDownloadDeviceExists_alreadyExists_noop() {
-        UUID userId = UUID.randomUUID();
-        when(deviceRepository.existsByUserIdAndDeviceType(userId, "TEMP_DOWNLOAD"))
-                .thenReturn(true);
-
-        service.ensureTempDownloadDeviceExists(userId);
-
-        verify(userRepository, never()).findById(any());
-        verify(deviceRepository, never()).save(any());
-    }
-
-    @Test
-    void ensureTempDownloadDeviceExists_notExists_creates() {
-        UUID userId = UUID.randomUUID();
-        User user = User.builder().id(userId).username("alice")
-                .publicKey("pub").privateKeyEncrypted("priv").build();
-        when(deviceRepository.existsByUserIdAndDeviceType(userId, "TEMP_DOWNLOAD"))
-                .thenReturn(false);
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(deviceRepository.findByUniqueId(anyString())).thenReturn(Optional.empty());
-        when(deviceRepository.save(any(Device.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        service.ensureTempDownloadDeviceExists(userId);
-
-        verify(deviceRepository).save(any(Device.class));
     }
 }

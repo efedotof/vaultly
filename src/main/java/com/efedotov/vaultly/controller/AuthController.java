@@ -1,6 +1,10 @@
 package com.efedotov.vaultly.controller;
 
+import java.net.InetAddress;
+import java.util.Arrays;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -30,7 +34,8 @@ import com.efedotov.vaultly.exception.TotpRequiredException;
 import com.efedotov.vaultly.security.CustomUserDetails;
 import com.efedotov.vaultly.service.AuthService;
 import com.efedotov.vaultly.service.LoginAttemptService;
-
+import com.efedotov.vaultly.exception.UsernameAlreadyExistsException;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +53,29 @@ public class AuthController {
     @Value("${app.security.trust-forwarded-headers}")
     private boolean trustForwardedHeaders;
 
+    @Value("${app.security.trusted-proxies:}")
+    private String trustedProxiesConfig;
+
+    private Set<String> trustedProxies;
+
+    @PostConstruct
+    void initClientIpResolution() {
+        this.trustedProxies = Arrays.stream(trustedProxiesConfig.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toUnmodifiableSet());
+
+        if (!trustForwardedHeaders) {
+            log.info("X-Forwarded-For is disabled (app.security.trust-forwarded-headers=false)");
+        } else if (trustedProxies.isEmpty()) {
+            log.warn("trust-forwarded-headers=true but app.security.trusted-proxies is empty. "
+                    + "X-Forwarded-For will be IGNORED to prevent spoofing. "
+                    + "Set app.security.trusted-proxies to your proxy/ingress IPs.");
+        } else {
+            log.info("Trusting X-Forwarded-For only from: {}", trustedProxies);
+        }
+    }
+
     @PostMapping("/register")
     public AuthResponse register(@Valid @RequestBody RegisterRequest request,
             HttpServletRequest httpRequest) {
@@ -61,13 +89,15 @@ public class AuthController {
 
         try {
             return authService.registration(request);
+        } catch (UsernameAlreadyExistsException | BadRequestException e) {
+            throw e;
         } catch (Exception e) {
             loginAttemptService.ipFailed(ip);
             throw e;
         }
     }
 
-    @PostMapping("/login")
+     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest) {
         log.debug("REST login request");
@@ -95,18 +125,45 @@ public class AuthController {
         }
     }
 
-    private String extractClientIp(HttpServletRequest request) {
-        if (trustForwardedHeaders) {
-            String xff = request.getHeader("X-Forwarded-For");
-            if (xff != null && !xff.isBlank()) {
-                String[] parts = xff.split(",");
-                String last = parts[parts.length - 1].trim();
-                if (!last.isEmpty()) {
-                    return last;
-                }
-            }
+   private String extractClientIp(HttpServletRequest request) {
+        String remoteAddr = request.getRemoteAddr();
+
+        if (!trustForwardedHeaders || !trustedProxies.contains(remoteAddr)) {
+            return remoteAddr;
         }
-        return request.getRemoteAddr();
+
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            String[] parts = xff.split(",");
+            String clientIp = parts[0].trim();
+            if (isIpLiteral(clientIp)) {
+                return clientIp;
+            }
+            log.warn("Ignoring invalid X-Forwarded-For entry: {}", clientIp);
+        }
+
+       
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank() && isIpLiteral(realIp.trim())) {
+            return realIp.trim();
+        }
+
+        return remoteAddr;
+    }
+
+     private boolean isIpLiteral(String ip) {
+        if (ip == null || ip.isEmpty() || ip.length() > 45) {
+            return false;
+        }
+        if (!ip.matches("^[0-9a-fA-F:.]+$")) {
+            return false;
+        }
+        try {
+            InetAddress.getByName(ip);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @PostMapping("/login/totp")
@@ -167,16 +224,40 @@ public class AuthController {
         return "Auth service is healthy";
     }
 
-    @PostMapping("/recover")
-    public ResponseEntity<AuthResponse> recoverAccess(@Valid @RequestBody RecoverRequest request) {
+   @PostMapping("/recover")
+    public ResponseEntity<AuthResponse> recoverAccess(@Valid @RequestBody RecoverRequest request,
+            HttpServletRequest httpRequest) {
         log.info("REST recover access request (signed)");
-        AuthResponse response = authService.recoverAccess(request);
-        return ResponseEntity.ok(response);
+
+        String ip = extractClientIp(httpRequest);
+        if (loginAttemptService.isIpBlocked(ip)) {
+            throw new BadRequestException("Too many attempts");
+        }
+
+        try {
+            AuthResponse response = authService.recoverAccess(request);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            loginAttemptService.ipFailed(ip);
+            throw e;
+        }
     }
 
     @PostMapping("/recover/challenge")
     public ResponseEntity<RecoveryChallengeResponse> recoverChallenge(
-            @Valid @RequestBody RecoveryChallengeRequest request) {
-        return ResponseEntity.ok(authService.createRecoveryChallenge(request));
+            @Valid @RequestBody RecoveryChallengeRequest request,
+            HttpServletRequest httpRequest) {
+
+        String ip = extractClientIp(httpRequest);
+        if (loginAttemptService.isIpBlocked(ip)) {
+            throw new BadRequestException("Too many attempts");
+        }
+
+        try {
+            return ResponseEntity.ok(authService.createRecoveryChallenge(request));
+        } catch (Exception e) {
+            loginAttemptService.ipFailed(ip);
+            throw e;
+        }
     }
 }

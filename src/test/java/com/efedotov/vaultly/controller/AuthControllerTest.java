@@ -26,7 +26,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.security.KeyPairGenerator;
+import java.util.Base64;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -63,12 +66,22 @@ class AuthControllerTest extends BaseControllerTest {
                 CustomUserDetails principal = new CustomUserDetails(user);
                 auth = new UsernamePasswordAuthenticationToken(principal, null, List.of());
                 SecurityContextHolder.getContext().setAuthentication(auth);
+                ReflectionTestUtils.setField(authController, "trustedProxies", Set.of());
         }
 
         @AfterEach
         void tearDown() {
                 SecurityContextHolder.clearContext();
                 ReflectionTestUtils.setField(authController, "trustForwardedHeaders", false);
+                ReflectionTestUtils.setField(authController, "trustedProxies", Set.of());
+        }
+
+        private static String validPublicKeyPem() throws Exception {
+                KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+                kpg.initialize(2048);
+                return "-----BEGIN PUBLIC KEY-----"
+                                + Base64.getEncoder().encodeToString(kpg.generateKeyPair().getPublic().getEncoded())
+                                + "-----END PUBLIC KEY-----";
         }
 
         @Test
@@ -161,9 +174,10 @@ class AuthControllerTest extends BaseControllerTest {
                 when(authService.registration(any()))
                                 .thenThrow(new UsernameAlreadyExistsException("taken"));
 
+                String pk = validPublicKeyPem();
                 String body = """
-                                {"username":"alice","password":"Password1!@#"}
-                                """;
+                                {"username":"alice","password":"Password1!@#","publicKey":"%s"}
+                                """.formatted(pk);
 
                 mockMvc.perform(post("/api/auth/register")
                                 .contentType(MediaType.APPLICATION_JSON).content(body))
@@ -174,9 +188,10 @@ class AuthControllerTest extends BaseControllerTest {
         void register_ipBlocked_returns400() throws Exception {
                 when(loginAttemptService.isIpBlocked(anyString())).thenReturn(true);
 
+                String pk = validPublicKeyPem();
                 String body = """
-                                {"username":"alice","password":"Password1!@#"}
-                                """;
+                                {"username":"alice","password":"Password1!@#","publicKey":"%s"}
+                                """.formatted(pk);
 
                 mockMvc.perform(post("/api/auth/register")
                                 .contentType(MediaType.APPLICATION_JSON).content(body))
@@ -190,9 +205,10 @@ class AuthControllerTest extends BaseControllerTest {
                 resp.setUsername("alice");
                 when(authService.registration(any())).thenReturn(resp);
 
+                String pk = validPublicKeyPem();
                 String body = """
-                                {"username":"alice","password":"Password1!@#"}
-                                """;
+                                {"username":"alice","password":"Password1!@#","publicKey":"%s"}
+                                """.formatted(pk);
 
                 mockMvc.perform(post("/api/auth/register")
                                 .contentType(MediaType.APPLICATION_JSON).content(body))
@@ -347,10 +363,11 @@ class AuthControllerTest extends BaseControllerTest {
         }
 
         @Test
-        void login_withTrustedXff_usesLastIpInChain() throws Exception {
+        void login_withTrustedXff_usesFirstIpInChain() throws Exception {
                 ReflectionTestUtils.setField(authController, "trustForwardedHeaders", true);
+                ReflectionTestUtils.setField(authController, "trustedProxies", Set.of("127.0.0.1"));
 
-                when(loginAttemptService.isIpBlocked("9.9.9.9")).thenReturn(false);
+                when(loginAttemptService.isIpBlocked("1.1.1.1")).thenReturn(false);
                 when(authService.login(any())).thenReturn(new AuthResponse());
 
                 String body = """
@@ -362,12 +379,13 @@ class AuthControllerTest extends BaseControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON).content(body))
                                 .andExpect(status().isOk());
 
-                verify(loginAttemptService).isIpBlocked("9.9.9.9");
+                verify(loginAttemptService).isIpBlocked("1.1.1.1");
         }
 
         @Test
         void login_withTrustedXffButBlank_fallsBackToRemoteAddr() throws Exception {
                 ReflectionTestUtils.setField(authController, "trustForwardedHeaders", true);
+                ReflectionTestUtils.setField(authController, "trustedProxies", Set.of("127.0.0.1"));
 
                 when(loginAttemptService.isIpBlocked(anyString())).thenReturn(false);
                 when(authService.login(any())).thenReturn(new AuthResponse());
@@ -391,6 +409,7 @@ class AuthControllerTest extends BaseControllerTest {
         @Test
         void login_withTrustedXffMissingHeader_fallsBackToRemoteAddr() throws Exception {
                 ReflectionTestUtils.setField(authController, "trustForwardedHeaders", true);
+                ReflectionTestUtils.setField(authController, "trustedProxies", Set.of("127.0.0.1"));
 
                 when(loginAttemptService.isIpBlocked(anyString())).thenReturn(false);
                 when(authService.login(any())).thenReturn(new AuthResponse());
@@ -413,6 +432,7 @@ class AuthControllerTest extends BaseControllerTest {
         @Test
         void login_xffWithEmptyLastElement_fallsBackToRemoteAddr() throws Exception {
                 ReflectionTestUtils.setField(authController, "trustForwardedHeaders", true);
+                ReflectionTestUtils.setField(authController, "trustedProxies", Set.of("127.0.0.1"));
 
                 when(loginAttemptService.isIpBlocked(anyString())).thenReturn(false);
                 when(authService.login(any())).thenReturn(new AuthResponse());

@@ -44,9 +44,6 @@ public class Device {
     @Column(name = "public_key", columnDefinition = "TEXT")
     private String publicKey;
 
-    @Column(name = "encrypted_private_key", columnDefinition = "TEXT")
-    private String encryptedPrivateKey;
-
     @Builder.Default
     @Column(name = "is_active")
     private Boolean isActive = true;

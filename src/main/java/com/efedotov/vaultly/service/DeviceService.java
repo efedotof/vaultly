@@ -12,9 +12,7 @@ import com.efedotov.vaultly.dto.device.DeviceRegisterRequest;
 import com.efedotov.vaultly.dto.device.DeviceResponse;
 import com.efedotov.vaultly.dto.device.DeviceUpdateRequest;
 import com.efedotov.vaultly.model.Device;
-import com.efedotov.vaultly.model.User;
 import com.efedotov.vaultly.repository.DeviceRepository;
-import com.efedotov.vaultly.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +23,6 @@ import lombok.extern.slf4j.Slf4j;
 public class DeviceService {
 
     private final DeviceRepository deviceRepository;
-    private final UserRepository userRepository;
 
     @Transactional
     public DeviceResponse registerDevice(DeviceRegisterRequest request, UUID userId) {
@@ -38,11 +35,11 @@ public class DeviceService {
                     .deviceType(request.getDeviceType())
                     .uniqueId(request.getUniqueId())
                     .publicKey(request.getPublicKey())
-                    .encryptedPrivateKey(request.getEncryptedPrivateKey())
                     .isActive(true)
                     .createdAt(LocalDateTime.now())
                     .build();
-            log.info("Создано новое устройство {} для пользователя {}", device.getDeviceName(), userId);
+            log.info("Создано новое устройство {} для пользователя {}",
+                    device.getDeviceName(), userId);
         } else {
             if (!device.getUserId().equals(userId)) {
                 log.warn("Попытка перехвата устройства {} пользователем {} (владелец {})",
@@ -53,10 +50,10 @@ public class DeviceService {
             device.setDeviceName(request.getDeviceName());
             device.setDeviceType(request.getDeviceType());
             device.setPublicKey(request.getPublicKey());
-            device.setEncryptedPrivateKey(request.getEncryptedPrivateKey());
             device.setIsActive(true);
             device.setLastUsedAt(LocalDateTime.now());
-            log.info("Обновлено существующее устройство {} для пользователя {}", device.getUniqueId(), userId);
+            log.info("Обновлено существующее устройство {} для пользователя {}",
+                    device.getUniqueId(), userId);
         }
 
         device = deviceRepository.save(device);
@@ -70,17 +67,6 @@ public class DeviceService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional
-    public String getEncryptedPrivateKey(UUID deviceId, UUID userId) {
-        Device device = deviceRepository.findByIdAndUserId(deviceId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("Устройство не найдено"));
-        if (!device.getIsActive()) {
-            throw new SecurityException("Устройство отключено");
-        }
-        device.setLastUsedAt(LocalDateTime.now());
-        deviceRepository.save(device);
-        return device.getEncryptedPrivateKey();
-    }
 
     @Transactional
     public DeviceResponse updateDevice(UUID deviceId, DeviceUpdateRequest request, UUID userId) {
@@ -116,24 +102,6 @@ public class DeviceService {
         log.info("Устройство {} удалено пользователем {}", deviceId, userId);
     }
 
-    @Transactional
-    public void ensureTempDownloadDeviceExists(UUID userId) {
-        boolean hasTempDevice = existsByUserIdAndDeviceType(userId, "TEMP_DOWNLOAD");
-        if (!hasTempDevice) {
-            User user = userRepository.findById(userId).orElseThrow();
-            DeviceRegisterRequest request = new DeviceRegisterRequest();
-            request.setDeviceName("Временное скачивание");
-            request.setDeviceType("TEMP_DOWNLOAD");
-            request.setUniqueId("temp-" + UUID.randomUUID());
-            request.setPublicKey(user.getPublicKey());
-            request.setEncryptedPrivateKey(user.getPrivateKeyEncrypted());
-            registerDevice(request, userId);
-        }
-    }
-
-    private boolean existsByUserIdAndDeviceType(UUID userId, String deviceType) {
-        return deviceRepository.existsByUserIdAndDeviceType(userId, deviceType);
-    }
 
     private DeviceResponse mapToResponse(Device device) {
         return DeviceResponse.builder()

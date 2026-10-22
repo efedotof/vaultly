@@ -28,7 +28,7 @@ import com.efedotov.vaultly.dto.tempaccess.FileAccessRequest;
 import com.efedotov.vaultly.dto.tempaccess.TempLinkInfo;
 import com.efedotov.vaultly.dto.tempaccess.TempLinkResponse;
 import com.efedotov.vaultly.security.CustomUserDetails;
-import com.efedotov.vaultly.service.DeviceService;
+
 import com.efedotov.vaultly.service.FileService;
 import com.efedotov.vaultly.service.TempAccessService;
 
@@ -43,7 +43,6 @@ import lombok.extern.slf4j.Slf4j;
 public class TempAccessController {
 
     private final TempAccessService tempAccessService;
-    private final DeviceService deviceService;
     private final FileService fileService;
 
     @PostMapping("/files/{fileId}/public")
@@ -123,9 +122,8 @@ public class TempAccessController {
         mav.addObject("isAuthenticated", isAuthenticated);
 
         if (!isAuthenticated) {
-            mav.addObject("redirectAfterLogin", "/tempacces/version132/temp-access/" + token);
-        } else if (user != null) {
-            deviceService.ensureTempDownloadDeviceExists(user.getUserId());
+            mav.addObject("redirectAfterLogin",
+                    "/tempacces/version132/temp-access/" + token);
         }
         return mav;
     }
