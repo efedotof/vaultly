@@ -2,10 +2,11 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart' as crypto;
+import 'package:get/get.dart';
 import 'package:vaulth_app/server/model/auth/auth_response.dart';
 import 'secure_storage_io.dart';
 
-class AuthLocalStorage {
+class AuthLocalStorage extends GetxService {
   static const String _accessTokenKey = 'access_token';
   static const String _userIdKey = 'user_id';
   static const String _emailKey = 'email';

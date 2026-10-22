@@ -1,8 +1,9 @@
 import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class SecureStorageAdapter {
+class SecureStorageAdapter extends GetxService {
   static final FlutterSecureStorage _secureStorage =
       const FlutterSecureStorage();
 

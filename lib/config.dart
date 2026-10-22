@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:qnd_updater/qnd_updater.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Config extends GetxController {
@@ -10,8 +11,10 @@ class Config extends GetxController {
   static const _kFolderPath = 'cfg_folder_path';
   static const _kUserPath = 'cfg_user_path';
   static const _kTempAccessPath = 'cfg_temp_access_path';
-  static const _kGithubRepoUrl = 'cfg_github_repo_url';
-  static const _kAppArchiveUrl = 'cfg_app_archive_url';
+
+  static const _kGithubOwner = 'cfg_github_owner';
+  static const _kGithubRepo = 'cfg_github_repo';
+  static const _kGithubToken = 'cfg_github_token';
 
   static const _defaultBaseUrl = 'https://vaultly.mnapp.ru:4443';
   static const _defaultServerPath = '/api/server-key';
@@ -21,10 +24,10 @@ class Config extends GetxController {
   static const _defaultFolderPath = '/api/folders';
   static const _defaultUserPath = '/api/users';
   static const _defaultTempAccessPath = '/tempacces/version132';
-  static const _defaultGithubRepoUrl =
-      'https://github.com/efedotof/vaultly.git';
-  static const _defaultAppArchiveUrl =
-      'https://github.com/efedotof/vaultly/releases/latest/download/app-archive.json';
+
+  static const _defaultGithubOwner = 'efedotof';
+  static const _defaultGithubRepo = 'vaultly';
+  static const _defaultGithubToken = '';
 
   final RxString _baseUrl = _defaultBaseUrl.obs;
   final RxString _serverPath = _defaultServerPath.obs;
@@ -34,8 +37,10 @@ class Config extends GetxController {
   final RxString _folderPath = _defaultFolderPath.obs;
   final RxString _userPath = _defaultUserPath.obs;
   final RxString _tempAccessPath = _defaultTempAccessPath.obs;
-  final RxString _githubRepoUrl = _defaultGithubRepoUrl.obs;
-  final RxString _appArchiveUrl = _defaultAppArchiveUrl.obs;
+
+  final RxString _githubOwner = _defaultGithubOwner.obs;
+  final RxString _githubRepo = _defaultGithubRepo.obs;
+  final RxString _githubToken = _defaultGithubToken.obs;
 
   SharedPreferences? _prefs;
 
@@ -56,10 +61,12 @@ class Config extends GetxController {
     _userPath.value = _prefs!.getString(_kUserPath) ?? _defaultUserPath;
     _tempAccessPath.value =
         _prefs!.getString(_kTempAccessPath) ?? _defaultTempAccessPath;
-    _githubRepoUrl.value =
-        _prefs!.getString(_kGithubRepoUrl) ?? _defaultGithubRepoUrl;
-    _appArchiveUrl.value =
-        _prefs!.getString(_kAppArchiveUrl) ?? _defaultAppArchiveUrl;
+
+    _githubOwner.value =
+        _prefs!.getString(_kGithubOwner) ?? _defaultGithubOwner;
+    _githubRepo.value = _prefs!.getString(_kGithubRepo) ?? _defaultGithubRepo;
+    _githubToken.value =
+        _prefs!.getString(_kGithubToken) ?? _defaultGithubToken;
   }
 
   String get baseUrl => _baseUrl.value;
@@ -70,8 +77,10 @@ class Config extends GetxController {
   String get folderPath => _folderPath.value;
   String get userPath => _userPath.value;
   String get tempAccessPath => _tempAccessPath.value;
-  String get githubRepoUrl => _githubRepoUrl.value;
-  String get appArchiveUrl => _appArchiveUrl.value;
+
+  String get githubOwner => _githubOwner.value;
+  String get githubRepo => _githubRepo.value;
+  String get githubToken => _githubToken.value;
 
   String get serverUrl => _join(_baseUrl.value, _serverPath.value);
   String get authUrl => _join(_baseUrl.value, _authPath.value);
@@ -131,15 +140,31 @@ class Config extends GetxController {
     _prefs?.setString(_kTempAccessPath, v);
   }
 
-  set githubRepoUrl(String v) {
-    _githubRepoUrl.value = v;
-    _prefs?.setString(_kGithubRepoUrl, v);
+  set githubOwner(String v) {
+    _githubOwner.value = v;
+    _prefs?.setString(_kGithubOwner, v);
   }
 
-  set appArchiveUrl(String v) {
-    _appArchiveUrl.value = v;
-    _prefs?.setString(_kAppArchiveUrl, v);
+  set githubRepo(String v) {
+    _githubRepo.value = v;
+    _prefs?.setString(_kGithubRepo, v);
   }
+
+  set githubToken(String v) {
+    _githubToken.value = v;
+    _prefs?.setString(_kGithubToken, v);
+  }
+
+  Future<UpdateStatus> checkForUpdate() {
+    return QndUpdater().checkForUpdate(
+      githubToken: githubToken,
+      owner: githubOwner,
+      repo: githubRepo,
+    );
+  }
+
+  UpdaterService createUpdaterService() =>
+      UpdaterService(owner: githubOwner, repo: githubRepo);
 
   Future<void> resetToDefaults() async {
     baseUrl = _defaultBaseUrl;
@@ -150,8 +175,9 @@ class Config extends GetxController {
     folderPath = _defaultFolderPath;
     userPath = _defaultUserPath;
     tempAccessPath = _defaultTempAccessPath;
-    githubRepoUrl = _defaultGithubRepoUrl;
-    appArchiveUrl = _defaultAppArchiveUrl;
+    githubOwner = _defaultGithubOwner;
+    githubRepo = _defaultGithubRepo;
+    githubToken = _defaultGithubToken;
     await _prefs?.reload();
   }
 
@@ -165,7 +191,8 @@ class Config extends GetxController {
     _folderPath.value = _defaultFolderPath;
     _userPath.value = _defaultUserPath;
     _tempAccessPath.value = _defaultTempAccessPath;
-    _githubRepoUrl.value = _defaultGithubRepoUrl;
-    _appArchiveUrl.value = _defaultAppArchiveUrl;
+    _githubOwner.value = _defaultGithubOwner;
+    _githubRepo.value = _defaultGithubRepo;
+    _githubToken.value = _defaultGithubToken;
   }
 }

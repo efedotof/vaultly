@@ -2,7 +2,9 @@
 
 import 'dart:html' as html;
 
-class SecureStorageAdapter {
+import 'package:get/get.dart';
+
+class SecureStorageAdapter extends GetxService {
   static Future<void> write({
     required String key,
     required String value,

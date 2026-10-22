@@ -20,8 +20,5 @@ class AuthInfo {
   int get storageLimit => user?.storageLimit ?? 0;
   String get publicKey => user?.publicKey ?? "";
 
-  bool get isAuth => authResponse?.accessToken != null ? true : false;
-
-  
-
+  bool get isAuth => (authResponse?.accessToken ?? "").isNotEmpty;
 }

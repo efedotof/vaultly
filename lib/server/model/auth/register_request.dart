@@ -4,8 +4,6 @@ class RegisterRequest {
   final String? firstName;
   final String? lastName;
   final String? publicKey;
-  final String? privateKeyEncrypted;
-  final String? salt;
   final String? email;
 
   RegisterRequest({
@@ -14,8 +12,6 @@ class RegisterRequest {
     this.firstName,
     this.lastName,
     this.publicKey,
-    this.privateKeyEncrypted,
-    this.salt,
     this.email,
   });
 
@@ -26,8 +22,6 @@ class RegisterRequest {
       firstName: json['firstName'] as String?,
       lastName: json['lastName'] as String?,
       publicKey: json['publicKey'] as String?,
-      privateKeyEncrypted: json['privateKeyEncrypted'] as String?,
-      salt: json['salt'] as String?,
       email: json['email'] as String?,
     );
   }
@@ -38,8 +32,6 @@ class RegisterRequest {
     if (firstName != null) 'firstName': firstName,
     if (lastName != null) 'lastName': lastName,
     if (publicKey != null) 'publicKey': publicKey,
-    if (privateKeyEncrypted != null) 'privateKeyEncrypted': privateKeyEncrypted,
-    if (salt != null) 'salt': salt,
     if (email != null) 'email': email,
   };
 }

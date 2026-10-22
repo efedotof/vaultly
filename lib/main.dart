@@ -4,6 +4,8 @@ import 'package:vaulth_app/localization/localization_rep.dart';
 import 'package:vaulth_app/server/service/cache_service/cache_service.dart';
 import 'package:vaulth_app/server/service/decrypt_service/decrypt_service.dart';
 import 'package:vaulth_app/server/service/encrypt_service/encrypt_service.dart';
+import 'package:vaulth_app/storage/auth_local_storage.dart';
+import 'package:vaulth_app/storage/secure_storage_adapter.dart';
 
 import 'config.dart';
 import 'localization/localization.dart';
@@ -23,6 +25,12 @@ void main() async {
 
   //инициализация конфига сервера
   Get.put(() => Config());
+
+  //инициализация секретного хранилища
+  Get.put(() => SecureStorageAdapter());
+
+  //инициализация хранилища
+  Get.put(() => AuthLocalStorage());
 
   runApp(VaultlyApp());
 }
