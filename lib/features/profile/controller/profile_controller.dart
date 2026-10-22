@@ -37,9 +37,5 @@ class ProfileController extends GetxController {
         state.value = ProfileStates.updateProfile;
         break;
     }
-
-    if (userId == "my_profile") {
-      state.value = ProfileStates.otherProfile;
-    }
   }
 }

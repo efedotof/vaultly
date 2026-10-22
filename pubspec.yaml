@@ -59,6 +59,9 @@ dependencies:
   video_thumbnail_gen: ^0.6.3
   get: ^4.7.3
 
+dependency_overrides:
+  path_provider_foundation: 2.5.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

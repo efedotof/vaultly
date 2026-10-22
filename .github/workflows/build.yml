@@ -1,360 +1,519 @@
-name: Build and Release Desktop and Android Apps
+name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: '3.44.0'
+  APP_BINARY: vaulth_app
+  APP_PRODUCT: Vaultly
 
 jobs:
   build-android:
-    name: Build for Android
+    name: Android
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
-          flutter-version: '3.38.10'
-
-      - name: Repair Flutter pub cache
-        run: flutter pub cache repair
-
-      - name: Clean previous builds
-        run: flutter clean
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Run code generation
-        run: flutter pub run build_runner build --delete-conflicting-outputs
-
-      - name: Create key.properties
-        run: |
-          cat > android/key.properties << 'EOF'
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
-          storeFile=../upload-keystore.p12
-          EOF
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
 
       - name: Decode keystore
         env:
-          ENCODED_STRING: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
-          echo $ENCODED_STRING > keystore-b64.txt
-          base64 -d keystore-b64.txt > android/upload-keystore.p12
+          echo "$KEYSTORE_BASE64" | base64 -d > android/upload-keystore.p12
+          ls -la android/upload-keystore.p12
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Build signed APK
-        run: flutter build apk --release
-
-      - name: Get version from pubspec
-        id: version
+      - name: key.properties
         run: |
-          version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
-          echo "version=$version" >> $GITHUB_OUTPUT
+          cat > android/key.properties <<EOF
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=upload-keystore.p12
+          EOF
 
-      - name: Upload APK to release
-        uses: softprops/action-gh-release@v1
+      - name: Build APK
+        run: |
+          flutter pub get
+          flutter build apk --release
+
+      - name: Verify signature
+        run: |
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          BT=$(ls $ANDROID_HOME/build-tools | sort -V | tail -n1)
+          $ANDROID_HOME/build-tools/$BT/apksigner verify --print-certs "$APK" | grep -i 'SHA-256'
+
+      - name: Stage APK + zip
+        run: |
+          set -e
+          TAG="${{ github.ref_name }}"
+          mkdir -p dist staging/android
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/qnd_updater-${TAG}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk staging/android/qnd_updater.apk
+          ( cd staging/android && zip -q "$GITHUB_WORKSPACE/dist/qnd_updater-${TAG}-android.zip" qnd_updater.apk )
+          ls -la dist/
+
+      - name: Cleanup secrets
+        if: always()
+        run: rm -f android/key.properties android/upload-keystore.p12
+
+      - uses: actions/upload-artifact@v4
         with:
-          files: build/app/outputs/flutter-apk/app-release.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: android
+          path: dist/*
 
   build-windows:
-    name: Build for Windows (Velopack)
+    name: Windows
     runs-on: windows-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.38.10'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
 
-      - name: Repair Flutter pub cache
-        run: flutter pub cache repair
-
-      - name: Clean previous builds
-        run: flutter clean
-
-      - name: Enable windows support
-        run: flutter config --enable-windows-desktop
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Run code generation
-        run: flutter pub run build_runner build --delete-conflicting-outputs
-
-      - name: Build OpenSSL for Windows (MSVC)
+      - run: flutter config --enable-windows-desktop
+      - name: Build
         run: |
-          curl -LO "https://github.com/openssl/openssl/releases/download/openssl-4.0.0/openssl-4.0.0.tar.gz"
-          tar xzf openssl-4.0.0.tar.gz
-          cd openssl-4.0.0
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          perl Configure VC-WIN64A no-shared no-tests -static -MT --prefix=%CD%\..\out
-          nmake
-          nmake install_sw
-        shell: cmd
+          flutter pub get
+          flutter build windows --release
 
-      - name: Verify OpenSSL output
-        shell: powershell
+      - name: Package zip + portable exe
+        shell: pwsh
         run: |
-          Write-Host "Generated .lib files:"
-          Get-ChildItem out\lib
-          Write-Host "Generated headers:"
-          Get-ChildItem out\include
+          New-Item -ItemType Directory -Force -Path dist/windows | Out-Null
+          Copy-Item -Recurse -Force "build/windows/x64/runner/Release/*" "dist/windows/"
+          Compress-Archive `
+            -Path "dist/windows/*" `
+            -DestinationPath "dist/qnd_updater-${{ github.ref_name }}-windows.zip" -Force
+          Copy-Item `
+            "build/windows/x64/runner/Release/${{ env.APP_BINARY }}.exe" `
+            "dist/qnd_updater-${{ github.ref_name }}-windows.exe" -Force
 
-      - name: Copy MSVC libs (OpenSSL + zlib) to plugin cache
-        shell: powershell
+      - name: Install NSIS
+        shell: pwsh
         run: |
-          $gitCache = "$env:LOCALAPPDATA\Pub\Cache\git"
-          $pluginDir = Get-ChildItem -Path $gitCache -Directory -Filter "vaultly-*" | Select-Object -First 1
-          if (-not $pluginDir) {
-            Write-Host "##[error] Plugin cache not found"
-            exit 1
+          choco install nsis -y --no-progress
+          $nsis = "C:\Program Files (x86)\NSIS"
+          if (-not (Test-Path "$nsis\makensis.exe")) {
+            $found = Get-ChildItem -Path "C:\" -Filter "makensis.exe" -Recurse -EA SilentlyContinue | Select-Object -First 1
+            if (-not $found) { Write-Error "makensis not found"; exit 1 }
+            $nsis = $found.DirectoryName
           }
-          $targetLib = "$($pluginDir.FullName)\windows\openssl_prebuild\windows\x86_64"
-          $targetInc = "$($pluginDir.FullName)\windows\openssl_prebuild\windows\include"
-          New-Item -ItemType Directory -Force -Path $targetLib
-          New-Item -ItemType Directory -Force -Path $targetInc
+          Add-Content -Path $env:GITHUB_PATH -Value $nsis
 
-       
-          Copy-Item -Path out\lib\libssl.lib -Destination $targetLib -Force
-          Copy-Item -Path out\lib\libcrypto.lib -Destination $targetLib -Force
-          Copy-Item -Path out\include\* -Destination $targetInc -Recurse -Force
-
-    
-          Remove-Item "$targetLib\zlib*" -Force -ErrorAction SilentlyContinue
-
-    
-          vcpkg install zlib:x64-windows-static
-          $vcpkgRoot = (Get-Item env:VCPKG_INSTALLATION_ROOT).Value
-          $zlibInclude = "$vcpkgRoot\installed\x64-windows-static\include"
-
-      
-          $directLib = "$vcpkgRoot\installed\x64-windows-static\lib\zlib.lib"
-          if (Test-Path $directLib) {
-            Copy-Item -Path $directLib -Destination $targetLib -Force
-            Write-Host "Copied zlib.lib (direct path)"
-          } else {
-          
-            $found = Get-ChildItem -Path "$vcpkgRoot\installed\x64-windows-static\lib" -Filter "zlib*.lib" -Recurse
-            if (-not $found) {
-              Write-Host "##[error] No zlib static library found in vcpkg"
-              exit 1
-            }
-            $zlibLib = $found[0].FullName
-            Copy-Item -Path $zlibLib -Destination $targetLib -Force
-          
-            $copiedName = Join-Path $targetLib (Split-Path $zlibLib -Leaf)
-            if ((Split-Path $zlibLib -Leaf) -ne "zlib.lib") {
-              Rename-Item -Path $copiedName -NewName "zlib.lib" -Force
-            }
-            Write-Host "Copied and renamed zlib library to zlib.lib"
-          }
-         
-          Copy-Item -Path "$zlibInclude\zlib.h" -Destination $targetInc -Force
-          Copy-Item -Path "$zlibInclude\zconf.h" -Destination $targetInc -Force
-          Write-Host "zlib static library ready"
-
-      - name: Clean previous Windows build
-        run: flutter clean
-
-      - name: Build Windows app (release)
-        run: flutter build windows --release
-
-      - name: Check dependencies of shirm_crypto.dll
-        shell: cmd
-        run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          dumpbin /dependents build\windows\x64\runner\Release\shirm_crypto.dll
-          
-      - name: Copy VC++ runtime DLLs into release folder
-        shell: powershell
-        run: |
-          $dest = "build\windows\x64\runner\Release"
-          # Ищем vcruntime140.dll в установленной Visual Studio
-          $vsRedist = $env:VCTOOLSREDISTDIR
-          if ($vsRedist) {
-            $crtDir = Join-Path $vsRedist "x64\Microsoft.VC143.CRT"
-            if (Test-Path "$crtDir\vcruntime140.dll") {
-              Copy-Item "$crtDir\vcruntime140.dll" $dest -Force
-              Copy-Item "$crtDir\msvcp140.dll" $dest -Force -ErrorAction SilentlyContinue
-              Write-Host "Copied VC++ runtime from VS redist"
-              exit 0
-            }
-          }
-          choco install vcredist140 -y --limit-output
-          $sys32 = "$env:SystemRoot\System32"
-          Copy-Item "$sys32\vcruntime140.dll" $dest -Force
-          Copy-Item "$sys32\msvcp140.dll" $dest -Force -ErrorAction SilentlyContinue
-          Write-Host "Copied VC++ runtime from System32"
-
-      - name: Install .NET SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.x'
-
-      - name: Install Velopack CLI
-        run: dotnet tool install --global vpk
-
-      - name: Get version from pubspec (clean)
-        id: version
+      - name: Build NSIS installer
         shell: bash
         run: |
-          raw_version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
-          clean_version="${raw_version%%+*}"
-          echo "clean_version=$clean_version" >> $GITHUB_OUTPUT
-          echo "Raw: $raw_version -> Clean: $clean_version"
+          set -e
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | sed 's/+.*//' | xargs)
+          APP_BIN="${{ env.APP_BINARY }}"
+          APP_PROD="${{ env.APP_PRODUCT }}"
 
-      - name: Copy icon for Velopack
-        run: |
-          if (Test-Path "windows/runner/resources/app_icon.ico") {
-            Copy-Item "windows/runner/resources/app_icon.ico" -Destination "build/windows/x64/runner/Release/app.ico"
-            Write-Host "Icon copied successfully"
-          } else {
-            Write-Host "::warning::Icon not found at windows/runner/resources/app_icon.ico"
-          }
+          rm -rf nsis_payload && mkdir -p nsis_payload
+          cp -R build/windows/x64/runner/Release/* nsis_payload/
 
-      - name: Pack Windows with Velopack
-        run: |
-          vpk pack --packId "Vaultly" `
-            --packVersion "${{ steps.version.outputs.clean_version }}" `
-            --packDir "build/windows/x64/runner/Release" `
-            --outputDir "./artifacts" `
-            --mainExe "vaulth_app.exe" `
-            --icon "build/windows/x64/runner/Release/app.ico" `
-            --channel win
+          cat > installer.nsi <<NSIEOF
+          !include "MUI2.nsh"
+          Name "${APP_PROD}"
+          OutFile "dist\\qnd_updater-\${REF_NAME}-windows-setup.exe"
+          InstallDir "\$PROGRAMFILES64\\${APP_PROD}"
+          RequestExecutionLevel admin
+          Unicode true
 
-      - name: Upload Windows artifacts to release
-        uses: softprops/action-gh-release@v1
+          !define MUI_FINISHPAGE_RUN "\$INSTDIR\\${APP_BIN}.exe"
+          !insertmacro MUI_PAGE_WELCOME
+          !insertmacro MUI_PAGE_DIRECTORY
+          !insertmacro MUI_PAGE_INSTFILES
+          !insertmacro MUI_PAGE_FINISH
+          !insertmacro MUI_LANGUAGE "English"
+          !insertmacro MUI_LANGUAGE "Russian"
+
+          Section "Install"
+            SetOutPath "\$INSTDIR"
+            File /r "nsis_payload\\*.*"
+            CreateDirectory "\$SMPROGRAMS\\${APP_PROD}"
+            CreateShortcut "\$SMPROGRAMS\\${APP_PROD}\\${APP_PROD}.lnk" "\$INSTDIR\\${APP_BIN}.exe"
+            CreateShortcut "\$DESKTOP\\${APP_PROD}.lnk" "\$INSTDIR\\${APP_BIN}.exe"
+            WriteUninstaller "\$INSTDIR\\uninstall.exe"
+            WriteRegStr HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_PROD}" "DisplayName" "${APP_PROD}"
+            WriteRegStr HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_PROD}" "DisplayVersion" "\${VERSION}"
+            WriteRegStr HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_PROD}" "UninstallString" "\$INSTDIR\\uninstall.exe"
+          SectionEnd
+
+          Section "Uninstall"
+            Delete "\$DESKTOP\\${APP_PROD}.lnk"
+            RMDir /r "\$SMPROGRAMS\\${APP_PROD}"
+            RMDir /r "\$INSTDIR"
+            DeleteRegKey HKLM "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_PROD}"
+          SectionEnd
+          NSIEOF
+
+          MAKENSIS=$(command -v makensis || true)
+          [ -z "$MAKENSIS" ] && MAKENSIS="/c/Program Files (x86)/NSIS/makensis.exe"
+          [ -f "$MAKENSIS" ] || { echo "makensis not found"; exit 1; }
+
+          MSYS_NO_PATHCONV=1 "$MAKENSIS" -V2 \
+            -DREF_NAME="${{ github.ref_name }}" -DVERSION="$VERSION" installer.nsi
+          ls -la dist/
+
+      - uses: actions/upload-artifact@v4
         with:
-          files: |
-            ./artifacts/*.exe
-            ./artifacts/*.nupkg
-            ./artifacts/releases.win.json   
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: windows
+          path: dist/*
 
-  build-macos-velopack:
-    name: Build macOS Velopack (auto-update)
-    runs-on: macos-latest
+  build-linux:
+    name: Linux
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v4
+      - name: Install Linux deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev \
+            libglu1-mesa wget imagemagick zip
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.38.10'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
 
-      - name: Repair Flutter pub cache
-        run: flutter pub cache repair
+      - run: flutter config --enable-linux-desktop
+      - run: flutter pub get
+      - run: flutter build linux --release
 
-      - name: Clean previous builds
-        run: flutter clean
-
-      - name: Enable macOS support
-        run: flutter config --enable-macos-desktop
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Run code generation
-        run: flutter pub run build_runner build --delete-conflicting-outputs
-
-      - name: Get version from pubspec (clean)
-        id: version
-        shell: bash
+      - name: Version file + bundle
         run: |
-          raw_version=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
-          clean_version="${raw_version%%+*}"
-          echo "clean_version=$clean_version" >> $GITHUB_OUTPUT
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | sed 's/+.*//' | xargs)
+          echo "$VERSION" > build/linux/x64/release/bundle/version
 
-      - name: Build macOS ARM
-        run: FLUTTER_XCODE_ARCHS=arm64 flutter build macos --release
-
-      - name: Copy ARM app outside build directory
-        run: cp -R build/macos/Build/Products/Release/Vaultly.app /tmp/Vaultly_arm64.app
-
-      - name: Clean for Intel build
+      - name: Zip (auto-update)
         run: |
-          rm -rf build/macos
+          TAG="${{ github.ref_name }}"
+          mkdir -p dist
+          ( cd build/linux/x64/release/bundle && zip -qry "$GITHUB_WORKSPACE/dist/qnd_updater-${TAG}-linux.zip" . )
+
+      - name: .run installer
+        run: |
+          set -e
+          TAG="${{ github.ref_name }}"
+          APP_BIN="${{ env.APP_BINARY }}"
+          APP_PROD="${{ env.APP_PRODUCT }}"
+          BUNDLE=build/linux/x64/release/bundle
+
+          rm -rf /tmp/run_payload && mkdir -p /tmp/run_payload
+          cp -R "$BUNDLE"/* /tmp/run_payload/
+          ( cd /tmp/run_payload && tar -czf /tmp/payload.tar.gz . )
+
+          cat > /tmp/installer_header.sh <<RUNEOF
+          #!/bin/bash
+          set -e
+          APP_BIN="${APP_BIN}"
+          APP_PROD="${APP_PROD}"
+          DEFAULT_DIR="\$HOME/.local/share/\${APP_BIN}"
+          read -e -p "Куда установить? [\$DEFAULT_DIR]: " INSTALL_DIR
+          INSTALL_DIR="\${INSTALL_DIR:-\$DEFAULT_DIR}"
+          INSTALL_DIR="\${INSTALL_DIR/#\\~/\$HOME}"
+          if [ -e "\$INSTALL_DIR" ]; then
+            read -p "Директория существует. Перезаписать? [y/N]: " a
+            case "\$a" in [yY]*) rm -rf "\$INSTALL_DIR" ;; *) exit 1 ;; esac
+          fi
+          mkdir -p "\$INSTALL_DIR"
+          PAYLOAD_LINE=\$(awk '/^__PAYLOAD_BELOW__$/{print NR + 1; exit 0;}' "\$0")
+          tail -n +\$PAYLOAD_LINE "\$0" | tar -xz -C "\$INSTALL_DIR"
+          chmod +x "\$INSTALL_DIR/\$APP_BIN"
+          mkdir -p "\$HOME/.local/share/applications"
+          cat > "\$HOME/.local/share/applications/\${APP_BIN}.desktop" <<EOF
+          [Desktop Entry]
+          Type=Application
+          Name=\$APP_PROD
+          Exec=\$INSTALL_DIR/\$APP_BIN
+          Categories=Utility;
+          Terminal=false
+          EOF
+          chmod +x "\$HOME/.local/share/applications/\${APP_BIN}.desktop"
+          mkdir -p "\$HOME/.local/bin"
+          ln -sf "\$INSTALL_DIR/\$APP_BIN" "\$HOME/.local/bin/\${APP_BIN}"
+          echo "Установлено в \$INSTALL_DIR"
+          exit 0
+          __PAYLOAD_BELOW__
+          RUNEOF
+
+          RUN="$GITHUB_WORKSPACE/dist/qnd_updater-${TAG}-linux-setup.run"
+          cat /tmp/installer_header.sh /tmp/payload.tar.gz > "$RUN"
+          chmod +x "$RUN"
+
+      - name: AppImage
+        run: |
+          set -e
+          TAG="${{ github.ref_name }}"
+          APP_BIN="${{ env.APP_BINARY }}"
+          APP_PROD="${{ env.APP_PRODUCT }}"
+          BUNDLE=build/linux/x64/release/bundle
+
+          wget -q -O /tmp/appimagetool \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x /tmp/appimagetool
+
+          APPDIR=/tmp/AppDir
+          rm -rf "$APPDIR" && mkdir -p "$APPDIR/usr/bin"
+          cp -R "$BUNDLE"/* "$APPDIR/usr/bin/"
+
+          cat > "$APPDIR/${APP_BIN}.desktop" <<EOF
+          [Desktop Entry]
+          Type=Application
+          Name=${APP_PROD}
+          Exec=${APP_BIN}
+          Icon=${APP_BIN}
+          Categories=Utility;
+          Terminal=false
+          EOF
+
+          if [ -f "$BUNDLE/data/flutter_assets/assets/logo_r.png" ]; then
+            cp "$BUNDLE/data/flutter_assets/assets/logo_r.png" "$APPDIR/${APP_BIN}.png"
+          else
+            convert -size 256x256 xc:'#673AB7' "$APPDIR/${APP_BIN}.png"
+          fi
+
+          cat > "$APPDIR/AppRun" <<EOF
+          #!/bin/bash
+          HERE="\$(dirname "\$(readlink -f "\${0}")")"
+          exec "\${HERE}/usr/bin/${APP_BIN}" "\$@"
+          EOF
+          chmod +x "$APPDIR/AppRun"
+
+          ARCH=x86_64 /tmp/appimagetool --appimage-extract-and-run \
+            "$APPDIR" "$GITHUB_WORKSPACE/dist/qnd_updater-${TAG}-linux.AppImage"
+
+      - name: .deb
+        run: |
+          set -e
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | sed 's/+.*//' | xargs)
+          APP_BIN="${{ env.APP_BINARY }}"
+          APP_PROD="${{ env.APP_PRODUCT }}"
+          BUNDLE=build/linux/x64/release/bundle
+
+          PKG=/tmp/qnd-updater_${VERSION}_amd64
+          rm -rf "$PKG"
+          mkdir -p "$PKG/DEBIAN" "$PKG/usr/lib/${APP_BIN}" "$PKG/usr/bin" \
+                   "$PKG/usr/share/applications" \
+                   "$PKG/usr/share/icons/hicolor/256x256/apps"
+          cp -R "$BUNDLE"/* "$PKG/usr/lib/${APP_BIN}/"
+
+          cat > "$PKG/usr/bin/${APP_BIN}" <<EOF
+          #!/bin/bash
+          exec /usr/lib/${APP_BIN}/${APP_BIN} "\$@"
+          EOF
+          chmod +x "$PKG/usr/bin/${APP_BIN}"
+
+          cat > "$PKG/usr/share/applications/${APP_BIN}.desktop" <<EOF
+          [Desktop Entry]
+          Type=Application
+          Name=${APP_PROD}
+          Exec=${APP_BIN}
+          Icon=${APP_BIN}
+          Categories=Utility;
+          Terminal=false
+          EOF
+
+          if [ -f "$BUNDLE/data/flutter_assets/assets/logo_r.png" ]; then
+            cp "$BUNDLE/data/flutter_assets/assets/logo_r.png" \
+               "$PKG/usr/share/icons/hicolor/256x256/apps/${APP_BIN}.png"
+          else
+            convert -size 256x256 xc:'#673AB7' \
+              "$PKG/usr/share/icons/hicolor/256x256/apps/${APP_BIN}.png"
+          fi
+
+          cat > "$PKG/DEBIAN/control" <<EOF
+          Package: qnd-updater
+          Version: ${VERSION}
+          Architecture: amd64
+          Maintainer: efedotof <efedotof@users.noreply.github.com>
+          Description: ${APP_PROD}
+          Depends: libgtk-3-0 | libgtk-3-0t64, libglu1-mesa
+          Section: utils
+          Priority: optional
+          EOF
+
+          dpkg-deb --build "$PKG" "$GITHUB_WORKSPACE/dist/qnd-updater-${VERSION}-linux.deb"
+          ls -la dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/*
+
+  build-macos:
+    name: macOS Universal
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter config --enable-native-assets
+      - run: flutter config --enable-macos-desktop
+      - run: flutter pub get
+
+      - name: Detect bundle name
+        id: bundle
+        run: |
+          NAME=$(grep -E '^\s*PRODUCT_NAME\s*=' macos/Runner/Configs/AppInfo.xcconfig \
+                 | head -1 | sed 's/.*= *//' | tr -d '[:space:]')
+          echo "name=${NAME:-Runner}" >> $GITHUB_OUTPUT
+          echo "Bundle name: ${NAME:-Runner}"
+
+      - name: Build arm64
+        env: { FLUTTER_XCODE_ARCHS: arm64 }
+        run: flutter build macos --release
+      - run: |
+          mkdir -p /tmp/arm
+          cp -R build/macos/Build/Products/Release/*.app /tmp/arm/
+
+      - name: Clean
+        run: |
           flutter clean
+          flutter pub get
 
-      - name: Build macOS Intel
-        run: FLUTTER_XCODE_ARCHS=x86_64 flutter build macos --release
+      - name: Build x86_64
+        env:
+          FLUTTER_XCODE_ARCHS: x86_64
+          FLUTTER_XCODE_ONLY_ACTIVE_ARCH: "NO"
+        run: flutter build macos --release
+      - run: |
+          mkdir -p /tmp/intel
+          cp -R build/macos/Build/Products/Release/*.app /tmp/intel/
 
-      - name: Copy Intel app outside build directory
-        run: cp -R build/macos/Build/Products/Release/Vaultly.app /tmp/Vaultly_x86_64.app
-
-      - name: Create universal binary (Intel as base, add ARM slices)
+      - name: lipo merge
         run: |
-          UNIVERSAL="/tmp/Vaultly_universal.app"
-          cp -R /tmp/Vaultly_x86_64.app "$UNIVERSAL"
-
-          # Главный бинарник
-          lipo -create \
-            /tmp/Vaultly_arm64.app/Contents/MacOS/Vaultly \
-            "$UNIVERSAL/Contents/MacOS/Vaultly" \
-            -output "$UNIVERSAL/Contents/MacOS/Vaultly"
-
-          # Фреймворки
-          for framework in "$UNIVERSAL/Contents/Frameworks/"*.framework; do
-            fname=$(basename "$framework" .framework)
-            bin="Versions/A/${fname}"
-            intel_bin="${framework}/${bin}"
-            arm_bin="/tmp/Vaultly_arm64.app/Contents/Frameworks/${fname}.framework/${bin}"
-            if [ -f "$intel_bin" ] && [ -f "$arm_bin" ]; then
-              echo "Making universal: $fname"
-              lipo -create "$arm_bin" "$intel_bin" -output "$intel_bin"
-            fi
+          set -e
+          B="${{ steps.bundle.outputs.name }}"
+          U=/tmp/universal/$B.app
+          mkdir -p /tmp/universal
+          cp -R "/tmp/arm/$B.app" "$U"
+          MAIN=$(ls "$U/Contents/MacOS/" | head -n1)
+          lipo -create "/tmp/arm/$B.app/Contents/MacOS/$MAIN" \
+                       "/tmp/intel/$B.app/Contents/MacOS/$MAIN" \
+                       -output "$U/Contents/MacOS/$MAIN"
+          for fw in "$U/Contents/Frameworks/"*.framework; do
+            n=$(basename "$fw" .framework)
+            bin="$fw/Versions/A/$n"; [ -f "$bin" ] || bin="$fw/$n"
+            a="/tmp/arm/$B.app/Contents/Frameworks/$n.framework/Versions/A/$n"
+            i="/tmp/intel/$B.app/Contents/Frameworks/$n.framework/Versions/A/$n"
+            [ -f "$a" ] && [ -f "$i" ] && lipo -create "$a" "$i" -output "$bin"
           done
 
-          cp -R "$UNIVERSAL" /tmp/vaulth_app.app
-
-      - name: Move final app to build directory for Velopack
+      - name: Sign
         run: |
-          mkdir -p build/macos/Build/Products/Release
-          mv /tmp/vaulth_app.app build/macos/Build/Products/Release/vaulth_app.app
+          cat > /tmp/ent.plist <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>com.apple.security.cs.allow-jit</key><true/>
+            <key>com.apple.security.network.client</key><true/>
+          </dict></plist>
+          EOF
+          find /tmp/universal -type d -name _CodeSignature -prune -exec rm -rf {} + 2>/dev/null || true
+          codesign --force --deep --sign - --entitlements /tmp/ent.plist /tmp/universal/*.app
+          codesign -d --entitlements - /tmp/universal/*.app
+          codesign -d --entitlements :- /tmp/universal/*.app | grep -i sandbox && exit 1 || true
 
-      - name: Install .NET SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.x'
-
-      - name: Install Velopack CLI
-        run: dotnet tool install --global vpk
-
-      - name: Pack with Velopack
+      - name: ZIP via ditto
         run: |
-          vpk pack \
-            --packId "Vaultly" \
-            --packVersion "${{ steps.version.outputs.clean_version }}" \
-            --packDir "build/macos/Build/Products/Release/vaulth_app.app" \
-            --outputDir "./artifacts" \
-            --channel osx
+          TAG="${{ github.ref_name }}"
+          B="${{ steps.bundle.outputs.name }}"
+          mkdir -p dist
+          ( cd /tmp/universal && ditto -c -k --rsrc --extattr --keepParent "$B.app" \
+              "$GITHUB_WORKSPACE/dist/qnd_updater-${TAG}-macos.zip" )
 
-      - name: Upload Velopack artifacts to release
-        uses: softprops/action-gh-release@v1
+      - name: DMG
+        run: |
+          set -e
+          TAG="${{ github.ref_name }}"
+          B="${{ steps.bundle.outputs.name }}"
+          rm -rf /tmp/dmg && mkdir -p /tmp/dmg/.payload
+          ditto /tmp/universal "$B.app" "/tmp/dmg/.payload/$B.app"
+
+          cat > /tmp/dmg/Установить.command <<SCRIPT
+          #!/bin/bash
+          set -e
+          DIR="\$(cd "\$(dirname "\$0")" && pwd)"
+          SRC="\$DIR/.payload/$B.app"
+          DEST="/Applications/$B.app"
+          rm -rf "\$DEST"
+          /usr/bin/ditto "\$SRC" "\$DEST"
+          /usr/bin/xattr -cr "\$DEST"
+          open "\$DEST"
+          SCRIPT
+          chmod +x /tmp/dmg/Установить.command
+
+          cat > /tmp/dmg/ПРОЧТИ_МЕНЯ.txt <<EOF
+          Установка
+          =========
+          1. Правый клик по "Установить.command" → "Открыть".
+          2. В предупреждении macOS нажать "Открыть" ещё раз.
+          Скрипт скопирует приложение в /Applications и запустит.
+          EOF
+
+          ln -s /Applications /tmp/dmg/Applications
+          SetFile -a V /tmp/dmg/.payload || true
+          hdiutil create -volname "${{ env.APP_PRODUCT }} ${TAG}" \
+            -srcfolder /tmp/dmg -ov -format UDZO \
+            "dist/qnd_updater-${TAG}-macos.dmg"
+          ls -la dist/
+
+      - uses: actions/upload-artifact@v4
         with:
+          name: macos
+          path: dist/*
+
+  release:
+    name: Publish release
+    needs: [build-android, build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: dist, merge-multiple: true }
+
+      - name: Verify required assets
+        run: |
+          set -e
+          REQ=("*-android.zip" "*.apk" "*-windows.zip" "*-windows-setup.exe"
+               "*-macos.zip" "*-macos.dmg" "*-linux.zip" "*-linux-setup.run"
+               "*-linux.deb" "*-linux.AppImage")
+          for p in "${REQ[@]}"; do
+            ls dist/$p >/dev/null 2>&1 || { echo "::error::missing $p"; exit 1; }
+          done
+          ls -la dist/
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
           files: |
-            ./artifacts/*.nupkg
-            ./artifacts/releases.osx.json
-            ./artifacts/*.pkg
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            dist/*.zip
+            dist/*.apk
+            dist/*.exe
+            dist/*.dmg
+            dist/*.deb
+            dist/*.AppImage
+            dist/*.run

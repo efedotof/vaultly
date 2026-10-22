@@ -14,7 +14,6 @@ class MainHomeScreen extends StatelessWidget {
   // Список экранов
   final List<Widget> _screens = [
     const HomeScreen(),
-    const ProfileScreen(),
     const SettingsScreen(),
   ];
 
@@ -34,7 +33,7 @@ class MainHomeScreen extends StatelessWidget {
           },
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Главная'),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Профиль'),
+           
             BottomNavigationBarItem(
               icon: Icon(Icons.settings),
               label: 'Настройки',

@@ -5,6 +5,7 @@ import 'package:vaulth_app/server/service/cache_service/cache_service.dart';
 import 'package:vaulth_app/server/service/decrypt_service/decrypt_service.dart';
 import 'package:vaulth_app/server/service/encrypt_service/encrypt_service.dart';
 
+import 'config.dart';
 import 'localization/localization.dart';
 import 'route/router.dart';
 import 'theme/app_theme.dart';
@@ -19,6 +20,9 @@ void main() async {
   
   //инициализация локализации
   Get.lazyPut(() => LocalizationRep());
+
+  //инициализация конфига сервера
+  Get.put(() => Config());
 
   runApp(VaultlyApp());
 }
