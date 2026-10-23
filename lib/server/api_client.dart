@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:get/get.dart';
+import 'package:get/get_connect.dart';
 import 'package:vaulth_app/config.dart';
 import 'package:vaulth_app/server/model/auth/auth_info.dart';
 import 'package:vaulth_app/server/service/logger/logger.dart';
@@ -17,7 +18,7 @@ class ApiClient {
   final GetConnect _connect;
 
   ApiClient({required Config config, GetConnect? connect})
-    : _connect = connect ?? GetConnect() {
+      : _connect = connect ?? GetConnect() {
     _connect.httpClient.baseUrl = config.baseUrl;
     _connect.httpClient.timeout = const Duration(seconds: 30);
     _connect.httpClient.defaultContentType = 'application/json';
@@ -60,12 +61,26 @@ class ApiClient {
     return ApiResponse(resp.statusCode ?? 0, resp.body);
   }
 
+
+  Future<ApiResponse> postMultipart(String path, FormData form) async {
+    final resp = await _connect.post(path, form);
+    return ApiResponse(resp.statusCode ?? 0, resp.body);
+  }
+
+  Future<ApiResponse> putMultipart(String path, FormData form) async {
+    final resp = await _connect.put(path, form);
+    return ApiResponse(resp.statusCode ?? 0, resp.body);
+  }
+
   Map<String, dynamic> jsonMap(dynamic body) {
     if (body == null) return {};
     if (body is Map<String, dynamic>) return body;
     if (body is Map) return Map<String, dynamic>.from(body);
     if (body is String && body.isNotEmpty) {
-      return jsonDecode(body) as Map<String, dynamic>;
+      try {
+        final decoded = jsonDecode(body);
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } catch (_) {}
     }
     return {};
   }
