@@ -1,1 +1,3 @@
-abstract interface class ServerKeyInterface {}
+abstract interface class ServerKeyInterface {
+  Future<String> getServerPublicKey();
+}
