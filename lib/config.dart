@@ -11,6 +11,7 @@ class Config extends GetxController {
   static const _kFolderPath = 'cfg_folder_path';
   static const _kUserPath = 'cfg_user_path';
   static const _kTempAccessPath = 'cfg_temp_access_path';
+  static const _kPairingPath = 'cfg_pairing_path';
 
   static const _kGithubOwner = 'cfg_github_owner';
   static const _kGithubRepo = 'cfg_github_repo';
@@ -24,6 +25,7 @@ class Config extends GetxController {
   static const _defaultFolderPath = '/api/folders';
   static const _defaultUserPath = '/api/users';
   static const _defaultTempAccessPath = '/tempacces/version132';
+  static const _defaultPairingPath = '/api/devices/pair';
 
   static const _defaultGithubOwner = 'efedotof';
   static const _defaultGithubRepo = 'vaultly';
@@ -37,6 +39,7 @@ class Config extends GetxController {
   final RxString _folderPath = _defaultFolderPath.obs;
   final RxString _userPath = _defaultUserPath.obs;
   final RxString _tempAccessPath = _defaultTempAccessPath.obs;
+  final RxString _pairingPath = _defaultPairingPath.obs;
 
   final RxString _githubOwner = _defaultGithubOwner.obs;
   final RxString _githubRepo = _defaultGithubRepo.obs;
@@ -61,7 +64,7 @@ class Config extends GetxController {
     _userPath.value = _prefs!.getString(_kUserPath) ?? _defaultUserPath;
     _tempAccessPath.value =
         _prefs!.getString(_kTempAccessPath) ?? _defaultTempAccessPath;
-
+    _pairingPath.value = _prefs!.getString(_kPairingPath) ?? _defaultPairingPath;
     _githubOwner.value =
         _prefs!.getString(_kGithubOwner) ?? _defaultGithubOwner;
     _githubRepo.value = _prefs!.getString(_kGithubRepo) ?? _defaultGithubRepo;
@@ -77,6 +80,7 @@ class Config extends GetxController {
   String get folderPath => _folderPath.value;
   String get userPath => _userPath.value;
   String get tempAccessPath => _tempAccessPath.value;
+  String get pairingPath => _pairingPath.value;
 
   String get githubOwner => _githubOwner.value;
   String get githubRepo => _githubRepo.value;
@@ -140,6 +144,11 @@ class Config extends GetxController {
     _prefs?.setString(_kTempAccessPath, v);
   }
 
+  set pairingPath(String v) {
+    _pairingPath.value = v;
+    _prefs?.setString(_kPairingPath, v);
+  }
+
   set githubOwner(String v) {
     _githubOwner.value = v;
     _prefs?.setString(_kGithubOwner, v);
@@ -154,6 +163,7 @@ class Config extends GetxController {
     _githubToken.value = v;
     _prefs?.setString(_kGithubToken, v);
   }
+
 
   Future<UpdateStatus> checkForUpdate() {
     return QndUpdater().checkForUpdate(
@@ -175,6 +185,7 @@ class Config extends GetxController {
     folderPath = _defaultFolderPath;
     userPath = _defaultUserPath;
     tempAccessPath = _defaultTempAccessPath;
+    pairingPath = _defaultPairingPath;
     githubOwner = _defaultGithubOwner;
     githubRepo = _defaultGithubRepo;
     githubToken = _defaultGithubToken;
