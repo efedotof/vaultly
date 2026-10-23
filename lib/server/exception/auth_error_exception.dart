@@ -1,6 +1,11 @@
 import 'package:get/get.dart';
 
-class AuthErrorException implements Exception{
-  @override 
-  String exceptionInfo() => "authorization_error".tr;
+class AuthErrorException implements Exception {
+  final String message;
+
+  AuthErrorException([String? message])
+      : message = message ?? 'authorization_error'.tr;
+
+  @override
+  String toString() => message;
 }

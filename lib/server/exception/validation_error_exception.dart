@@ -1,10 +1,13 @@
 import 'package:get/get.dart';
 
-class ValidationErrorException implements Exception{
-  final String? message;
+class ValidationErrorException implements Exception {
+  final String message;
 
-  ValidationErrorException(this.message);
-  
-  @override 
-  String exceptionInfo() => "validation_error".tr;
+  ValidationErrorException([String? message])
+      : message = message ?? 'validation_error'.tr;
+
+  String exceptionInfo() => message;
+
+  @override
+  String toString() => message;
 }
