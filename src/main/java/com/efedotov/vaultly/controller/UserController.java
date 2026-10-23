@@ -1,10 +1,11 @@
 package com.efedotov.vaultly.controller;
 
+import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,43 +19,49 @@ import com.efedotov.vaultly.dto.user.UpdateKeysRequest;
 import com.efedotov.vaultly.dto.user.UpdateRecoveryKeysRequest;
 import com.efedotov.vaultly.dto.user.UpdateUserRequest;
 import com.efedotov.vaultly.dto.user.UserProfileDto;
+import com.efedotov.vaultly.exception.BadRequestException;
+import com.efedotov.vaultly.exception.UsernameAlreadyExistsException;
 import com.efedotov.vaultly.security.CustomUserDetails;
 import com.efedotov.vaultly.service.UserService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
-    private final ObjectMapper objectMapper = JsonMapper.builder().build();
 
     @GetMapping("/me")
-    public ResponseEntity<UserProfileDto> getCurrentUserProfile(@AuthenticationPrincipal UserDetails currentUser) {
-        UUID userId = extractUserIdFromPrincipal(currentUser);
-        UserProfileDto profile = userService.getUserProfile(userId);
+    public ResponseEntity<UserProfileDto> getCurrentUserProfile(
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        UserProfileDto profile = userService.getUserProfile(currentUser.getUserId());
         return ResponseEntity.ok(profile);
     }
 
     @PutMapping("/me")
-    public ResponseEntity<UserProfileDto> updateCurrentUser(
+    public ResponseEntity<?> updateCurrentUser(
             @Valid @RequestBody UpdateUserRequest request,
-            @AuthenticationPrincipal UserDetails currentUser) {
-        UUID userId = extractUserIdFromPrincipal(currentUser);
-        UserProfileDto updatedProfile = userService.updateUser(userId, request);
-        return ResponseEntity.ok(updatedProfile);
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        try {
+            UserProfileDto updatedProfile = userService.updateUser(currentUser.getUserId(), request);
+            return ResponseEntity.ok(updatedProfile);
+        } catch (UsernameAlreadyExistsException e) {
+            log.warn("Username conflict on update by user {}: {}",
+                    currentUser.getUserId(), e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of(
+                            "error", "username_exists",
+                            "message", e.getMessage() != null ? e.getMessage() : "Username already exists"));
+        }
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserProfileDto> getUserProfileById(@PathVariable UUID id,
-            @AuthenticationPrincipal CustomUserDetails currentUser) {
+    public ResponseEntity<UserProfileDto> getUserProfileById(@PathVariable UUID id) {
         UserProfileDto profile = userService.getUserProfile(id);
         UserProfileDto publicView = new UserProfileDto();
         publicView.setId(profile.getId());
@@ -66,29 +73,55 @@ public class UserController {
         return ResponseEntity.ok(publicView);
     }
 
-    private UUID extractUserIdFromPrincipal(UserDetails principal) {
-        return ((CustomUserDetails) principal).getUserId();
-    }
-
     @PostMapping("/keys/recovery/update")
-    public ResponseEntity<Void> updateRecoveryKeys(
+    public ResponseEntity<?> updateRecoveryKeys(
             @AuthenticationPrincipal CustomUserDetails user,
             @Valid @RequestBody UpdateRecoveryKeysRequest request) {
-        userService.updateRecoveryKeys(user.getUserId(), request);
-        return ResponseEntity.ok().build();
+        try {
+            userService.updateRecoveryKeys(user.getUserId(), request);
+            return ResponseEntity.ok().build();
+        } catch (BadRequestException e) {
+            log.warn("Invalid recovery public key for user {}: {}",
+                    user.getUserId(), e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(Map.of(
+                            "error", "invalid_public_key",
+                            "message", e.getMessage() != null ? e.getMessage() : "Invalid public key"));
+        } catch (RuntimeException e) {
+            if ("Invalid password".equals(e.getMessage())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "invalid_password"));
+            }
+            throw e;
+        }
     }
 
     @GetMapping("/me/recovery-data")
-    public ResponseEntity<RecoveryDataResponse> getRecoveryData(@AuthenticationPrincipal CustomUserDetails user) {
+    public ResponseEntity<RecoveryDataResponse> getRecoveryData(
+            @AuthenticationPrincipal CustomUserDetails user) {
         RecoveryDataResponse response = userService.getRecoveryData(user.getUserId());
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/keys/update")
-    public ResponseEntity<Void> updateKeys(
+    public ResponseEntity<?> updateKeys(
             @AuthenticationPrincipal CustomUserDetails user,
             @Valid @RequestBody UpdateKeysRequest request) {
-        userService.updateKeys(user.getUserId(), request);
-        return ResponseEntity.ok().build();
+        try {
+            userService.updateKeys(user.getUserId(), request);
+            return ResponseEntity.ok().build();
+        } catch (BadRequestException e) {
+            log.warn("Invalid public key for user {}: {}", user.getUserId(), e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(Map.of(
+                            "error", "invalid_public_key",
+                            "message", e.getMessage() != null ? e.getMessage() : "Invalid public key"));
+        } catch (RuntimeException e) {
+            if ("Invalid password".equals(e.getMessage())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "invalid_password"));
+            }
+            throw e;
+        }
     }
 }

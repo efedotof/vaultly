@@ -128,7 +128,6 @@ public class AuthController {
         }
     }
 
-
     @PostMapping("/login/totp")
     public ResponseEntity<?> loginWithTotp(@Valid @RequestBody LoginWithTotpRequest request,
             HttpServletRequest httpRequest) {
@@ -152,7 +151,6 @@ public class AuthController {
         }
     }
 
-   
     @PostMapping("/totp/setup")
     public ResponseEntity<?> setupTotp(@AuthenticationPrincipal CustomUserDetails user) {
         log.info("TOTP setup requested for user: {}", user.getUsername());
@@ -168,7 +166,6 @@ public class AuthController {
         }
     }
 
-  
     @PostMapping("/totp/verify")
     public ResponseEntity<?> verifyTotp(
             @AuthenticationPrincipal CustomUserDetails user,
@@ -187,7 +184,7 @@ public class AuthController {
         }
     }
 
-    
+    @PostMapping("/totp/disable")
     public ResponseEntity<?> disableTotp(
             @AuthenticationPrincipal CustomUserDetails user,
             @Valid @RequestBody TotpDisableRequest request) {
@@ -222,7 +219,6 @@ public class AuthController {
         authService.logout(request.getToken());
     }
 
-
     @GetMapping("/health")
     public String healthCheck() {
         return "Auth service is healthy";
@@ -245,7 +241,6 @@ public class AuthController {
         } catch (Exception e) {
             loginAttemptService.ipFailed(ip);
             log.warn("Recovery failed: {}", e.getMessage());
-           
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "recovery_failed"));
         }

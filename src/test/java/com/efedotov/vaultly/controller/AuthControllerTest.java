@@ -185,7 +185,7 @@ class AuthControllerTest extends BaseControllerTest {
         }
 
         @Test
-        void register_ipBlocked_returns400() throws Exception {
+        void register_ipBlocked_returns429() throws Exception {
                 when(loginAttemptService.isIpBlocked(anyString())).thenReturn(true);
 
                 String pk = validPublicKeyPem();
@@ -195,7 +195,8 @@ class AuthControllerTest extends BaseControllerTest {
 
                 mockMvc.perform(post("/api/auth/register")
                                 .contentType(MediaType.APPLICATION_JSON).content(body))
-                                .andExpect(status().isBadRequest());
+                        .andExpect(status().isTooManyRequests())
+                        .andExpect(jsonPath("$.error").value("rate_limited"));
         }
 
         @Test

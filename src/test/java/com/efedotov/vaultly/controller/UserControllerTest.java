@@ -2,6 +2,8 @@ package com.efedotov.vaultly.controller;
 
 import com.efedotov.vaultly.dto.user.RecoveryDataResponse;
 import com.efedotov.vaultly.dto.user.UserProfileDto;
+import com.efedotov.vaultly.exception.BadRequestException;
+import com.efedotov.vaultly.exception.UsernameAlreadyExistsException;
 import com.efedotov.vaultly.model.User;
 import com.efedotov.vaultly.security.CustomUserDetails;
 import com.efedotov.vaultly.service.UserService;
@@ -63,7 +65,6 @@ class UserControllerTest extends BaseControllerTest {
         return dto;
     }
 
-    
 
     @Test
     void getMe_returnsProfile() throws Exception {
@@ -74,8 +75,6 @@ class UserControllerTest extends BaseControllerTest {
                 .andExpect(jsonPath("$.username").value("alice"))
                 .andExpect(jsonPath("$.id").value(userId.toString()));
     }
-
-    
 
     @Test
     void updateMe_valid_returnsProfile() throws Exception {
@@ -104,7 +103,21 @@ class UserControllerTest extends BaseControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    
+    @Test
+    void updateMe_usernameTaken_returns409() throws Exception {
+        when(userService.updateUser(eq(userId), any()))
+                .thenThrow(new UsernameAlreadyExistsException("Username 'bob' is already taken"));
+
+        String body = """
+                {"username":"bob"}
+                """;
+
+        mockMvc.perform(put("/api/users/me")
+                .with(authentication(auth))
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("username_exists"));
+    }
 
     @Test
     void getPublicProfileById_stripsSensitiveFields() throws Exception {
@@ -124,20 +137,22 @@ class UserControllerTest extends BaseControllerTest {
                 .andExpect(jsonPath("$.email").value(nullValue()));
     }
 
-        @Test
-        void getRecoveryData_returnsEncryptedRsaKey() throws Exception {
-                RecoveryDataResponse resp = new RecoveryDataResponse("rsa-blob");
-                when(userService.getRecoveryData(userId)).thenReturn(resp);
 
-                mockMvc.perform(get("/api/users/me/recovery-data").with(authentication(auth)))
-                        .andExpect(status().isOk())
-                        .andExpect(jsonPath("$.encryptedRsaKey").value("rsa-blob"));
-        }
+    @Test
+    void getRecoveryData_returnsEncryptedRsaKey() throws Exception {
+        RecoveryDataResponse resp = new RecoveryDataResponse("rsa-blob");
+        when(userService.getRecoveryData(userId)).thenReturn(resp);
+
+        mockMvc.perform(get("/api/users/me/recovery-data").with(authentication(auth)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.encryptedRsaKey").value("rsa-blob"));
+    }
+
 
     @Test
     void updateKeys_valid_returns200() throws Exception {
         String body = """
-                {"publicKey":"pub","privateKeyEncrypted":"priv","currentPassword":"pass"}
+                {"publicKey":"pub","currentPassword":"pass"}
                 """;
 
         mockMvc.perform(post("/api/users/keys/update")
@@ -151,7 +166,7 @@ class UserControllerTest extends BaseControllerTest {
     @Test
     void updateKeys_invalidBody_returns400() throws Exception {
         String body = """
-                {"publicKey":"","privateKeyEncrypted":"","currentPassword":""}
+                {"publicKey":"","currentPassword":""}
                 """;
 
         mockMvc.perform(post("/api/users/keys/update")
@@ -160,13 +175,44 @@ class UserControllerTest extends BaseControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    
+    @Test
+    void updateKeys_invalidPassword_returns401() throws Exception {
+        org.mockito.Mockito.doThrow(new RuntimeException("Invalid password"))
+                .when(userService).updateKeys(eq(userId), any());
+
+        String body = """
+                {"publicKey":"pub","currentPassword":"wrong"}
+                """;
+
+        mockMvc.perform(post("/api/users/keys/update")
+                .with(authentication(auth))
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("invalid_password"));
+    }
+
+    @Test
+    void updateKeys_invalidPublicKey_returns400() throws Exception {
+        org.mockito.Mockito.doThrow(new BadRequestException("Invalid public key format"))
+                .when(userService).updateKeys(eq(userId), any());
+
+        String body = """
+                {"publicKey":"not-a-key","currentPassword":"pass"}
+                """;
+
+        mockMvc.perform(post("/api/users/keys/update")
+                .with(authentication(auth))
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("invalid_public_key"));
+    }
+
+
 
     @Test
     void updateRecoveryKeys_valid_returns200() throws Exception {
         String body = """
-                {"recoveryPublicKey":"rpub","recoveryPrivateKeyEncrypted":"rpriv",
-                 "recoveryEncryptedRsaKey":"rsa","currentPassword":"pass"}
+                {"recoveryPublicKey":"rpub","recoveryEncryptedRsaKey":"rsa","currentPassword":"pass"}
                 """;
 
         mockMvc.perform(post("/api/users/keys/recovery/update")
@@ -180,13 +226,44 @@ class UserControllerTest extends BaseControllerTest {
     @Test
     void updateRecoveryKeys_invalidBody_returns400() throws Exception {
         String body = """
-                {"recoveryPublicKey":"","recoveryPrivateKeyEncrypted":"",
-                 "recoveryEncryptedRsaKey":"","currentPassword":""}
+                {"recoveryPublicKey":"","recoveryEncryptedRsaKey":"","currentPassword":""}
                 """;
 
         mockMvc.perform(post("/api/users/keys/recovery/update")
                 .with(authentication(auth))
                 .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateRecoveryKeys_invalidPassword_returns401() throws Exception {
+        org.mockito.Mockito.doThrow(new RuntimeException("Invalid password"))
+                .when(userService).updateRecoveryKeys(eq(userId), any());
+
+        String body = """
+                {"recoveryPublicKey":"rpub","recoveryEncryptedRsaKey":"rsa","currentPassword":"wrong"}
+                """;
+
+        mockMvc.perform(post("/api/users/keys/recovery/update")
+                .with(authentication(auth))
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("invalid_password"));
+    }
+
+    @Test
+    void updateRecoveryKeys_invalidPublicKey_returns400() throws Exception {
+        org.mockito.Mockito.doThrow(new BadRequestException("Invalid public key format"))
+                .when(userService).updateRecoveryKeys(eq(userId), any());
+
+        String body = """
+                {"recoveryPublicKey":"bad","recoveryEncryptedRsaKey":"rsa","currentPassword":"pass"}
+                """;
+
+        mockMvc.perform(post("/api/users/keys/recovery/update")
+                .with(authentication(auth))
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("invalid_public_key"));
     }
 }
