@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart' as crypto;
 import 'package:get/get.dart';
 import 'package:vaulth_app/server/model/auth/auth_response.dart';
+import 'package:vaulth_app/server/model/user/user_dto.dart';
 import 'secure_storage_io.dart';
 
 class AuthLocalStorage extends GetxService {
@@ -151,6 +152,30 @@ class AuthLocalStorage extends GetxService {
 
   Future<String?> getAccessToken() =>
       SecureStorageAdapter.read(key: _accessTokenKey);
+
+  Future<void> saveUserInfo(UserProfileDto profile) async {
+    await SecureStorageAdapter.write(
+      key: "user_infos",
+      value: jsonEncode(profile.toJson()),
+    );
+  }
+
+  Future<UserProfileDto?> getUserInfo() async {
+    final raw = await SecureStorageAdapter.read(key: "user_infos");
+
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      return UserProfileDto.fromJson(decoded);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<String?> getUserId() => SecureStorageAdapter.read(key: _userIdKey);
 
   Future<void> clearAuthData() async {

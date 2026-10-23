@@ -43,6 +43,7 @@ class VaultlyApp extends StatelessWidget {
     final localC = Get.find<LocalizationRep>();
     return Obx(() {
       return GetMaterialApp(
+        debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeMode.system,

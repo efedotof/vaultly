@@ -39,6 +39,7 @@ class AuthRepository implements AuthInterface {
   Future<UserProfileDto?> _loadUserData() async {
     final user = await Get.find<UserInterface>().getCurrentUserProfile();
     if (user == null) return null;
+       await _localStorage.saveUserInfo(user);
     return user;
   }
 
@@ -61,8 +62,9 @@ class AuthRepository implements AuthInterface {
           await _localStorage.saveAuthData(authResp);
 
           final user = await _loadUserData();
+          
           auth.user = user;
-
+          
           await _localStorage.savePassword(request.password);
           return auth;
 
