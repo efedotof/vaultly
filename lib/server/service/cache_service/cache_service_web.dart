@@ -16,4 +16,6 @@ class CacheService extends GetxService {
   }
 
   bool get isInitial => _isInit;
+
+  Future<void> cacheShps()async{}
 }

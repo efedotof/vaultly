@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vaulth_app/binding/app_binding.dart';
-import 'package:vaulth_app/config.dart';
 import 'package:vaulth_app/localization/localization_rep.dart';
 import 'package:vaulth_app/server/service/cache_service/cache_service.dart';
 import 'package:vaulth_app/server/service/decrypt_service/decrypt_service.dart';
