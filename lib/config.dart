@@ -64,7 +64,8 @@ class Config extends GetxController {
     _userPath.value = _prefs!.getString(_kUserPath) ?? _defaultUserPath;
     _tempAccessPath.value =
         _prefs!.getString(_kTempAccessPath) ?? _defaultTempAccessPath;
-    _pairingPath.value = _prefs!.getString(_kPairingPath) ?? _defaultPairingPath;
+    _pairingPath.value =
+        _prefs!.getString(_kPairingPath) ?? _defaultPairingPath;
     _githubOwner.value =
         _prefs!.getString(_kGithubOwner) ?? _defaultGithubOwner;
     _githubRepo.value = _prefs!.getString(_kGithubRepo) ?? _defaultGithubRepo;
@@ -164,7 +165,6 @@ class Config extends GetxController {
     _prefs?.setString(_kGithubToken, v);
   }
 
-
   Future<UpdateStatus> checkForUpdate() {
     return QndUpdater().checkForUpdate(
       githubToken: githubToken,
@@ -206,4 +206,7 @@ class Config extends GetxController {
     _githubRepo.value = _defaultGithubRepo;
     _githubToken.value = _defaultGithubToken;
   }
+
+  String get connectStatus =>
+      baseUrl == _defaultBaseUrl ? "глобальный" : "собственный";
 }

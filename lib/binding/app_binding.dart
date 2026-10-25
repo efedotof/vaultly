@@ -22,11 +22,9 @@ import 'package:vaulth_app/storage/auth_local_storage.dart';
 class AppBinding extends Bindings {
   @override
   void dependencies() {
-    //инициализация конфига сервера
-    Get.put(() => Config());
 
     //инициализация api
-    Get.put(() => ApiClient(config: Get.find<Config>()));
+    Get.put(ApiClient(config: Get.find<Config>()));
 
     //инициализация репозиториев и интерфейсов
     Get.lazyPut<AuthInterface>(

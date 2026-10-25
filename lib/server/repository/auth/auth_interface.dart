@@ -12,8 +12,8 @@ import 'package:vaulth_app/server/model/auth/totp_setup_response.dart';
 import 'package:vaulth_app/server/model/auth/totp_verify_request.dart';
 import 'package:vaulth_app/server/model/auth/totp_verify_response.dart';
 
-
 abstract interface class AuthInterface {
+  
   //логин
   Future<AuthInfo?> login({required LoginRequest request});
 
@@ -21,7 +21,7 @@ abstract interface class AuthInterface {
   Future<AuthInfo> registration({required RegisterRequest request});
 
   //вход по totp
-  Future<void> totpLogin({required LoginWithTotpRequest request});
+  Future<AuthInfo> totpLogin({required LoginWithTotpRequest request});
 
   //включить двухфакторку
   Future<TotpSetupResponse> totpSetup();

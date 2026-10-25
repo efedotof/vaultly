@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:vaulth_app/features/auth/controller/auth_controller.dart';
+
+import 'custom_text_field.dart';
 
 class PasswordWidget extends StatelessWidget {
-  const PasswordWidget({super.key, required this.action});
+  const PasswordWidget({
+    super.key,
+    required this.action,
+    required this.passwordController,
+  });
   final VoidCallback action;
+
+  final TextEditingController passwordController;
 
   @override
   Widget build(BuildContext context) {
@@ -18,13 +27,14 @@ class PasswordWidget extends StatelessWidget {
             color: Color(0xFF525252),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: TextField(
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              hintText: "пароль",
-            ),
+          child: CustomTextField(
+            editingAction: () => {
+              Get.find<AuthController>().password.value =
+                  passwordController.text,
+            },
+            controller: passwordController,
+            isPassword: true,
+            hintText: "password".tr,
           ),
         ),
 

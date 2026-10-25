@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:vaulth_app/features/auth/controller/auth_controller.dart';
+import 'package:vaulth_app/features/auth/widget/custom_text_field.dart';
 
 class LoginWidget extends StatelessWidget {
-  const LoginWidget({super.key, required this.action});
+  const LoginWidget({
+    super.key,
+    required this.action,
+    required this.usernameController,
+  });
   final VoidCallback action;
+
+  final TextEditingController usernameController;
 
   @override
   Widget build(BuildContext context) {
@@ -18,13 +26,15 @@ class LoginWidget extends StatelessWidget {
             color: Color(0xFF525252),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: TextField(
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              hintText: "username".tr,
-            ),
+
+          child: CustomTextField(
+            editingAction: () => {
+              Get.find<AuthController>().username.value =
+                  usernameController.text,
+            },
+            controller: usernameController,
+            isPassword: false,
+            hintText: "username".tr,
           ),
         ),
 
