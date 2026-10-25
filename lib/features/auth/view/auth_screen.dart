@@ -5,7 +5,6 @@ import 'package:vaulth_app/features/auth/controller/auth_controller.dart';
 import 'package:vaulth_app/features/auth/widget/widget.dart';
 import 'package:vaulth_app/features/global_widget/connection_checher/view/connection_checker.dart';
 
-//единый экран авторизации
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
@@ -14,14 +13,17 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  //для username
   final TextEditingController usernameController = TextEditingController();
-
-  //для пароля пользователя
   final TextEditingController passwordController = TextEditingController();
-
-  //для конфига собственного подключения к серверу
   final TextEditingController baseUrl = TextEditingController();
+
+  @override
+  void dispose() {
+    usernameController.dispose();
+    passwordController.dispose();
+    baseUrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +34,7 @@ class _AuthScreenState extends State<AuthScreen> {
           Container(
             width: double.infinity,
             height: double.infinity,
-            color: Color(0xFF1d3687),
+            color: const Color(0xFF1d3687),
           ),
 
           Positioned(
@@ -41,12 +43,14 @@ class _AuthScreenState extends State<AuthScreen> {
             child: GestureDetector(
               onTap: () => showConfigSheet(),
               child: Container(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   borderRadius: BorderRadius.all(Radius.circular(11)),
                   color: Color(0xFF43416d),
                 ),
-                padding: EdgeInsets.all(10),
-                child: Obx(() => Text("Сервер: ${Get.find<Config>().connectStatus}")),
+                padding: const EdgeInsets.all(10),
+                child: Obx(
+                  () => Text("Сервер: ${Get.find<Config>().connectStatus}"),
+                ),
               ),
             ),
           ),
@@ -55,12 +59,12 @@ class _AuthScreenState extends State<AuthScreen> {
             left: 10,
             top: MediaQuery.of(context).size.height * 0.1,
             child: Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 borderRadius: BorderRadius.all(Radius.circular(11)),
                 color: Color(0xFF43416d),
               ),
-              padding: EdgeInsets.all(10),
-              child: Text("Язык: русский"),
+              padding: const EdgeInsets.all(10),
+              child: const Text("Язык: русский"),
             ),
           ),
 
@@ -68,23 +72,23 @@ class _AuthScreenState extends State<AuthScreen> {
             left: 0,
             right: 0,
             bottom: 0,
-
             child: Container(
               height: MediaQuery.of(context).size.height * 0.5,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(11),
                   topRight: Radius.circular(11),
                 ),
                 color: Color(0xFF43416d),
               ),
-              padding: EdgeInsets.all(10),
+              padding: const EdgeInsets.all(10),
               child: Obx(() {
                 switch (controller.state.value) {
                   case AuthStates.login:
                     return LoginWidget(
                       usernameController: usernameController,
-                      action: () {
+                      onSubmit: (text) {
+                        controller.username.value = text;
                         controller.goToNext();
                       },
                     );
@@ -92,19 +96,20 @@ class _AuthScreenState extends State<AuthScreen> {
                   case AuthStates.password:
                     return PasswordWidget(
                       passwordController: passwordController,
-                      action: () {
+                      onSubmit: (text) {
+                        controller.password.value = text;
                         controller.login();
                       },
                     );
 
                   case AuthStates.loading:
-                    return LoadingWidget();
+                    return const LoadingWidget();
                 }
               }),
             ),
           ),
 
-          const ConnectionChecker()
+          const ConnectionChecker(),
         ],
       ),
     );

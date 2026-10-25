@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:vaulth_app/features/auth/controller/auth_controller.dart';
 
-import 'custom_text_field.dart';
+import '../../global_widget/custom_text_field/custom_text_field.dart';
 
 class PasswordWidget extends StatelessWidget {
   const PasswordWidget({
     super.key,
-    required this.action,
+    required this.onSubmit,
     required this.passwordController,
   });
-  final VoidCallback action;
+  final ValueChanged<String> onSubmit;
 
   final TextEditingController passwordController;
 
@@ -28,17 +27,22 @@ class PasswordWidget extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
           ),
           child: CustomTextField(
-            editingAction: () => {
-              Get.find<AuthController>().password.value =
-                  passwordController.text,
-            },
             controller: passwordController,
+            onSubmitted: onSubmit,
             isPassword: true,
             hintText: "password".tr,
+            textInputAction: TextInputAction.done,
+            autofocus: true,
           ),
         ),
 
-        OutlinedButton(onPressed: action, child: Text("continue".tr)),
+        OutlinedButton(
+          onPressed: () {
+            FocusScope.of(context).unfocus();
+            onSubmit(passwordController.text);
+          },
+          child: Text("continue".tr),
+        ),
 
         RichText(
           textAlign: TextAlign.center,

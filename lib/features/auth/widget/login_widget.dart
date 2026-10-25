@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:vaulth_app/features/auth/controller/auth_controller.dart';
-import 'package:vaulth_app/features/auth/widget/custom_text_field.dart';
+import 'package:vaulth_app/features/global_widget/custom_text_field/custom_text_field.dart';
 
 class LoginWidget extends StatelessWidget {
   const LoginWidget({
     super.key,
-    required this.action,
+    required this.onSubmit,
     required this.usernameController,
   });
-  final VoidCallback action;
+  final ValueChanged<String> onSubmit;
 
   final TextEditingController usernameController;
 
@@ -21,24 +20,28 @@ class LoginWidget extends StatelessWidget {
         Center(child: Text("welcome".tr)),
 
         Container(
-          padding: EdgeInsets.all(3),
+          padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(
-            color: Color(0xFF525252),
+            color: const Color(0xFF525252),
             borderRadius: BorderRadius.circular(10),
           ),
-
           child: CustomTextField(
-            editingAction: () => {
-              Get.find<AuthController>().username.value =
-                  usernameController.text,
-            },
             controller: usernameController,
-            isPassword: false,
+            onSubmitted: onSubmit,
             hintText: "username".tr,
+            textInputAction: TextInputAction.next,
+            autofocus: true,
+            keyboardType: TextInputType.text,
           ),
         ),
 
-        OutlinedButton(onPressed: action, child: Text("continue".tr)),
+        OutlinedButton(
+          onPressed: () {
+            FocusScope.of(context).unfocus();
+            onSubmit(usernameController.text);
+          },
+          child: Text("continue".tr),
+        ),
 
         Container(
           width: double.infinity,

@@ -8,22 +8,37 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final profileController = Get.find<ProfileController>();
+    final c = Get.find<ProfileController>();
     return Scaffold(
       body: Obx(() {
-        switch (profileController.state.value) {
+        switch (c.state.value) {
+          case ProfileStates.loading:
+            return const Center(child: CircularProgressIndicator());
+
           case ProfileStates.createProfile:
             return CreateProfileWidget(
-              onPressed: () {
-                
-              },
+              onSave:
+                  ({
+                    required firstName,
+                    required lastName,
+                    required email,
+                    required totpEnabled,
+                  }) {
+                    c.createProfile(
+                      firstName: firstName,
+                      lastName: lastName,
+                      email: email,
+                      totpEnabled: totpEnabled,
+                    );
+                  },
             );
+
           case ProfileStates.myProfile:
-            return MyProfileWidget(onPressed: () {
-              Get.toNamed("/main_home");
-            });
+            return MyProfileWidget(onPressed: () => Get.toNamed('/main_home'));
+
           case ProfileStates.otherProfile:
             return OtherProfileWidget();
+
           case ProfileStates.updateProfile:
             return UpdateProfileWidget();
         }

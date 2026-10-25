@@ -4,16 +4,30 @@ import 'package:flutter/services.dart';
 class CustomTextField extends StatefulWidget {
   const CustomTextField({
     super.key,
-    required this.editingAction,
     required this.controller,
-    required this.isPassword,
+    this.onSubmitted,
+    this.isPassword = false,
     this.hintText,
+    this.textInputAction = TextInputAction.done,
+    this.focusNode,
+    this.nextFocusNode,
+    this.autofocus = false,
+    this.keyboardType,
+    this.allowWhitespace = false,
+    this.textAlign = TextAlign.justify,
   });
 
-  final VoidCallback editingAction;
   final TextEditingController controller;
+  final ValueChanged<String>? onSubmitted;
   final bool isPassword;
   final String? hintText;
+  final TextInputAction textInputAction;
+  final FocusNode? focusNode;
+  final FocusNode? nextFocusNode;
+  final bool autofocus;
+  final TextInputType? keyboardType;
+  final bool allowWhitespace;
+  final TextAlign textAlign;
 
   @override
   State<CustomTextField> createState() => _CustomTextFieldState();
@@ -31,19 +45,33 @@ class _CustomTextFieldState extends State<CustomTextField> {
         borderRadius: BorderRadius.circular(10),
       ),
       child: TextField(
-        textAlign: TextAlign.justify,
         controller: widget.controller,
+        focusNode: widget.focusNode,
+        autofocus: widget.autofocus,
+        textAlign: widget.textAlign,
+        textAlignVertical: TextAlignVertical.center,
         obscureText: widget.isPassword && _obscureText,
-        inputFormatters: [
-          FilteringTextInputFormatter.deny(RegExp(r'\s')),
-        ],
-        textAlignVertical:TextAlignVertical.center,
+        keyboardType: widget.keyboardType ??
+            (widget.isPassword
+                ? TextInputType.visiblePassword
+                : TextInputType.text),
+        textInputAction: widget.textInputAction,
+        inputFormatters: widget.allowWhitespace
+            ? null
+            : [FilteringTextInputFormatter.deny(RegExp(r'\s'))],
+        onSubmitted: (value) {
+          widget.onSubmitted?.call(value);
+          if (widget.nextFocusNode != null) {
+            widget.nextFocusNode!.requestFocus();
+          } else {
+            FocusScope.of(context).unfocus();
+          }
+        },
         decoration: InputDecoration(
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
           hintText: widget.hintText,
-          
           suffixIcon: widget.isPassword
               ? IconButton(
                   icon: Icon(
@@ -56,7 +84,6 @@ class _CustomTextFieldState extends State<CustomTextField> {
                 )
               : null,
         ),
-        onEditingComplete: widget.editingAction,
       ),
     );
   }

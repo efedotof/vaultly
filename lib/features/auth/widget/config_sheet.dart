@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vaulth_app/config.dart';
-import 'custom_text_field.dart';
+import '../../global_widget/custom_text_field/custom_text_field.dart';
 
 void showConfigSheet() {
   Get.bottomSheet(
-    const _ConfigSheet(),
+    Padding(
+      padding: EdgeInsets.only(
+        left: 10,
+        right: 10,
+        top: 10,
+        bottom: MediaQuery.viewInsetsOf(Get.context!).bottom + 10,
+      ),
+      child: const _ConfigSheet(),
+    ),
     isScrollControlled: true,
     backgroundColor: const Color(0xFF43416d),
     shape: const RoundedRectangleBorder(
@@ -28,6 +36,10 @@ class _ConfigSheetState extends State<_ConfigSheet> {
   late final TextEditingController _githubOwner;
   late final TextEditingController _githubToken;
 
+  final _baseUrlFocus = FocusNode();
+  final _githubOwnerFocus = FocusNode();
+  final _githubTokenFocus = FocusNode();
+
   @override
   void initState() {
     super.initState();
@@ -41,6 +53,9 @@ class _ConfigSheetState extends State<_ConfigSheet> {
     _baseUrl.dispose();
     _githubOwner.dispose();
     _githubToken.dispose();
+    _baseUrlFocus.dispose();
+    _githubOwnerFocus.dispose();
+    _githubTokenFocus.dispose();
     super.dispose();
   }
 
@@ -53,54 +68,47 @@ class _ConfigSheetState extends State<_ConfigSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return AnimatedPadding(
-          padding: EdgeInsets.only(
-            left: 10,
-            right: 10,
-            top: 10,
-            bottom: MediaQuery.viewInsetsOf(context).bottom + 10,
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CustomTextField(
+            controller: _baseUrl,
+            focusNode: _baseUrlFocus,
+            nextFocusNode: _githubOwnerFocus,
+            onSubmitted: (_) {},
+            hintText: 'Base URL',
+            textInputAction: TextInputAction.next,
+            autofocus: true,
           ),
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CustomTextField(
-                  editingAction: _save,
-                  controller: _baseUrl,
-                  isPassword: false,
-                  hintText: 'Base URL',
-                ),
-                const SizedBox(height: 10),
-                CustomTextField(
-                  editingAction: _save,
-                  controller: _githubOwner,
-                  isPassword: false,
-                  hintText: 'GitHub owner',
-                ),
-                const SizedBox(height: 10),
-                CustomTextField(
-                  editingAction: _save,
-                  controller: _githubToken,
-                  isPassword: true,
-                  hintText: 'GitHub token',
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _save,
-                    child: const Text('Сохранить'),
-                  ),
-                ),
-              ],
+          const SizedBox(height: 10),
+          CustomTextField(
+            controller: _githubOwner,
+            focusNode: _githubOwnerFocus,
+            nextFocusNode: _githubTokenFocus,
+            onSubmitted: (_) {},
+            hintText: 'GitHub owner',
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 10),
+          CustomTextField(
+            controller: _githubToken,
+            focusNode: _githubTokenFocus,
+            onSubmitted: (_) => _save(),
+            isPassword: true,
+            hintText: 'GitHub token',
+            textInputAction: TextInputAction.done,
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _save,
+              child: const Text('Сохранить'),
             ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
