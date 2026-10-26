@@ -24,6 +24,7 @@ import 'package:vaulth_app/server/model/auth/totp_verify_request.dart';
 import 'package:vaulth_app/server/model/auth/totp_verify_response.dart';
 import 'package:vaulth_app/server/model/user/user_profile_dto.dart';
 import 'package:vaulth_app/server/repository/user/user_interface.dart';
+import 'package:vaulth_app/server/service/key/key_manager.dart';
 import 'package:vaulth_app/server/service/logger/logger.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 import '../../model/auth/auth_response.dart';
@@ -57,6 +58,76 @@ class AuthRepository implements AuthInterface {
       Error.throwWithStackTrace(e, s);
     }
     Error.throwWithStackTrace(UnknownErrorException(), s);
+  }
+
+  Future<String> _getPublicKey(String password) async {
+    final keyManager = Get.find<KeyManagerService>();
+    keyManager.clearUserKeys();
+    Logger.d('_getPublicKey: start', tag: _tag);
+
+    String? publicKey;
+    try {
+      publicKey = await keyManager.getUserPublicKey();
+      Logger.d(
+        '_getPublicKey: getUserPublicKey → ${publicKey != null ? "found" : "null"}',
+        tag: _tag,
+      );
+    } catch (e, s) {
+      Logger.e(
+        '_getPublicKey: getUserPublicKey failed',
+        error: e,
+        stackTrace: s,
+        tag: _tag,
+      );
+      rethrow;
+    }
+
+    if (publicKey == null || publicKey.isEmpty) {
+      Logger.d('_getPublicKey: генерируем новую пару', tag: _tag);
+      try {
+        publicKey = await keyManager.generateAndStoreUserKeyPair(password);
+        Logger.d(
+          '_getPublicKey: сгенерировано, len=${publicKey.length}',
+          tag: _tag,
+        );
+      } catch (e, s) {
+        Logger.e(
+          '_getPublicKey: generateAndStoreUserKeyPair failed',
+          error: e,
+          stackTrace: s,
+          tag: _tag,
+        );
+        rethrow;
+      }
+    } else {
+      Logger.d('_getPublicKey: используем существующую пару', tag: _tag);
+    }
+
+    Logger.d('_getPublicKey: проверяем пару...', tag: _tag);
+    final isValid = await keyManager.verifyStoredKeyPairMatches(
+      password: password,
+    );
+    Logger.d('_getPublicKey: verify=$isValid', tag: _tag);
+
+    if (!isValid) {
+      final privateKey = await keyManager.getPrivateKey(password);
+      if (privateKey == null) {
+        Logger.d(
+          '_getPublicKey: приватный ключ не загрузился (пароль?)',
+          tag: _tag,
+        );
+        throw ValidationErrorException(
+          'Не удалось загрузить приватный ключ. Проверьте пароль.',
+        );
+      }
+      Logger.d(
+        '_getPublicKey: пара не сходится (storage corruption?)',
+        tag: _tag,
+      );
+      throw ValidationErrorException('Ключи не сходятся. Восстановите доступ.');
+    }
+
+    return publicKey;
   }
 
   Future<UserProfileDto?> _loadUserData() async {
@@ -211,7 +282,6 @@ class AuthRepository implements AuthInterface {
       tag: _tag,
     );
     try {
-      // ✅ отправляем publicKey, а не пустой {}
       final resp = await _apiClient.post(url, request.toJson());
       Logger.d('recoveryChallenge: статус ${resp.statusCode}', tag: _tag);
 
@@ -249,12 +319,28 @@ class AuthRepository implements AuthInterface {
   @override
   Future<AuthInfo> registration({required RegisterRequest request}) async {
     final url = '${_config.authPath}/register';
+    if (request.email == null ||
+        request.firstName == null ||
+        request.lastName == null) {
+      throw ValidationErrorException(
+        'Проверьте username / password / publicKey',
+      );
+    }
     Logger.d(
       'registration: POST $url username=${request.username} email=${request.email}',
       tag: _tag,
     );
     try {
-      final resp = await _apiClient.post(url, request.toJson());
+      final publicKey = await _getPublicKey(request.password);
+      final newRequest = RegisterRequest(
+        username: request.username,
+        password: request.password,
+        firstName: request.firstName,
+        lastName: request.lastName,
+        email: request.email,
+        publicKey: publicKey,
+      );
+      final resp = await _apiClient.post(url, newRequest.toJson());
       Logger.d('registration: статус ${resp.statusCode}', tag: _tag);
 
       switch (resp.statusCode) {

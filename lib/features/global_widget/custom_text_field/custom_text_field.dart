@@ -6,6 +6,7 @@ class CustomTextField extends StatefulWidget {
     super.key,
     required this.controller,
     this.onSubmitted,
+    this.onChanged,
     this.isPassword = false,
     this.hintText,
     this.textInputAction = TextInputAction.done,
@@ -15,10 +16,12 @@ class CustomTextField extends StatefulWidget {
     this.keyboardType,
     this.allowWhitespace = false,
     this.textAlign = TextAlign.justify,
+    this.hasError = false,
   });
 
   final TextEditingController controller;
   final ValueChanged<String>? onSubmitted;
+  final ValueChanged<String>? onChanged;
   final bool isPassword;
   final String? hintText;
   final TextInputAction textInputAction;
@@ -28,6 +31,7 @@ class CustomTextField extends StatefulWidget {
   final TextInputType? keyboardType;
   final bool allowWhitespace;
   final TextAlign textAlign;
+  final bool hasError;
 
   @override
   State<CustomTextField> createState() => _CustomTextFieldState();
@@ -43,6 +47,9 @@ class _CustomTextFieldState extends State<CustomTextField> {
       decoration: BoxDecoration(
         color: const Color(0xFF525252),
         borderRadius: BorderRadius.circular(10),
+        border: widget.hasError
+            ? Border.all(color: const Color(0xFFB00020), width: 1.5)
+            : null,
       ),
       child: TextField(
         controller: widget.controller,
@@ -51,7 +58,8 @@ class _CustomTextFieldState extends State<CustomTextField> {
         textAlign: widget.textAlign,
         textAlignVertical: TextAlignVertical.center,
         obscureText: widget.isPassword && _obscureText,
-        keyboardType: widget.keyboardType ??
+        keyboardType:
+            widget.keyboardType ??
             (widget.isPassword
                 ? TextInputType.visiblePassword
                 : TextInputType.text),
@@ -59,6 +67,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
         inputFormatters: widget.allowWhitespace
             ? null
             : [FilteringTextInputFormatter.deny(RegExp(r'\s'))],
+        onChanged: widget.onChanged,
         onSubmitted: (value) {
           widget.onSubmitted?.call(value);
           if (widget.nextFocusNode != null) {

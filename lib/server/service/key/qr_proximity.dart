@@ -1,1 +1,1 @@
-//  QR, proximity
+//  QR proximity

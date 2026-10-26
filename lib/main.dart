@@ -6,6 +6,9 @@ import 'package:vaulth_app/localization/localization_rep.dart';
 import 'package:vaulth_app/server/service/cache_service/cache_service.dart';
 import 'package:vaulth_app/server/service/decrypt_service/decrypt_service.dart';
 import 'package:vaulth_app/server/service/encrypt_service/encrypt_service.dart';
+import 'package:vaulth_app/server/service/key/device_id_generator.dart';
+import 'package:vaulth_app/server/service/key/key_manager.dart';
+import 'package:vaulth_app/server/service/key/recovery_phase.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 import 'package:vaulth_app/storage/secure_storage_adapter.dart';
 import 'config.dart';
@@ -26,7 +29,10 @@ void main() async {
   await Get.putAsync(() => CacheService().init()); //сервис кэширования
   await Get.putAsync(() => EncryptService().init()); //сервис шифрования
   await Get.putAsync(() => DecryptService().init()); //сервис дешифрования
-
+  await Get.putAsync(() => DeviceIdGenerator().init()); //сервис генерации айди устройства
+  await Get.putAsync(() => KeyManagerService().init()); //сервис управления, создания,сохранения ключей пользователя.
+  await Get.putAsync(() => RecoveryPhase().init()); //сервис создания seed 
+  
   //инициализация локализации
   Get.lazyPut(() => LocalizationRep());
 

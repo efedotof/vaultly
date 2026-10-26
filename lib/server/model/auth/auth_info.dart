@@ -10,6 +10,7 @@ class AuthInfo {
 
   AuthResponse? authResponse;
   UserProfileDto? user;
+  String? userPrivateKey;
 
   String get id => user?.id ?? "";
   String get email => user?.email ?? "";
@@ -19,6 +20,7 @@ class AuthInfo {
   int get storageUsed => user?.storageUsed ?? 0;
   int get storageLimit => user?.storageLimit ?? 0;
   String get publicKey => user?.publicKey ?? "";
+  String get privateKey => userPrivateKey ?? "";
 
   bool get isAuth => (authResponse?.accessToken ?? "").isNotEmpty;
 }
