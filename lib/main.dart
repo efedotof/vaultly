@@ -39,6 +39,9 @@ void main() async {
   //инициализация секретного хранилища
   Get.put(SecureStorageAdapter(), permanent: true);
 
+  //инициализируем profileController для 
+
+
   //инициализация хранилища
   final storage = Get.put(AuthLocalStorage(), permanent: true);
 

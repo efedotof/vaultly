@@ -21,25 +21,24 @@ class AuthLocalStorage extends GetxService {
 
   static crypto.SecretKey? _cachedMasterKey;
 
-  AuthResponse? _cachedAuth;
-  UserProfileDto? _cachedUserInfo;
+  final _cachedAuth = Rx<AuthResponse?>(null);
+  final _cachedUserInfo = Rx<UserProfileDto?>(null);
   bool _cacheReady = false;
 
   Future<void> initCache() async {
-    _cachedAuth = await loadAuthData();
-    _cachedUserInfo = await getUserInfo();
+    _cachedAuth.value = await loadAuthData();
+    _cachedUserInfo.value = await getUserInfo();
     _cacheReady = true;
   }
 
   bool get isCacheReady => _cacheReady;
 
   bool get hasCachedSession =>
-      _cacheReady && (_cachedAuth?.accessToken ?? '').isNotEmpty;
+      _cacheReady && (_cachedAuth.value?.accessToken ?? '').isNotEmpty;
 
-  AuthResponse? get cachedAuth => _cachedAuth;
-  UserProfileDto? get cachedUserInfo => _cachedUserInfo;
-
-  String? get cachedAccessToken => _cachedAuth?.accessToken;
+  AuthResponse? get cachedAuth => _cachedAuth.value;
+  UserProfileDto? get cachedUserInfo => _cachedUserInfo.value;
+  String? get cachedAccessToken => _cachedAuth.value?.accessToken;
 
   Future<crypto.SecretKey> _getOrCreateMasterKey() async {
     if (_cachedMasterKey != null) return _cachedMasterKey!;
@@ -140,7 +139,7 @@ class AuthLocalStorage extends GetxService {
       value: (response.roles ?? const <String>{}).join(','),
     );
 
-    _cachedAuth = response;
+    _cachedAuth.value = response;
   }
 
   Future<AuthResponse?> loadAuthData() async {
@@ -157,11 +156,11 @@ class AuthLocalStorage extends GetxService {
     final rolesStr = await SecureStorageAdapter.read(key: _rolesKey);
 
     if (accessToken == null || accessToken.isEmpty) {
-      _cachedAuth = null;
+      _cachedAuth.value = null;
       return null;
     }
     if (userId == null || userId.isEmpty) {
-      _cachedAuth = null;
+      _cachedAuth.value = null;
       return null;
     }
 
@@ -177,7 +176,7 @@ class AuthLocalStorage extends GetxService {
           : rolesStr.split(',').toSet(),
     );
 
-    _cachedAuth = auth;
+    _cachedAuth.value = auth;
     return auth;
   }
 
@@ -189,28 +188,28 @@ class AuthLocalStorage extends GetxService {
       key: "user_infos",
       value: jsonEncode(profile.toJson()),
     );
-    _cachedUserInfo = profile;
+    _cachedUserInfo.value = profile;
   }
 
   Future<UserProfileDto?> getUserInfo() async {
     final raw = await SecureStorageAdapter.read(key: "user_infos");
 
     if (raw == null || raw.isEmpty) {
-      _cachedUserInfo = null;
+      _cachedUserInfo.value = null;
       return null;
     }
 
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! Map<String, dynamic>) {
-        _cachedUserInfo = null;
+        _cachedUserInfo.value = null;
         return null;
       }
       final profile = UserProfileDto.fromJson(decoded);
-      _cachedUserInfo = profile;
+      _cachedUserInfo.value = profile;
       return profile;
     } catch (_) {
-      _cachedUserInfo = null;
+      _cachedUserInfo.value = null;
       return null;
     }
   }
@@ -228,7 +227,7 @@ class AuthLocalStorage extends GetxService {
     await SecureStorageAdapter.delete(key: _totpEnabledKey);
     await deletePassword();
 
-    _cachedAuth = null;
-    _cachedUserInfo = null;
+    _cachedAuth.value = null;
+    _cachedUserInfo.value = null;
   }
 }

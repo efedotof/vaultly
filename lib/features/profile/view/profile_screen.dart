@@ -34,13 +34,25 @@ class ProfileScreen extends StatelessWidget {
             );
 
           case ProfileStates.myProfile:
-            return MyProfileWidget(onPressed: () => Get.toNamed('/main_home'));
+            return MyProfileWidget(
+              onPressed: () => c.state.value = ProfileStates.updateProfile,
+            );
 
           case ProfileStates.otherProfile:
             return OtherProfileWidget();
 
           case ProfileStates.updateProfile:
-            return UpdateProfileWidget();
+            return UpdateProfileWidget(
+              onSave:
+                  ({required firstName, required lastName, required username}) {
+                    c.updateProfile(
+                      firstName: firstName,
+                      lastName: lastName,
+                      usernameInput: username,
+                    );
+                  },
+              onCancel: () => c.state.value = ProfileStates.myProfile,
+            );
         }
       }),
     );
