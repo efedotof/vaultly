@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:vaulth_app/features/global_widget/connection_checher/view/connection_checker.dart';
+import 'package:vaulth_app/features/global_widget/app_status_overlay/view/app_status_overlay.dart';
 import 'package:vaulth_app/features/profile/controller/profile_controller.dart';
 
 class MyProfileWidget extends StatelessWidget {
@@ -87,7 +87,7 @@ class MyProfileWidget extends StatelessWidget {
                 ),
               ),
             ),
-            const ConnectionChecker(),
+              const AppStatusOverlay(),
           ],
         );
       }),

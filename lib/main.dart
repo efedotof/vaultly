@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vaulth_app/binding/app_binding.dart';
-import 'package:vaulth_app/features/global_widget/connection_checher/controller/connection_checker_controller.dart';
+import 'package:vaulth_app/features/global_widget/app_status_overlay/controller/app_status_overlay_controller.dart';
 import 'package:vaulth_app/localization/localization_rep.dart';
 import 'package:vaulth_app/server/service/cache_service/cache_service.dart';
 import 'package:vaulth_app/server/service/decrypt_service/decrypt_service.dart';
@@ -23,7 +23,7 @@ void main() async {
   Get.put(Config());
 
   //инициализируем чекинг интернета и доступности сервера
-  Get.put(ConnectionCheckerController());
+  Get.put(AppStatusOverlayController());
   
   //инициализация глобальных сервисов
   await Get.putAsync(() => CacheService().init()); //сервис кэширования

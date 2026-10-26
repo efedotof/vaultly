@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:vaulth_app/features/global_widget/connection_checher/controller/connection_checker_controller.dart';
+import 'package:vaulth_app/features/global_widget/app_status_overlay/controller/app_status_overlay_controller.dart';
 
-class ConnectionChecker extends StatelessWidget {
-  const ConnectionChecker({super.key});
+class AppStatusOverlay extends StatelessWidget {
+  const AppStatusOverlay({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final c = Get.put(ConnectionCheckerController(), permanent: true);
+    final c = Get.put(AppStatusOverlayController(), permanent: true);
     return Obx(() {
       final connected = c.hasInternet.value && c.isServerConnected.value;
       final successFull = connected && c.successBanner.value;
@@ -18,7 +18,7 @@ class ConnectionChecker extends StatelessWidget {
       final visible = success || error;
 
       final noInternet = !c.hasInternet.value;
-      final checking = c.state.value == CheckersStatus.checking;
+      final checking = c.state.value == AppOverlayStatus.checking;
 
       final screenW = MediaQuery.of(context).size.width;
       final bannerWidth = (screenW * 0.65).clamp(160.0, 300.0);

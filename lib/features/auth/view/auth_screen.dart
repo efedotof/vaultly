@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:vaulth_app/config.dart';
 import 'package:vaulth_app/features/auth/controller/auth_controller.dart';
 import 'package:vaulth_app/features/auth/widget/widget.dart';
-import 'package:vaulth_app/features/global_widget/connection_checher/view/connection_checker.dart';
+import 'package:vaulth_app/features/global_widget/app_status_overlay/view/app_status_overlay.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -109,7 +109,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
           ),
 
-          const ConnectionChecker(),
+          const AppStatusOverlay(),
         ],
       ),
     );

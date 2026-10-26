@@ -6,12 +6,12 @@ import 'package:get/get.dart';
 import 'package:vaulth_app/config.dart';
 import 'package:vaulth_app/server/service/logger/logger.dart';
 
-enum CheckersStatus { none, checking, done, error }
+enum AppOverlayStatus { none, checking, done, error }
 
-class ConnectionCheckerController extends GetxController {
+class AppStatusOverlayController extends GetxController {
   final _config = Get.find<Config>();
 
-  final state = CheckersStatus.none.obs;
+  final state = AppOverlayStatus.none.obs;
   final hasInternet = true.obs;
   final isServerConnected = true.obs;
 
@@ -91,9 +91,9 @@ class ConnectionCheckerController extends GetxController {
   }
 
   Future<void> check() async {
-    if (state.value == CheckersStatus.checking) return;
+    if (state.value == AppOverlayStatus.checking) return;
     _timer?.cancel();
-    state.value = CheckersStatus.checking;
+    state.value = AppOverlayStatus.checking;
 
     final wasConnected = hasInternet.value && isServerConnected.value;
 
@@ -103,17 +103,17 @@ class ConnectionCheckerController extends GetxController {
 
       if (!internet) {
         isServerConnected.value = false;
-        state.value = CheckersStatus.error;
+        state.value = AppOverlayStatus.error;
       } else {
         final healthUrl = '${_config.baseUrl}${_config.authPath}/health';
         final server = await _ping(healthUrl);
         isServerConnected.value = server;
-        state.value = server ? CheckersStatus.done : CheckersStatus.error;
+        state.value = server ? AppOverlayStatus.done : AppOverlayStatus.error;
       }
     } catch (e, s) {
       hasInternet.value = false;
       isServerConnected.value = false;
-      state.value = CheckersStatus.error;
+      state.value = AppOverlayStatus.error;
       Logger.d('Неожиданная ошибка: ${e.runtimeType}: $e\n$s', tag: _tag);
     } finally {
       final nowConnected = hasInternet.value && isServerConnected.value;
@@ -156,7 +156,7 @@ class ConnectionCheckerController extends GetxController {
 
   void _applyBackoff() {
     final prev = _currentInterval;
-    if (state.value == CheckersStatus.done) {
+    if (state.value == AppOverlayStatus.done) {
       _currentInterval = _baseInterval;
     } else {
       final next = _currentInterval * 2;

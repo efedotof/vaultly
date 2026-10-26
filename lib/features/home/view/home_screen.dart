@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vaulth_app/features/global_widget/app_status_overlay/view/app_status_overlay.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -122,18 +123,7 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
 
-          Positioned(
-            bottom: 10,
-            left: 10,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.grey,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              padding: EdgeInsets.all(10),
-              child: Text("состояние"),
-            ),
-          ),
+          const AppStatusOverlay()
         ],
       ),
     );
