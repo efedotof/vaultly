@@ -28,20 +28,32 @@ class KeyManagerService extends GetxService {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final _CryptoHelperWeb _crypto = _CryptoHelperWeb();
 
-  static const _userPublicKey = 'user_public_key';
-  static const _userPrivateKey = 'user_private_key';
-  static const _userSalt = 'user_salt';
+  static const String pendingUserId = '__pending__';
+
+  static String _pubKey(String userId) => 'user_public_key:$userId';
+  static String _privKey(String userId) => 'user_private_key:$userId';
+  static String _saltKey(String userId) => 'user_salt:$userId';
 
   static const _devicePublicKey = 'device_public_key';
   static const _devicePrivateKey = 'device_private_key';
   static const _deviceSalt = 'device_salt';
 
   String? _cachedPrivateKeyPem;
+  String? _cachedPrivateKeyUserId;
 
-  Future<String?> getUserSalt() => _storage.read(key: _userSalt);
+  void _invalidateCache() {
+    _cachedPrivateKeyPem = null;
+    _cachedPrivateKeyUserId = null;
+  }
 
-  Future<String> generateAndStoreUserKeyPair(String password) async {
-    Logger.d('[KeyManagerServiceWeb] Generating user key pair...');
+  Future<String?> getUserSalt({required String userId}) =>
+      _storage.read(key: _saltKey(userId));
+
+  Future<void> generateAndStoreUserKeyPair({
+    required String userId,
+    required String password,
+  }) async {
+    Logger.d('[KeyManagerServiceWeb] Generating user key pair for $userId...');
     try {
       final pair = await RsaKeyGeneratorWeb.generate();
       final publicPem = pair.publicKeyPem;
@@ -53,19 +65,96 @@ class KeyManagerService extends GetxService {
       final encrypted = await _crypto.encrypt(privatePem, key);
       Logger.d('[KeyManagerServiceWeb] Private key encrypted with password');
 
-      await _storage.write(key: _userPublicKey, value: publicPem);
-      await _storage.write(key: _userPrivateKey, value: encrypted);
-      await _storage.write(key: _userSalt, value: salt);
+      await _storage.write(key: _pubKey(userId), value: publicPem);
+      await _storage.write(key: _privKey(userId), value: encrypted);
+      await _storage.write(key: _saltKey(userId), value: salt);
       _cachedPrivateKeyPem = privatePem;
+      _cachedPrivateKeyUserId = userId;
       Logger.d('[KeyManagerServiceWeb] User keys stored successfully');
-      return publicPem;
     } catch (e) {
       Logger.e('[KeyManagerServiceWeb] e generating user keys: $e');
       rethrow;
     }
   }
 
-  Future<String?> getPublicKey() async => getUserPublicKey();
+  Future<String?> getUserPublicKey({required String userId}) async {
+    final pub = await _storage.read(key: _pubKey(userId));
+    Logger.d(
+      '[KeyManagerServiceWeb] getUserPublicKey($userId): '
+      '${pub != null ? 'found' : 'not found'}',
+    );
+    return pub;
+  }
+
+  Future<void> saveUserPublicKey({
+    required String userId,
+    required String publicKeyPem,
+  }) async {
+    await _storage.write(key: _pubKey(userId), value: publicKeyPem);
+    Logger.d('[KeyManagerServiceWeb] User public key saved for $userId');
+  }
+
+  Future<String?> getUserEncryptedPrivateKeyData({
+    required String userId,
+  }) async {
+    return await _storage.read(key: _privKey(userId));
+  }
+
+  Future<void> storeUserPrivateKeyEncryptedWithPassword({
+    required String userId,
+    required String privateKeyPem,
+    required String password,
+    String? salt,
+  }) async {
+    final effectiveSalt = salt ?? _crypto.generateSalt();
+    final derivedKey = await _crypto.deriveKey(password, effectiveSalt);
+    final encrypted = await _crypto.encrypt(privateKeyPem, derivedKey);
+    await _storage.write(key: _privKey(userId), value: encrypted);
+    await _storage.write(key: _saltKey(userId), value: effectiveSalt);
+    _cachedPrivateKeyPem = privateKeyPem;
+    _cachedPrivateKeyUserId = userId;
+    Logger.d(
+      '[KeyManagerServiceWeb] User private key stored (encrypted with password) '
+      'for $userId',
+    );
+  }
+
+  Future<String?> getPrivateKeyPEM({
+    required String userId,
+    required String password,
+  }) async {
+    if (_cachedPrivateKeyPem != null && _cachedPrivateKeyUserId == userId) {
+      Logger.d(
+        '[KeyManagerServiceWeb] Returning cached private key PEM for $userId',
+      );
+      return _cachedPrivateKeyPem;
+    }
+    try {
+      final encrypted = await _storage.read(key: _privKey(userId));
+      final salt = await _storage.read(key: _saltKey(userId));
+      if (encrypted == null || salt == null) {
+        Logger.d(
+          '[KeyManagerServiceWeb] Private key or salt not found in storage '
+          'for $userId',
+        );
+        return null;
+      }
+      final key = await _crypto.deriveKey(password, salt);
+      final pem = await _crypto.decrypt(encrypted, key);
+      if (pem != null) {
+        _cachedPrivateKeyPem = pem;
+        _cachedPrivateKeyUserId = userId;
+      }
+      Logger.d(
+        '[KeyManagerServiceWeb] Private key PEM '
+        '${pem != null ? 'decrypted' : 'decryption failed'} for $userId',
+      );
+      return pem;
+    } catch (e) {
+      Logger.e('[KeyManagerServiceWeb] e getting private key PEM: $e');
+      return null;
+    }
+  }
 
   Future<String?> decryptPrivateKeyWithPassword(
     String encryptedKey,
@@ -83,64 +172,104 @@ class KeyManagerService extends GetxService {
     }
   }
 
-  Future<String?> getUserPublicKey() async {
-    final pub = await _storage.read(key: _userPublicKey);
-    Logger.d(
-      '[KeyManagerServiceWeb] getUserPublicKey: ${pub != null ? 'found' : 'not found'}',
-    );
-    return pub;
-  }
-
-  Future<String?> getUserEncryptedPrivateKeyData() async {
-    return await _storage.read(key: _userPrivateKey);
-  }
-
-  Future<void> storeUserPrivateKeyEncryptedWithPassword(
-    String privateKeyPem,
-    String password, {
-    String? salt,
+  Future<bool> verifyKeyPairMatch({
+    required String publicKeyPem,
+    required String userId,
+    required String password,
   }) async {
-    final effectiveSalt = salt ?? _crypto.generateSalt();
-    final derivedKey = await _crypto.deriveKey(password, effectiveSalt);
-    final encrypted = await _crypto.encrypt(privateKeyPem, derivedKey);
-    await _storage.write(key: _userPrivateKey, value: encrypted);
-    await _storage.write(key: _userSalt, value: effectiveSalt);
-    _cachedPrivateKeyPem = privateKeyPem;
-    Logger.d(
-      '[KeyManagerServiceWeb] User private key stored (encrypted with password)',
+    try {
+      final publicKey = await _importPublicKeyFromPem(publicKeyPem);
+
+      final privatePem = await getPrivateKeyPEM(
+        userId: userId,
+        password: password,
+      );
+      if (privatePem == null) {
+        Logger.d(
+          '[KeyManagerServiceWeb] verifyKeyPairMatch: private key unavailable '
+          'for $userId',
+        );
+        return false;
+      }
+      final privateKey = await _importPrivateKeyFromPem(privatePem);
+
+      final testMessage = utf8.encode('vaultly:keypair:test');
+      final encrypted = await publicKey.encryptBytes(testMessage);
+      final decrypted = await privateKey.decryptBytes(encrypted);
+
+      final matches = base64Encode(testMessage) == base64Encode(decrypted);
+      Logger.d('[KeyManagerServiceWeb] verifyKeyPairMatch: $matches');
+      return matches;
+    } catch (e) {
+      Logger.e('[KeyManagerServiceWeb] verifyKeyPairMatch error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> verifyStoredKeyPairMatches({
+    required String userId,
+    required String password,
+  }) async {
+    final publicPem = await getUserPublicKey(userId: userId);
+    if (publicPem == null || publicPem.isEmpty) {
+      Logger.d(
+        '[KeyManagerServiceWeb] verifyStoredKeyPairMatches($userId): no public key',
+      );
+      return false;
+    }
+    return verifyKeyPairMatch(
+      publicKeyPem: publicPem,
+      userId: userId,
+      password: password,
     );
   }
 
-  Future<void> saveUserPublicKey(String publicKeyPem) async {
-    await _storage.write(key: _userPublicKey, value: publicKeyPem);
-    Logger.d('[KeyManagerServiceWeb] User public key saved');
+  Future<void> clearUserKeys({required String userId}) async {
+    Logger.d('[KeyManagerServiceWeb] Clearing user keys for $userId...');
+    await _storage.delete(key: _pubKey(userId));
+    await _storage.delete(key: _privKey(userId));
+    await _storage.delete(key: _saltKey(userId));
+    if (_cachedPrivateKeyUserId == userId) {
+      _invalidateCache();
+    }
+    Logger.d('[KeyManagerServiceWeb] User keys cleared for $userId');
   }
 
-  Future<String?> getPrivateKeyPEM(String password) async {
-    if (_cachedPrivateKeyPem != null) {
-      Logger.d('[KeyManagerServiceWeb] Returning cached private key PEM');
-      return _cachedPrivateKeyPem;
-    }
-    try {
-      final encrypted = await _storage.read(key: _userPrivateKey);
-      final salt = await _storage.read(key: _userSalt);
-      if (encrypted == null || salt == null) {
-        Logger.d(
-          '[KeyManagerServiceWeb] Private key or salt not found in storage',
-        );
-        return null;
-      }
-      final key = await _crypto.deriveKey(password, salt);
-      final pem = await _crypto.decrypt(encrypted, key);
-      if (pem != null) _cachedPrivateKeyPem = pem;
+  Future<void> promotePendingUserKeys({required String userId}) async {
+    final pub = await _storage.read(key: _pubKey(pendingUserId));
+    final priv = await _storage.read(key: _privKey(pendingUserId));
+    final salt = await _storage.read(key: _saltKey(pendingUserId));
+
+    if (pub == null || priv == null || salt == null) {
       Logger.d(
-        '[KeyManagerServiceWeb] Private key PEM ${pem != null ? 'decrypted' : 'decryption failed'}',
+        '[KeyManagerServiceWeb] promotePendingUserKeys: pending keys not found',
       );
-      return pem;
-    } catch (e) {
-      Logger.e('[KeyManagerServiceWeb] e getting private key PEM: $e');
-      return null;
+      return;
     }
+
+    await _storage.write(key: _pubKey(userId), value: pub);
+    await _storage.write(key: _privKey(userId), value: priv);
+    await _storage.write(key: _saltKey(userId), value: salt);
+
+    await _storage.delete(key: _pubKey(pendingUserId));
+    await _storage.delete(key: _privKey(pendingUserId));
+    await _storage.delete(key: _saltKey(pendingUserId));
+
+    if (_cachedPrivateKeyUserId == pendingUserId) {
+      _cachedPrivateKeyUserId = userId;
+    }
+
+    Logger.d('[KeyManagerServiceWeb] Pending keys promoted to user $userId');
+  }
+
+  Future<String> encryptWithPassword({
+    required String userId,
+    required String plaintext,
+    required String password,
+  }) async {
+    final salt = await getUserSalt(userId: userId) ?? _crypto.generateSalt();
+    final key = await _crypto.deriveKey(password, salt);
+    return await _crypto.encrypt(plaintext, key);
   }
 
   Future<bool> hasDeviceKeys() async {
@@ -178,7 +307,8 @@ class KeyManagerService extends GetxService {
   Future<String?> getDevicePublicKey() async {
     final pub = await _storage.read(key: _devicePublicKey);
     Logger.d(
-      '[KeyManagerServiceWeb] getDevicePublicKey: ${pub != null ? 'found' : 'not found'}',
+      '[KeyManagerServiceWeb] getDevicePublicKey: '
+      '${pub != null ? 'found' : 'not found'}',
     );
     return pub;
   }
@@ -194,12 +324,45 @@ class KeyManagerService extends GetxService {
       final key = await _crypto.deriveKey(password, salt);
       final pem = await _crypto.decrypt(encrypted, key);
       Logger.d(
-        '[KeyManagerServiceWeb] Device private key PEM ${pem != null ? 'decrypted' : 'decryption failed'}',
+        '[KeyManagerServiceWeb] Device private key PEM '
+        '${pem != null ? 'decrypted' : 'decryption failed'}',
       );
       return pem;
     } catch (e) {
       Logger.e('[KeyManagerServiceWeb] e getting device private key PEM: $e');
       return null;
+    }
+  }
+
+  Future<bool> verifyStoredDeviceKeyPairMatches({
+    required String password,
+  }) async {
+    final publicPem = await getDevicePublicKey();
+    if (publicPem == null || publicPem.isEmpty) {
+      Logger.d(
+        '[KeyManagerServiceWeb] verifyStoredDeviceKeyPairMatches: no public key',
+      );
+      return false;
+    }
+    try {
+      final publicKey = await _importPublicKeyFromPem(publicPem);
+      final privatePem = await getDevicePrivateKeyPEM(password);
+      if (privatePem == null) return false;
+      final privateKey = await _importPrivateKeyFromPem(privatePem);
+
+      final testMessage = utf8.encode('vaultly:device-keypair:test');
+      final encrypted = await publicKey.encryptBytes(testMessage);
+      final decrypted = await privateKey.decryptBytes(encrypted);
+      final matches = base64Encode(testMessage) == base64Encode(decrypted);
+      Logger.d(
+        '[KeyManagerServiceWeb] verifyStoredDeviceKeyPairMatches: $matches',
+      );
+      return matches;
+    } catch (e) {
+      Logger.e(
+        '[KeyManagerServiceWeb] verifyStoredDeviceKeyPairMatches error: $e',
+      );
+      return false;
     }
   }
 
@@ -257,105 +420,21 @@ class KeyManagerService extends GetxService {
     return await web.RsaOaepPrivateKey.importPkcs8Key(pkcs8, web.Hash.sha256);
   }
 
-  Future<void> clearUserKeys() async {
-    Logger.d('[KeyManagerServiceWeb] Clearing user keys only...');
-    await _storage.delete(key: _userPublicKey);
-    await _storage.delete(key: _userPrivateKey);
-    await _storage.delete(key: _userSalt);
-    _cachedPrivateKeyPem = null;
-    Logger.d(
-      '[KeyManagerServiceWeb] User keys cleared (device keys preserved)',
-    );
-  }
-
-  Future<void> clearAllKeys() async {
-    Logger.d('[KeyManagerServiceWeb] Clearing all keys...');
-    await _storage.delete(key: _userPublicKey);
-    await _storage.delete(key: _userPrivateKey);
-    await _storage.delete(key: _userSalt);
+  Future<void> clearKeys() async {
+    Logger.d('[KeyManagerServiceWeb] Clearing device + pending keys...');
     await _storage.delete(key: _devicePublicKey);
     await _storage.delete(key: _devicePrivateKey);
     await _storage.delete(key: _deviceSalt);
-    _cachedPrivateKeyPem = null;
-    Logger.d('[KeyManagerServiceWeb] All keys cleared');
+    await _storage.delete(key: _pubKey(pendingUserId));
+    await _storage.delete(key: _privKey(pendingUserId));
+    await _storage.delete(key: _saltKey(pendingUserId));
+    _invalidateCache();
+    Logger.d('[KeyManagerServiceWeb] Device + pending keys cleared');
   }
 
-  Future<String> encryptWithPassword(String plaintext, String password) async {
-    final salt = await getUserSalt() ?? _crypto.generateSalt();
-    final key = await _crypto.deriveKey(password, salt);
-    return await _crypto.encrypt(plaintext, key);
-  }
-
-  Future<bool> verifyKeyPairMatch({
-    required String publicKeyPem,
-    required String password,
-  }) async {
-    try {
-      final publicKey = await _importPublicKeyFromPem(publicKeyPem);
-
-      final privatePem = await getPrivateKeyPEM(password);
-      if (privatePem == null) {
-        Logger.d(
-          '[KeyManagerServiceWeb] verifyKeyPairMatch: private key unavailable',
-        );
-        return false;
-      }
-      final privateKey = await _importPrivateKeyFromPem(privatePem);
-
-      final testMessage = utf8.encode('vaultly:keypair:test');
-      final encrypted = await publicKey.encryptBytes(testMessage);
-      final decrypted = await privateKey.decryptBytes(encrypted);
-
-      final matches = base64Encode(testMessage) == base64Encode(decrypted);
-      Logger.d('[KeyManagerServiceWeb] verifyKeyPairMatch: $matches');
-      return matches;
-    } catch (e) {
-      Logger.e('[KeyManagerServiceWeb] verifyKeyPairMatch error: $e');
-      return false;
-    }
-  }
-
-  Future<bool> verifyStoredKeyPairMatches({required String password}) async {
-    final publicPem = await getUserPublicKey();
-    if (publicPem == null || publicPem.isEmpty) {
-      Logger.d(
-        '[KeyManagerServiceWeb] verifyStoredKeyPairMatches: no public key',
-      );
-      return false;
-    }
-    return verifyKeyPairMatch(publicKeyPem: publicPem, password: password);
-  }
-
-  Future<bool> verifyStoredDeviceKeyPairMatches({
-    required String password,
-  }) async {
-    final publicPem = await getDevicePublicKey();
-    if (publicPem == null || publicPem.isEmpty) {
-      Logger.d(
-        '[KeyManagerServiceWeb] verifyStoredDeviceKeyPairMatches: no public key',
-      );
-      return false;
-    }
-    try {
-      final publicKey = await _importPublicKeyFromPem(publicPem);
-      final privatePem = await getDevicePrivateKeyPEM(password);
-      if (privatePem == null) return false;
-      final privateKey = await _importPrivateKeyFromPem(privatePem);
-
-      final testMessage = utf8.encode('vaultly:device-keypair:test');
-      final encrypted = await publicKey.encryptBytes(testMessage);
-      final decrypted = await privateKey.decryptBytes(encrypted);
-      final matches = base64Encode(testMessage) == base64Encode(decrypted);
-      Logger.d(
-        '[KeyManagerServiceWeb] verifyStoredDeviceKeyPairMatches: $matches',
-      );
-      return matches;
-    } catch (e) {
-      Logger.e(
-        '[KeyManagerServiceWeb] verifyStoredDeviceKeyPairMatches error: $e',
-      );
-      return false;
-    }
+  Future<void> clearAllKeys() async {
+    await clearKeys();
+    Logger.d('[KeyManagerServiceWeb] clearAllKeys completed');
   }
 }
 

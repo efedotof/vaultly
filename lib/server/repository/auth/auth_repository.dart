@@ -62,72 +62,31 @@ class AuthRepository implements AuthInterface {
 
   Future<String> _getPublicKey(String password) async {
     final keyManager = Get.find<KeyManagerService>();
-    keyManager.clearUserKeys();
+    const pending = KeyManagerService.pendingUserId;
+
+    await keyManager.clearUserKeys(userId: pending);
     Logger.d('_getPublicKey: start', tag: _tag);
 
-    String? publicKey;
-    try {
-      publicKey = await keyManager.getUserPublicKey();
-      Logger.d(
-        '_getPublicKey: getUserPublicKey → ${publicKey != null ? "found" : "null"}',
-        tag: _tag,
-      );
-    } catch (e, s) {
-      Logger.e(
-        '_getPublicKey: getUserPublicKey failed',
-        error: e,
-        stackTrace: s,
-        tag: _tag,
-      );
-      rethrow;
-    }
+    var publicKey = await keyManager.getUserPublicKey(userId: pending);
 
     if (publicKey == null || publicKey.isEmpty) {
       Logger.d('_getPublicKey: генерируем новую пару', tag: _tag);
-      try {
-        publicKey = await keyManager.generateAndStoreUserKeyPair(password);
-        Logger.d(
-          '_getPublicKey: сгенерировано, len=${publicKey.length}',
-          tag: _tag,
-        );
-      } catch (e, s) {
-        Logger.e(
-          '_getPublicKey: generateAndStoreUserKeyPair failed',
-          error: e,
-          stackTrace: s,
-          tag: _tag,
-        );
-        rethrow;
-      }
-    } else {
-      Logger.d('_getPublicKey: используем существующую пару', tag: _tag);
+      await keyManager.generateAndStoreUserKeyPair(
+        userId: pending,
+        password: password,
+      );
+      publicKey = await keyManager.getUserPublicKey(userId: pending);
     }
 
-    Logger.d('_getPublicKey: проверяем пару...', tag: _tag);
     final isValid = await keyManager.verifyStoredKeyPairMatches(
+      userId: pending,
       password: password,
     );
-    Logger.d('_getPublicKey: verify=$isValid', tag: _tag);
-
     if (!isValid) {
-      final privateKey = await keyManager.getPrivateKey(password);
-      if (privateKey == null) {
-        Logger.d(
-          '_getPublicKey: приватный ключ не загрузился (пароль?)',
-          tag: _tag,
-        );
-        throw ValidationErrorException(
-          'Не удалось загрузить приватный ключ. Проверьте пароль.',
-        );
-      }
-      Logger.d(
-        '_getPublicKey: пара не сходится (storage corruption?)',
-        tag: _tag,
-      );
       throw ValidationErrorException('Ключи не сходятся. Восстановите доступ.');
     }
 
-    return publicKey;
+    return publicKey!;
   }
 
   Future<UserProfileDto?> _loadUserData() async {
@@ -361,10 +320,20 @@ class AuthRepository implements AuthInterface {
           final auth = AuthInfo();
           auth.authResponse = authResp;
           await _localStorage.saveAuthData(authResp);
+          final newUserId = authResp.userId;
+          if (newUserId != null && newUserId.isNotEmpty) {
+            await Get.find<KeyManagerService>().promotePendingUserKeys(
+              userId: newUserId,
+            );
+            Logger.d(
+              'registration: ключи перенесены в namespace $newUserId',
+              tag: _tag,
+            );
+          }
+
           final user = await _loadUserData();
           auth.user = user;
           await _localStorage.savePassword(request.password);
-          Logger.d('registration: успешно, user=${user?.id}', tag: _tag);
           return auth;
 
         case 400:

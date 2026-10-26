@@ -24,26 +24,36 @@ class KeyManagerService extends GetxService {
     }
   }
 
-  
-
   bool get isInitial => _isInit;
 
   final crypto = _CryptoHelper();
 
-  static const _userPublicKey = 'user_public_key';
-  static const _userPrivateKey = 'user_private_key';
-  static const _userSalt = 'user_salt';
+  static const String pendingUserId = '__pending__';
+
+  static String _pubKey(String userId) => 'user_public_key:$userId';
+  static String _privKey(String userId) => 'user_private_key:$userId';
+  static String _saltKey(String userId) => 'user_salt:$userId';
 
   static const _devicePublicKey = 'device_public_key';
   static const _devicePrivateKey = 'device_private_key';
   static const _deviceSalt = 'device_salt';
 
   pc.RSAPrivateKey? _cachedPrivateKey;
+  String? _cachedPrivateKeyUserId;
 
-  Future<String?> getUserSalt() => SecureStorageAdapter.read(key: _userSalt);
+  void _invalidateCache() {
+    _cachedPrivateKey = null;
+    _cachedPrivateKeyUserId = null;
+  }
 
-  Future<String> generateAndStoreUserKeyPair(String password) async {
-    Logger.d('[KeyManagerService] Generating user key pair...');
+  Future<String?> getUserSalt({required String userId}) =>
+      SecureStorageAdapter.read(key: _saltKey(userId));
+
+  Future<void> generateAndStoreUserKeyPair({
+    required String userId,
+    required String password,
+  }) async {
+    Logger.d('[KeyManagerService] Generating user key pair for $userId...');
     try {
       final pair = _generateRSAKeyPair();
       final publicPem = CryptoUtils.encodeRSAPublicKeyToPem(pair.publicKey);
@@ -55,102 +65,81 @@ class KeyManagerService extends GetxService {
       final encrypted = await crypto.encrypt(privatePem, key);
       Logger.d('[KeyManagerService] Private key encrypted with password');
 
-      await SecureStorageAdapter.write(key: _userPublicKey, value: publicPem);
-      await SecureStorageAdapter.write(key: _userPrivateKey, value: encrypted);
-      await SecureStorageAdapter.write(key: _userSalt, value: salt);
+      await SecureStorageAdapter.write(key: _pubKey(userId), value: publicPem);
+      await SecureStorageAdapter.write(key: _privKey(userId), value: encrypted);
+      await SecureStorageAdapter.write(key: _saltKey(userId), value: salt);
       _cachedPrivateKey = pair.privateKey;
+      _cachedPrivateKeyUserId = userId;
       Logger.d('[KeyManagerService] User keys stored successfully');
-      return publicPem;
     } catch (e) {
       Logger.e('[KeyManagerService] e generating user keys: $e');
       rethrow;
     }
   }
 
-  Future<String?> getUserPublicKey() async {
-    final pub = await SecureStorageAdapter.read(key: _userPublicKey);
+  Future<String?> getUserPublicKey({required String userId}) async {
+    final pub = await SecureStorageAdapter.read(key: _pubKey(userId));
     Logger.d(
-      '[KeyManagerService] getUserPublicKey: ${pub != null ? 'found' : 'not found'}',
+      '[KeyManagerService] getUserPublicKey($userId): '
+      '${pub != null ? 'found' : 'not found'}',
     );
     return pub;
   }
 
-  Future<String> hybridEncryptWithPublicKey(
-    String data,
-    pc.RSAPublicKey publicKey,
-  ) async {
-    final aesKey = crypto.generateAesKey();
-    final iv = crypto.generateIv();
-    final encryptedData = await crypto.encryptAesGcm(
-      utf8.encode(data),
-      aesKey,
-      iv,
-    );
-    final encryptedAesKey = _rsaOaepEncrypt(aesKey, publicKey);
-    final result = {
-      'encryptedKey': base64Encode(encryptedAesKey),
-      'iv': base64Encode(iv),
-      'ciphertext': base64Encode(encryptedData),
-    };
-    return jsonEncode(result);
+  Future<void> saveUserPublicKey({
+    required String userId,
+    required String publicKeyPem,
+  }) async {
+    await SecureStorageAdapter.write(key: _pubKey(userId), value: publicKeyPem);
+    Logger.d('[KeyManagerService] User public key saved for $userId');
   }
 
-  Future<String> hybridDecryptWithPrivateKey(
-    String encryptedPackage,
-    pc.RSAPrivateKey privateKey,
-  ) async {
-    final json = jsonDecode(encryptedPackage);
-    final encryptedAesKey = base64Decode(json['encryptedKey']);
-    final iv = base64Decode(json['iv']);
-    final ciphertext = base64Decode(json['ciphertext']);
-    final aesKey = _rsaOaepDecrypt(encryptedAesKey, privateKey);
-    final decrypted = await crypto.decryptAesGcm(ciphertext, aesKey, iv);
-    return utf8.decode(decrypted);
-  }
-
-  Future<String?> getPublicKey() async => getUserPublicKey();
-
-  Future<String?> getDevicePrivateKeyPEM(String password) async {
+  Future<pc.RSAPublicKey?> getUserPublicKeyObject({
+    required String userId,
+  }) async {
+    final pem = await getUserPublicKey(userId: userId);
+    if (pem == null) return null;
     try {
-      final encrypted = await SecureStorageAdapter.read(key: _devicePrivateKey);
-      final salt = await SecureStorageAdapter.read(key: _deviceSalt);
-      if (encrypted == null || salt == null) {
-        Logger.d('[KeyManagerService] Device private key PEM not found');
-        return null;
-      }
-      final key = await crypto.deriveKey(password, salt);
-      final pem = await crypto.decrypt(encrypted, key);
-      Logger.d(
-        '[KeyManagerService] Device private key PEM ${pem != null ? 'decrypted' : 'decryption failed'}',
-      );
-      return pem;
+      return CryptoUtils.rsaPublicKeyFromPem(pem);
     } catch (e) {
-      Logger.e('[KeyManagerService] e getting device private key PEM: $e');
+      Logger.e('[KeyManagerService] e parsing public key from PEM: $e');
       return null;
     }
   }
 
-  Future<void> storeUserPrivateKeyEncryptedWithPassword(
-    String privateKeyPem,
-    String password, {
+  Future<String?> getUserEncryptedPrivateKeyData({
+    required String userId,
+  }) async {
+    return await SecureStorageAdapter.read(key: _privKey(userId));
+  }
+
+  Future<void> storeUserPrivateKeyEncryptedWithPassword({
+    required String userId,
+    required String privateKeyPem,
+    required String password,
     String? salt,
   }) async {
     final effectiveSalt = salt ?? crypto.generateSalt();
     final key = await crypto.deriveKey(password, effectiveSalt);
     final encrypted = await crypto.encrypt(privateKeyPem, key);
-    await SecureStorageAdapter.write(key: _userPrivateKey, value: encrypted);
-    await SecureStorageAdapter.write(key: _userSalt, value: effectiveSalt);
+    await SecureStorageAdapter.write(key: _privKey(userId), value: encrypted);
+    await SecureStorageAdapter.write(
+      key: _saltKey(userId),
+      value: effectiveSalt,
+    );
     _cachedPrivateKey = CryptoUtils.rsaPrivateKeyFromPem(privateKeyPem);
+    _cachedPrivateKeyUserId = userId;
     Logger.d(
       '[KeyManagerService] User private key stored (encrypted with password)',
     );
   }
 
-  Future<pc.RSAPrivateKey?> loadUserPrivateKeyWithPassword(
-    String password,
-  ) async {
-    final encrypted = await SecureStorageAdapter.read(key: _userPrivateKey);
-    final salt = await SecureStorageAdapter.read(key: _userSalt);
+  Future<pc.RSAPrivateKey?> loadUserPrivateKeyWithPassword({
+    required String userId,
+    required String password,
+  }) async {
+    final encrypted = await SecureStorageAdapter.read(key: _privKey(userId));
+    final salt = await SecureStorageAdapter.read(key: _saltKey(userId));
     if (encrypted == null || salt == null) return null;
     final key = await crypto.deriveKey(password, salt);
     final pem = await crypto.decrypt(encrypted, key);
@@ -158,78 +147,27 @@ class KeyManagerService extends GetxService {
     return CryptoUtils.rsaPrivateKeyFromPem(pem);
   }
 
-  Future<String> encryptWithPublicKey(
-    String data,
-    pc.RSAPublicKey publicKey,
-  ) async {
-    final bytes = utf8.encode(data);
-    final oaep = pc.OAEPEncoding.withSHA256(pc.RSAEngine());
-    oaep.init(true, pc.PublicKeyParameter<pc.RSAPublicKey>(publicKey));
-    final encrypted = oaep.process(Uint8List.fromList(bytes));
-    return base64Encode(encrypted);
-  }
-
-  Uint8List _rsaOaepEncrypt(Uint8List data, pc.RSAPublicKey publicKey) {
-    final oaep = pc.OAEPEncoding.withSHA256(pc.RSAEngine());
-    oaep.init(true, pc.PublicKeyParameter<pc.RSAPublicKey>(publicKey));
-    return oaep.process(data);
-  }
-
-  Uint8List _rsaOaepDecrypt(Uint8List encrypted, pc.RSAPrivateKey privateKey) {
-    final oaep = pc.OAEPEncoding.withSHA256(pc.RSAEngine());
-    oaep.init(false, pc.PrivateKeyParameter<pc.RSAPrivateKey>(privateKey));
-    return oaep.process(encrypted);
-  }
-
-  Future<String> decryptWithPrivateKey(
-    String encryptedBase64,
-    pc.RSAPrivateKey privateKey,
-  ) async {
-    final encrypted = base64Decode(encryptedBase64);
-    final oaep = pc.OAEPEncoding.withSHA256(pc.RSAEngine());
-    oaep.init(false, pc.PrivateKeyParameter<pc.RSAPrivateKey>(privateKey));
-    final decrypted = oaep.process(encrypted);
-    return utf8.decode(decrypted);
-  }
-
-  Future<pc.RSAPublicKey?> getDevicePublicKeyObject() async {
-    final pem = await getDevicePublicKey();
-    if (pem == null) return null;
-    try {
-      return CryptoUtils.rsaPublicKeyFromPem(pem);
-    } catch (e) {
-      Logger.e('[KeyManagerService] e parsing device public key from PEM: $e');
-      return null;
-    }
-  }
-
-  Future<pc.RSAPrivateKey?> getDevicePrivateKeyObject(String password) async {
-    final pem = await getDevicePrivateKeyPEM(password);
-    if (pem == null) return null;
-    try {
-      return CryptoUtils.rsaPrivateKeyFromPem(pem);
-    } catch (e) {
-      Logger.e('[KeyManagerService] e parsing device private key from PEM: $e');
-      return null;
-    }
-  }
-
-  Future<pc.RSAPrivateKey?> getPrivateKey(String password) async {
-    if (_cachedPrivateKey != null) {
-      Logger.d('[KeyManagerService] Returning cached private key');
+  Future<pc.RSAPrivateKey?> getPrivateKey({
+    required String userId,
+    required String password,
+  }) async {
+    if (_cachedPrivateKey != null && _cachedPrivateKeyUserId == userId) {
+      Logger.d('[KeyManagerService] Returning cached private key for $userId');
       return _cachedPrivateKey;
     }
     try {
-      final encrypted = await SecureStorageAdapter.read(key: _userPrivateKey);
-      final salt = await SecureStorageAdapter.read(key: _userSalt);
+      final encrypted = await SecureStorageAdapter.read(key: _privKey(userId));
+      final salt = await SecureStorageAdapter.read(key: _saltKey(userId));
       if (encrypted == null || salt == null) {
         Logger.d(
-          '[KeyManagerService] Private key or salt not found in storage',
+          '[KeyManagerService] Private key or salt not found in storage '
+          'for $userId',
         );
         return null;
       }
       Logger.d(
-        '[KeyManagerService] Found encrypted private key (length ${encrypted.length}) and salt',
+        '[KeyManagerService] Found encrypted private key '
+        '(length ${encrypted.length}) and salt for $userId',
       );
       final key = await crypto.deriveKey(password, salt);
       final pem = await crypto.decrypt(encrypted, key);
@@ -243,6 +181,7 @@ class KeyManagerService extends GetxService {
       try {
         final privateKey = CryptoUtils.rsaPrivateKeyFromPem(pem);
         _cachedPrivateKey = privateKey;
+        _cachedPrivateKeyUserId = userId;
         Logger.d('[KeyManagerService] Private key parsed successfully');
         return privateKey;
       } catch (e, stack) {
@@ -259,18 +198,22 @@ class KeyManagerService extends GetxService {
     }
   }
 
-  Future<String?> getPrivateKeyPEM(String password) async {
+  Future<String?> getPrivateKeyPEM({
+    required String userId,
+    required String password,
+  }) async {
     try {
-      final encrypted = await SecureStorageAdapter.read(key: _userPrivateKey);
-      final salt = await SecureStorageAdapter.read(key: _userSalt);
+      final encrypted = await SecureStorageAdapter.read(key: _privKey(userId));
+      final salt = await SecureStorageAdapter.read(key: _saltKey(userId));
       if (encrypted == null || salt == null) {
-        Logger.d('[KeyManagerService] Private key PEM not found');
+        Logger.d('[KeyManagerService] Private key PEM not found for $userId');
         return null;
       }
       final key = await crypto.deriveKey(password, salt);
       final pem = await crypto.decrypt(encrypted, key);
       Logger.d(
-        '[KeyManagerService] Private key PEM ${pem != null ? 'decrypted' : 'decryption failed'}',
+        '[KeyManagerService] Private key PEM '
+        '${pem != null ? 'decrypted' : 'decryption failed'}',
       );
       return pem;
     } catch (e) {
@@ -279,161 +222,17 @@ class KeyManagerService extends GetxService {
     }
   }
 
-  Future<bool> hasDeviceKeys() async {
-    final pub = await SecureStorageAdapter.read(key: _devicePublicKey);
-    final priv = await SecureStorageAdapter.read(key: _devicePrivateKey);
-    final exists = pub != null && priv != null;
-    Logger.d('[KeyManagerService] hasDeviceKeys: $exists');
-    return exists;
-  }
-
-  Future<String> generateAndStoreDeviceKeyPair(String password) async {
-    Logger.d('[KeyManagerService] Generating device key pair...');
-    try {
-      Logger.d('[KeyManagerService] Step 1: generating RSA key pair...');
-      final pair = _generateRSAKeyPair();
-      Logger.d('[KeyManagerService] Step 2: converting to PEM...');
-      final publicPem = CryptoUtils.encodeRSAPublicKeyToPem(pair.publicKey);
-      final privatePem = CryptoUtils.encodeRSAPrivateKeyToPem(pair.privateKey);
-      Logger.d('[KeyManagerService] Step 3: generating salt...');
-      final salt = crypto.generateSalt();
-      Logger.d('[KeyManagerService] Step 4: deriving key from password...');
-      final key = await crypto.deriveKey(password, salt);
-      Logger.d('[KeyManagerService] Step 5: encrypting private key...');
-      final encrypted = await crypto.encrypt(privatePem, key);
-      Logger.d('[KeyManagerService] Step 6: storing to secure storage...');
-      await SecureStorageAdapter.write(key: _devicePublicKey, value: publicPem);
-      await SecureStorageAdapter.write(
-        key: _devicePrivateKey,
-        value: encrypted,
-      );
-      await SecureStorageAdapter.write(key: _deviceSalt, value: salt);
-      Logger.d('[KeyManagerService] Device keys stored successfully');
-      return publicPem;
-    } catch (e, stack) {
-      Logger.e(
-        '[KeyManagerService] e generating device keys',
-        error: e,
-        stackTrace: stack,
-      );
-      rethrow;
-    }
-  }
-
-  Future<String?> decryptPrivateKeyWithPassword(
-    String encryptedKey,
-    String salt,
-    String password,
-  ) async {
-    try {
-      final key = await crypto.deriveKey(password, salt);
-      return await crypto.decrypt(encryptedKey, key);
-    } catch (e) {
-      Logger.e('[KeyManagerService] e decrypting private key: $e');
-      return null;
-    }
-  }
-
-  Future<String?> getDevicePublicKey() async {
-    final pub = await SecureStorageAdapter.read(key: _devicePublicKey);
-    Logger.d(
-      '[KeyManagerService] getDevicePublicKey: ${pub != null ? 'found' : 'not found'}',
-    );
-    return pub;
-  }
-
-  Future<Map<String, String?>?> getDeviceEncryptedPrivateKeyData() async {
-    final encrypted = await SecureStorageAdapter.read(key: _devicePrivateKey);
-    final salt = await SecureStorageAdapter.read(key: _deviceSalt);
-    if (encrypted == null || salt == null) {
-      Logger.d(
-        '[KeyManagerService] Device encrypted private key data not found',
-      );
-      return null;
-    }
-    Logger.d('[KeyManagerService] Device encrypted private key data retrieved');
-    return {'encrypted': encrypted, 'salt': salt};
-  }
-
-  Future<void> clearKeys() async {
-    Logger.d('[KeyManagerService] Clearing all keys...');
-    await SecureStorageAdapter.delete(key: _userPublicKey);
-    await SecureStorageAdapter.delete(key: _userPrivateKey);
-    await SecureStorageAdapter.delete(key: _userSalt);
-    await SecureStorageAdapter.delete(key: _devicePublicKey);
-    await SecureStorageAdapter.delete(key: _devicePrivateKey);
-    await SecureStorageAdapter.delete(key: _deviceSalt);
-    _cachedPrivateKey = null;
-    Logger.d('[KeyManagerService] All keys cleared');
-  }
-
-  Future<void> clearAllKeys() async {
-    await clearKeys();
-    Logger.d('[KeyManagerService] clearAllKeys completed');
-  }
-
-  pc.AsymmetricKeyPair<pc.RSAPublicKey, pc.RSAPrivateKey>
-  _generateRSAKeyPair() {
-    final secureRandom = _getSecureRandom();
-    final params = pc.RSAKeyGeneratorParameters(BigInt.from(65537), 2048, 64);
-    final generator = pc.RSAKeyGenerator()
-      ..init(pc.ParametersWithRandom(params, secureRandom));
-    final pair = generator.generateKeyPair();
-    return pc.AsymmetricKeyPair<pc.RSAPublicKey, pc.RSAPrivateKey>(
-      pair.publicKey as pc.RSAPublicKey,
-      pair.privateKey as pc.RSAPrivateKey,
-    );
-  }
-
-  pc.SecureRandom _getSecureRandom() {
-    final secureRandom = pc.FortunaRandom();
-    final seed = List<int>.generate(32, (_) => Random.secure().nextInt(256));
-    secureRandom.seed(pc.KeyParameter(Uint8List.fromList(seed)));
-    return secureRandom;
-  }
-
-  Future<pc.RSAPublicKey?> getUserPublicKeyObject() async {
-    final pem = await getUserPublicKey();
-    if (pem == null) return null;
-    try {
-      return CryptoUtils.rsaPublicKeyFromPem(pem);
-    } catch (e) {
-      Logger.e('[KeyManagerService] e parsing public key from PEM: $e');
-      return null;
-    }
-  }
-
-  Future<String?> getUserEncryptedPrivateKeyData() async {
-    return await SecureStorageAdapter.read(key: _userPrivateKey);
-  }
-
-  Future<void> saveUserPublicKey(String publicKeyPem) async {
-    await SecureStorageAdapter.write(key: _userPublicKey, value: publicKeyPem);
-    Logger.d('[KeyManagerService] User public key saved');
-  }
-
-  Future<void> clearUserKeys() async {
-    Logger.d('[KeyManagerService] Clearing user keys only...');
-    await SecureStorageAdapter.delete(key: _userPublicKey);
-    await SecureStorageAdapter.delete(key: _userPrivateKey);
-    await SecureStorageAdapter.delete(key: _userSalt);
-    _cachedPrivateKey = null;
-    Logger.d('[KeyManagerService] User keys cleared (device keys preserved)');
-  }
-
-  Future<String> encryptWithPassword(String plaintext, String password) async {
-    final salt = await getUserSalt() ?? crypto.generateSalt();
-    final key = await crypto.deriveKey(password, salt);
-    return await crypto.encrypt(plaintext, key);
-  }
-
   Future<bool> verifyKeyPairMatch({
     required String publicKeyPem,
+    required String userId,
     required String password,
   }) async {
     try {
       final publicKey = CryptoUtils.rsaPublicKeyFromPem(publicKeyPem);
-      final privateKey = await getPrivateKey(password);
+      final privateKey = await getPrivateKey(
+        userId: userId,
+        password: password,
+      );
 
       if (privateKey == null) {
         Logger.d(
@@ -462,13 +261,170 @@ class KeyManagerService extends GetxService {
     }
   }
 
-  Future<bool> verifyStoredKeyPairMatches({required String password}) async {
-    final publicPem = await getUserPublicKey();
+  Future<bool> verifyStoredKeyPairMatches({
+    required String userId,
+    required String password,
+  }) async {
+    final publicPem = await getUserPublicKey(userId: userId);
     if (publicPem == null || publicPem.isEmpty) {
-      Logger.d('[KeyManagerService] verifyStoredKeyPairMatches: no public key');
+      Logger.d(
+        '[KeyManagerService] verifyStoredKeyPairMatches($userId): no public key',
+      );
       return false;
     }
-    return verifyKeyPairMatch(publicKeyPem: publicPem, password: password);
+    return verifyKeyPairMatch(
+      publicKeyPem: publicPem,
+      userId: userId,
+      password: password,
+    );
+  }
+
+  Future<void> clearUserKeys({required String userId}) async {
+    Logger.d('[KeyManagerService] Clearing user keys for $userId...');
+    await SecureStorageAdapter.delete(key: _pubKey(userId));
+    await SecureStorageAdapter.delete(key: _privKey(userId));
+    await SecureStorageAdapter.delete(key: _saltKey(userId));
+    if (_cachedPrivateKeyUserId == userId) {
+      _invalidateCache();
+    }
+    Logger.d('[KeyManagerService] User keys cleared for $userId');
+  }
+
+  Future<void> promotePendingUserKeys({required String userId}) async {
+    final pub = await SecureStorageAdapter.read(key: _pubKey(pendingUserId));
+    final priv = await SecureStorageAdapter.read(key: _privKey(pendingUserId));
+    final salt = await SecureStorageAdapter.read(key: _saltKey(pendingUserId));
+
+    if (pub == null || priv == null || salt == null) {
+      Logger.d(
+        '[KeyManagerService] promotePendingUserKeys: pending keys not found',
+      );
+      return;
+    }
+
+    await SecureStorageAdapter.write(key: _pubKey(userId), value: pub);
+    await SecureStorageAdapter.write(key: _privKey(userId), value: priv);
+    await SecureStorageAdapter.write(key: _saltKey(userId), value: salt);
+
+    await SecureStorageAdapter.delete(key: _pubKey(pendingUserId));
+    await SecureStorageAdapter.delete(key: _privKey(pendingUserId));
+    await SecureStorageAdapter.delete(key: _saltKey(pendingUserId));
+
+    if (_cachedPrivateKeyUserId == pendingUserId) {
+      _cachedPrivateKeyUserId = userId;
+    }
+
+    Logger.d('[KeyManagerService] Pending keys promoted to user $userId');
+  }
+
+  Future<String> encryptWithPassword({
+    required String userId,
+    required String plaintext,
+    required String password,
+  }) async {
+    final salt = await getUserSalt(userId: userId) ?? crypto.generateSalt();
+    final key = await crypto.deriveKey(password, salt);
+    return await crypto.encrypt(plaintext, key);
+  }
+
+  Future<String?> getDevicePrivateKeyPEM(String password) async {
+    try {
+      final encrypted = await SecureStorageAdapter.read(key: _devicePrivateKey);
+      final salt = await SecureStorageAdapter.read(key: _deviceSalt);
+      if (encrypted == null || salt == null) {
+        Logger.d('[KeyManagerService] Device private key PEM not found');
+        return null;
+      }
+      final key = await crypto.deriveKey(password, salt);
+      final pem = await crypto.decrypt(encrypted, key);
+      Logger.d(
+        '[KeyManagerService] Device private key PEM '
+        '${pem != null ? 'decrypted' : 'decryption failed'}',
+      );
+      return pem;
+    } catch (e) {
+      Logger.e('[KeyManagerService] e getting device private key PEM: $e');
+      return null;
+    }
+  }
+
+  Future<bool> hasDeviceKeys() async {
+    final pub = await SecureStorageAdapter.read(key: _devicePublicKey);
+    final priv = await SecureStorageAdapter.read(key: _devicePrivateKey);
+    final exists = pub != null && priv != null;
+    Logger.d('[KeyManagerService] hasDeviceKeys: $exists');
+    return exists;
+  }
+
+  Future<String> generateAndStoreDeviceKeyPair(String password) async {
+    Logger.d('[KeyManagerService] Generating device key pair...');
+    try {
+      final pair = _generateRSAKeyPair();
+      final publicPem = CryptoUtils.encodeRSAPublicKeyToPem(pair.publicKey);
+      final privatePem = CryptoUtils.encodeRSAPrivateKeyToPem(pair.privateKey);
+      final salt = crypto.generateSalt();
+      final key = await crypto.deriveKey(password, salt);
+      final encrypted = await crypto.encrypt(privatePem, key);
+      await SecureStorageAdapter.write(key: _devicePublicKey, value: publicPem);
+      await SecureStorageAdapter.write(
+        key: _devicePrivateKey,
+        value: encrypted,
+      );
+      await SecureStorageAdapter.write(key: _deviceSalt, value: salt);
+      Logger.d('[KeyManagerService] Device keys stored successfully');
+      return publicPem;
+    } catch (e, stack) {
+      Logger.e(
+        '[KeyManagerService] e generating device keys',
+        error: e,
+        stackTrace: stack,
+      );
+      rethrow;
+    }
+  }
+
+  Future<String?> getDevicePublicKey() async {
+    final pub = await SecureStorageAdapter.read(key: _devicePublicKey);
+    Logger.d(
+      '[KeyManagerService] getDevicePublicKey: '
+      '${pub != null ? 'found' : 'not found'}',
+    );
+    return pub;
+  }
+
+  Future<pc.RSAPublicKey?> getDevicePublicKeyObject() async {
+    final pem = await getDevicePublicKey();
+    if (pem == null) return null;
+    try {
+      return CryptoUtils.rsaPublicKeyFromPem(pem);
+    } catch (e) {
+      Logger.e('[KeyManagerService] e parsing device public key: $e');
+      return null;
+    }
+  }
+
+  Future<pc.RSAPrivateKey?> getDevicePrivateKeyObject(String password) async {
+    final pem = await getDevicePrivateKeyPEM(password);
+    if (pem == null) return null;
+    try {
+      return CryptoUtils.rsaPrivateKeyFromPem(pem);
+    } catch (e) {
+      Logger.e('[KeyManagerService] e parsing device private key: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, String?>?> getDeviceEncryptedPrivateKeyData() async {
+    final encrypted = await SecureStorageAdapter.read(key: _devicePrivateKey);
+    final salt = await SecureStorageAdapter.read(key: _deviceSalt);
+    if (encrypted == null || salt == null) {
+      Logger.d(
+        '[KeyManagerService] Device encrypted private key data not found',
+      );
+      return null;
+    }
+    Logger.d('[KeyManagerService] Device encrypted private key data retrieved');
+    return {'encrypted': encrypted, 'salt': salt};
   }
 
   Future<bool> verifyStoredDeviceKeyPairMatches({
@@ -504,6 +460,124 @@ class KeyManagerService extends GetxService {
       );
       return false;
     }
+  }
+
+  Future<String> hybridEncryptWithPublicKey(
+    String data,
+    pc.RSAPublicKey publicKey,
+  ) async {
+    final aesKey = crypto.generateAesKey();
+    final iv = crypto.generateIv();
+    final encryptedData = await crypto.encryptAesGcm(
+      utf8.encode(data),
+      aesKey,
+      iv,
+    );
+    final encryptedAesKey = _rsaOaepEncrypt(aesKey, publicKey);
+    final result = {
+      'encryptedKey': base64Encode(encryptedAesKey),
+      'iv': base64Encode(iv),
+      'ciphertext': base64Encode(encryptedData),
+    };
+    return jsonEncode(result);
+  }
+
+  Future<String> hybridDecryptWithPrivateKey(
+    String encryptedPackage,
+    pc.RSAPrivateKey privateKey,
+  ) async {
+    final json = jsonDecode(encryptedPackage);
+    final encryptedAesKey = base64Decode(json['encryptedKey']);
+    final iv = base64Decode(json['iv']);
+    final ciphertext = base64Decode(json['ciphertext']);
+    final aesKey = _rsaOaepDecrypt(encryptedAesKey, privateKey);
+    final decrypted = await crypto.decryptAesGcm(ciphertext, aesKey, iv);
+    return utf8.decode(decrypted);
+  }
+
+  Future<String> encryptWithPublicKey(
+    String data,
+    pc.RSAPublicKey publicKey,
+  ) async {
+    final bytes = utf8.encode(data);
+    final oaep = pc.OAEPEncoding.withSHA256(pc.RSAEngine());
+    oaep.init(true, pc.PublicKeyParameter<pc.RSAPublicKey>(publicKey));
+    final encrypted = oaep.process(Uint8List.fromList(bytes));
+    return base64Encode(encrypted);
+  }
+
+  Future<String> decryptWithPrivateKey(
+    String encryptedBase64,
+    pc.RSAPrivateKey privateKey,
+  ) async {
+    final encrypted = base64Decode(encryptedBase64);
+    final oaep = pc.OAEPEncoding.withSHA256(pc.RSAEngine());
+    oaep.init(false, pc.PrivateKeyParameter<pc.RSAPrivateKey>(privateKey));
+    final decrypted = oaep.process(encrypted);
+    return utf8.decode(decrypted);
+  }
+
+  Future<String?> decryptPrivateKeyWithPassword(
+    String encryptedKey,
+    String salt,
+    String password,
+  ) async {
+    try {
+      final key = await crypto.deriveKey(password, salt);
+      return await crypto.decrypt(encryptedKey, key);
+    } catch (e) {
+      Logger.e('[KeyManagerService] e decrypting private key: $e');
+      return null;
+    }
+  }
+
+  Future<void> clearKeys() async {
+    Logger.d('[KeyManagerService] Clearing device + pending keys...');
+    await SecureStorageAdapter.delete(key: _devicePublicKey);
+    await SecureStorageAdapter.delete(key: _devicePrivateKey);
+    await SecureStorageAdapter.delete(key: _deviceSalt);
+    await SecureStorageAdapter.delete(key: _pubKey(pendingUserId));
+    await SecureStorageAdapter.delete(key: _privKey(pendingUserId));
+    await SecureStorageAdapter.delete(key: _saltKey(pendingUserId));
+    _invalidateCache();
+    Logger.d('[KeyManagerService] Device + pending keys cleared');
+  }
+
+  Future<void> clearAllKeys() async {
+    await clearKeys();
+    Logger.d('[KeyManagerService] clearAllKeys completed');
+  }
+
+  Uint8List _rsaOaepEncrypt(Uint8List data, pc.RSAPublicKey publicKey) {
+    final oaep = pc.OAEPEncoding.withSHA256(pc.RSAEngine());
+    oaep.init(true, pc.PublicKeyParameter<pc.RSAPublicKey>(publicKey));
+    return oaep.process(data);
+  }
+
+  Uint8List _rsaOaepDecrypt(Uint8List encrypted, pc.RSAPrivateKey privateKey) {
+    final oaep = pc.OAEPEncoding.withSHA256(pc.RSAEngine());
+    oaep.init(false, pc.PrivateKeyParameter<pc.RSAPrivateKey>(privateKey));
+    return oaep.process(encrypted);
+  }
+
+  pc.AsymmetricKeyPair<pc.RSAPublicKey, pc.RSAPrivateKey>
+  _generateRSAKeyPair() {
+    final secureRandom = _getSecureRandom();
+    final params = pc.RSAKeyGeneratorParameters(BigInt.from(65537), 2048, 64);
+    final generator = pc.RSAKeyGenerator()
+      ..init(pc.ParametersWithRandom(params, secureRandom));
+    final pair = generator.generateKeyPair();
+    return pc.AsymmetricKeyPair<pc.RSAPublicKey, pc.RSAPrivateKey>(
+      pair.publicKey as pc.RSAPublicKey,
+      pair.privateKey as pc.RSAPrivateKey,
+    );
+  }
+
+  pc.SecureRandom _getSecureRandom() {
+    final secureRandom = pc.FortunaRandom();
+    final seed = List<int>.generate(32, (_) => Random.secure().nextInt(256));
+    secureRandom.seed(pc.KeyParameter(Uint8List.fromList(seed)));
+    return secureRandom;
   }
 
   bool _bytesEqual(Uint8List a, Uint8List b) {
@@ -543,12 +617,7 @@ class _CryptoHelper {
     Uint8List iv,
   ) async {
     final secretKey = crypto.SecretKey(key);
-    final nonce = iv;
-    final box = await _aes.encrypt(
-      plaintext,
-      secretKey: secretKey,
-      nonce: nonce,
-    );
+    final box = await _aes.encrypt(plaintext, secretKey: secretKey, nonce: iv);
     return Uint8List.fromList(box.cipherText + box.mac.bytes);
   }
 

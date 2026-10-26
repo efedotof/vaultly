@@ -40,7 +40,11 @@ void main() async {
   Get.put(SecureStorageAdapter(), permanent: true);
 
   //инициализация хранилища
-  Get.put(AuthLocalStorage(), permanent: true);
+  final storage = Get.put(AuthLocalStorage(), permanent: true);
+
+  //инициализируем кэш
+  await storage.initCache();
+
 
   runApp(VaultlyApp());
 }

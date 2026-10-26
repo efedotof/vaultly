@@ -77,7 +77,7 @@ class ProfileController extends GetxController {
     if (username != "" || password != "") {
       final authResp = Get.find<AuthInterface>();
 
-      authResp.registration(
+      await authResp.registration(
         request: RegisterRequest(
           username: username,
           password: password,

@@ -22,9 +22,8 @@ import 'package:vaulth_app/storage/auth_local_storage.dart';
 class AppBinding extends Bindings {
   @override
   void dependencies() {
-
     //инициализация api
-    Get.put(ApiClient(config: Get.find<Config>()));
+    Get.put(ApiClient(config: Get.find<Config>()), permanent: true);
 
     //инициализация репозиториев и интерфейсов
     Get.lazyPut<AuthInterface>(
@@ -33,6 +32,7 @@ class AppBinding extends Bindings {
         Get.find<Config>(),
         Get.find<AuthLocalStorage>(),
       ),
+      fenix: true,
     );
 
     Get.lazyPut<DeviceInterface>(
@@ -40,6 +40,7 @@ class AppBinding extends Bindings {
         apiClient: Get.find<ApiClient>(),
         config: Get.find<Config>(),
       ),
+      fenix: true,
     );
 
     Get.lazyPut<DevicePairingInterface>(
@@ -47,6 +48,7 @@ class AppBinding extends Bindings {
         apiClient: Get.find<ApiClient>(),
         config: Get.find<Config>(),
       ),
+      fenix: true,
     );
 
     Get.lazyPut<FileInterface>(
@@ -54,6 +56,7 @@ class AppBinding extends Bindings {
         apiClient: Get.find<ApiClient>(),
         config: Get.find<Config>(),
       ),
+      fenix: true,
     );
 
     Get.lazyPut<FolderInterface>(
@@ -61,6 +64,7 @@ class AppBinding extends Bindings {
         apiClient: Get.find<ApiClient>(),
         config: Get.find<Config>(),
       ),
+      fenix: true,
     );
 
     Get.lazyPut<ServerKeyInterface>(
@@ -68,6 +72,7 @@ class AppBinding extends Bindings {
         apiClient: Get.find<ApiClient>(),
         config: Get.find<Config>(),
       ),
+      fenix: true,
     );
 
     Get.lazyPut<TempAccessInterface>(
@@ -75,6 +80,7 @@ class AppBinding extends Bindings {
         apiClient: Get.find<ApiClient>(),
         config: Get.find<Config>(),
       ),
+      fenix: true,
     );
 
     Get.lazyPut<UserInterface>(
@@ -83,6 +89,7 @@ class AppBinding extends Bindings {
         Get.find<Config>(),
         Get.find<AuthLocalStorage>(),
       ),
+      fenix: true,
     );
   }
 }
