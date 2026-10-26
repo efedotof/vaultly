@@ -30,6 +30,7 @@ class AuthController extends GetxController {
       );
 
       state.value = AuthStates.login;
+      Get.offAllNamed('/main_home');
     } on AuthErrorException catch (e) {
       Logger.d(
         "AuthErrorException: ${e.message}",

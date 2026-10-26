@@ -7,6 +7,11 @@ class SecureStorageAdapter extends GetxService {
   static final FlutterSecureStorage _secureStorage =
       const FlutterSecureStorage();
 
+
+
+  
+
+
   static Future<void> write({
     required String key,
     required String value,
