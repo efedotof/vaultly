@@ -6,7 +6,6 @@ import 'package:vaulth_app/server/exception/token_auth_exception.dart';
 import 'package:vaulth_app/server/exception/unknown_error_exception.dart';
 import 'package:vaulth_app/server/exception/username_already_exists_exception.dart';
 import 'package:vaulth_app/server/exception/validation_error_exception.dart';
-import 'package:vaulth_app/server/model/auth/auth_info.dart';
 import 'package:vaulth_app/server/model/user/recovery_data_response.dart';
 import 'package:vaulth_app/server/model/user/update_keys_request.dart';
 import 'package:vaulth_app/server/model/user/update_recovery_keys_request.dart';
@@ -27,18 +26,14 @@ class UserRepository implements UserInterface {
   @override //get
   Future<UserProfileDto?> getCurrentUserProfile() async {
     try {
-      final resp = await _apiClient.get(_config.userPath);
+      final resp = await _apiClient.get('${_config.userPath}/me');
       switch (resp.statusCode) {
         case 200:
           if (resp.body == null || resp.body == "") throw UnknownErrorException();
-          
+
           final user = UserProfileDto.fromJson(resp.body);
-          
+
           await _authLocalStorage.saveUserInfo(user);
-
-          final info = AuthInfo();
-
-          info.user = user;
 
           return user;
         case 400:
@@ -52,16 +47,16 @@ class UserRepository implements UserInterface {
         default:
           throw UnknownErrorException();
       }
-    } catch (e) {
-      Logger.d("error: $e", tag: "AuthRepository: login");
-      throw UnknownErrorException();
+    } catch (e, s) {
+      Logger.d("getCurrentUserProfile: $e\n$s", tag: "UserRepository");
+      _rethrowOrWrap(e, s);
     }
   }
 
   @override //get
   Future<RecoveryDataResponse> getRecoveryData() async {
-   try {
-      final resp = await _apiClient.get(_config.userPath);
+    try {
+      final resp = await _apiClient.get('${_config.userPath}/me/recovery-data');
       switch (resp.statusCode) {
         case 200:
           if (resp.body == null || resp.body == "") throw UnknownErrorException();
@@ -77,16 +72,16 @@ class UserRepository implements UserInterface {
         default:
           throw UnknownErrorException();
       }
-    } catch (e) {
-      Logger.d("error: $e", tag: "AuthRepository: login");
-      throw UnknownErrorException();
+    } catch (e, s) {
+      Logger.d("getRecoveryData: $e\n$s", tag: "UserRepository");
+      _rethrowOrWrap(e, s);
     }
   }
 
   @override //get
   Future<UserProfileDto> getUserProfileById({required String id}) async {
-   try {
-      final resp = await _apiClient.get(_config.userPath, query: {"id":id});
+    try {
+      final resp = await _apiClient.get('${_config.userPath}/$id');
       switch (resp.statusCode) {
         case 200:
           if (resp.body == null || resp.body == "") throw UnknownErrorException();
@@ -102,9 +97,9 @@ class UserRepository implements UserInterface {
         default:
           throw UnknownErrorException();
       }
-    } catch (e) {
-      Logger.d("error: $e", tag: "AuthRepository: login");
-      throw UnknownErrorException();
+    } catch (e, s) {
+      Logger.d("getUserProfileById: $e\n$s", tag: "UserRepository");
+      _rethrowOrWrap(e, s);
     }
   }
 
@@ -113,7 +108,10 @@ class UserRepository implements UserInterface {
     required UpdateUserRequest request,
   }) async {
     try {
-      final resp = await _apiClient.put(_config.userPath,  request.toJson());
+      final resp = await _apiClient.put(
+        '${_config.userPath}/me',
+        request.toJson(),
+      );
       switch (resp.statusCode) {
         case 200:
           if (resp.body == null || resp.body == "") throw UnknownErrorException();
@@ -129,20 +127,23 @@ class UserRepository implements UserInterface {
         default:
           throw UnknownErrorException();
       }
-    } catch (e) {
-      Logger.d("error: $e", tag: "AuthRepository: login");
-      throw UnknownErrorException();
+    } catch (e, s) {
+      Logger.d("updateCurrentUser: $e\n$s", tag: "UserRepository");
+      _rethrowOrWrap(e, s);
     }
   }
 
   @override //post
   Future<void> updateKeys({required UpdateKeysRequest request}) async {
     try {
-      final resp = await _apiClient.post(_config.userPath, request.toJson());
+      final resp = await _apiClient.post(
+        '${_config.userPath}/keys/update',
+        request.toJson(),
+      );
       switch (resp.statusCode) {
         case 200:
-           if (resp.body == null || resp.body == "") throw UnknownErrorException();
-          Get.snackbar("Успех!","Ключи обновлены успешно" );
+          Get.snackbar("Успех!", "Ключи обновлены успешно");
+          return;
         case 400:
           throw ValidationErrorException("Проверьте правильность данных");
         case 401:
@@ -154,9 +155,9 @@ class UserRepository implements UserInterface {
         default:
           throw UnknownErrorException();
       }
-    } catch (e) {
-      Logger.d("error: $e", tag: "AuthRepository: login");
-      throw UnknownErrorException();
+    } catch (e, s) {
+      Logger.d("updateKeys: $e\n$s", tag: "UserRepository");
+      _rethrowOrWrap(e, s);
     }
   }
 
@@ -164,12 +165,15 @@ class UserRepository implements UserInterface {
   Future<void> updateRecoveryKeys({
     required UpdateRecoveryKeysRequest request,
   }) async {
-    try {try {
-      final resp = await _apiClient.post(_config.userPath, request.toJson());
+    try {
+      final resp = await _apiClient.post(
+        '${_config.userPath}/keys/recovery/update',
+        request.toJson(),
+      );
       switch (resp.statusCode) {
         case 200:
-          if (resp.body == null || resp.body == "") throw UnknownErrorException();
-          Get.snackbar("Успех!","Ключи восстановления обновлены успешно" );
+          Get.snackbar("Успех!", "Ключи восстановления обновлены успешно");
+          return;
         case 400:
           throw ValidationErrorException("Проверьте правильность данных");
         case 401:
@@ -181,9 +185,20 @@ class UserRepository implements UserInterface {
         default:
           throw UnknownErrorException();
       }
-    } catch (e) {
-      Logger.d("error: $e", tag: "AuthRepository: login");
-      throw UnknownErrorException();
-    }} catch (e) {}
+    } catch (e, s) {
+      Logger.d("updateRecoveryKeys: $e\n$s", tag: "UserRepository");
+      _rethrowOrWrap(e, s);
+    }
+  }
+
+  Never _rethrowOrWrap(Object e, StackTrace s) {
+    if (e is ValidationErrorException ||
+        e is TokenAuthException ||
+        e is NotFoundException ||
+        e is UsernameAlreadyExistsException ||
+        e is UnknownErrorException) {
+      Error.throwWithStackTrace(e, s);
+    }
+    Error.throwWithStackTrace(UnknownErrorException(), s);
   }
 }
