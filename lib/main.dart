@@ -9,6 +9,7 @@ import 'package:vaulth_app/server/service/encrypt_service/encrypt_service.dart';
 import 'package:vaulth_app/server/service/key/device_id_generator.dart';
 import 'package:vaulth_app/server/service/key/key_manager.dart';
 import 'package:vaulth_app/server/service/key/recovery_phase.dart';
+import 'package:vaulth_app/server/service/updater/updater.dart';
 import 'package:vaulth_app/storage/auth_local_storage.dart';
 import 'package:vaulth_app/storage/secure_storage_adapter.dart';
 import 'config.dart';
@@ -22,32 +23,39 @@ void main() async {
   //инициализация конфига сервера
   Get.put(Config());
 
+  //инициализируем updater
+  await Get.putAsync(
+    () => UpdaterUnplatform(config: Get.find<Config>()).init(),
+  );
+
   //инициализируем чекинг интернета и доступности сервера
   Get.put(AppStatusOverlayController());
-  
+
   //инициализация глобальных сервисов
   await Get.putAsync(() => CacheService().init()); //сервис кэширования
   await Get.putAsync(() => EncryptService().init()); //сервис шифрования
   await Get.putAsync(() => DecryptService().init()); //сервис дешифрования
-  await Get.putAsync(() => DeviceIdGenerator().init()); //сервис генерации айди устройства
-  await Get.putAsync(() => KeyManagerService().init()); //сервис управления, создания,сохранения ключей пользователя.
-  await Get.putAsync(() => RecoveryPhase().init()); //сервис создания seed 
-  
+  await Get.putAsync(
+    () => DeviceIdGenerator().init(),
+  ); //сервис генерации айди устройства
+  await Get.putAsync(
+    () => KeyManagerService().init(),
+  ); //сервис управления, создания,сохранения ключей пользователя.
+  await Get.putAsync(() => RecoveryPhase().init()); //сервис создания seed
+
   //инициализация локализации
   Get.lazyPut(() => LocalizationRep());
 
   //инициализация секретного хранилища
   Get.put(SecureStorageAdapter(), permanent: true);
 
-  //инициализируем profileController для 
-
+  //инициализируем profileController для
 
   //инициализация хранилища
   final storage = Get.put(AuthLocalStorage(), permanent: true);
 
   //инициализируем кэш
   await storage.initCache();
-
 
   runApp(VaultlyApp());
 }

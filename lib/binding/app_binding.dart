@@ -28,6 +28,7 @@ class AppBinding extends Bindings {
     //инициализация api
     Get.put(ApiClient(config: Get.find<Config>()), permanent: true);
 
+
     //инициализация репозиториев и интерфейсов
     Get.lazyPut<AuthInterface>(
       () => AuthRepository(

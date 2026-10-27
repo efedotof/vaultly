@@ -49,8 +49,9 @@ class AuthController extends GetxController {
 
   //метод для смены с login на password
   void goToNext() {
-    if (state.value == AuthStates.login && username.value != "")
+    if (state.value == AuthStates.login && username.value != "") {
       state.value = AuthStates.password;
+    }
 
     if (state.value == AuthStates.password) state.value = AuthStates.password;
   }

@@ -2,7 +2,7 @@ name: vaulth_app
 description: "Vaultly - ваш персональный цифровой сейф."
 publish_to: 'none'
 
-version: 1.0.12+14
+version: 1.0.13+15
 
 environment:
   sdk: ^3.10.9

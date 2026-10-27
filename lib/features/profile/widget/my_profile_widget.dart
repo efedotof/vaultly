@@ -46,7 +46,7 @@ class MyProfileWidget extends StatelessWidget {
                                   child: avatarUrl.isNotEmpty
                                       ? Image.network(
                                           avatarUrl,
-                                          errorBuilder: (_, __, ___) =>
+                                          errorBuilder: (_, _, _) =>
                                               const Icon(Icons.person),
                                         )
                                       : const Icon(Icons.person),

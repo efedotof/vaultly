@@ -37,8 +37,8 @@ class FileRepository implements FileInterface {
       final form = FormData({
         'file': MultipartFile(File(filePath), filename: fileName),
         'isPublic': isPublic.toString(),
-        if (folderId != null) 'folderId': folderId,
-        if (contentHash != null) 'contentHash': contentHash,
+        'folderId': ?folderId,
+        'contentHash': ?contentHash,
       });
 
       final resp = await _apiClient.postMultipart('$_base/upload/shps', form);
@@ -78,8 +78,8 @@ class FileRepository implements FileInterface {
     try {
       final form = FormData({
         'file': MultipartFile(File(filePath), filename: fileName),
-        if (folderId != null) 'folderId': folderId,
-        if (contentHash != null) 'contentHash': contentHash,
+        'folderId': ?folderId,
+        'contentHash': ?contentHash,
       });
 
       final resp = await _apiClient.postMultipart('$_base/upload/public', form);
@@ -292,7 +292,7 @@ class FileRepository implements FileInterface {
     try {
       final form = FormData({
         'file': MultipartFile(File(filePath), filename: fileName),
-        if (folderId != null) 'folderId': folderId,
+        'folderId': ?folderId,
       });
 
       final resp = await _apiClient.postMultipart('$_base/notes', form);

@@ -2,11 +2,27 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:vaulth_app/config.dart';
-import 'package:vaulth_app/server/service/logger/logger.dart';
+import 'package:vaulth_app/server/exception/new_version_exception.dart';
+import 'package:vaulth_app/server/exception/no_update_required_exception.dart';
+import 'package:vaulth_app/server/exception/update_check_failed_exception.dart';
+import 'package:vaulth_app/server/service/updater/updater.dart';
 
-enum AppOverlayStatus { none, checking, done, error, fileDecrypt, fileEnctypt}
+enum AppOverlayStatus {
+  none,
+  checking,
+  done,
+  error,
+  fileDecrypt,
+  fileEncrypt,
+  updateAvailable,
+  downloadingUpdate,
+  noUpdate,
+  failedUpdate,
+  webVersion,
+}
 
 class AppStatusOverlayController extends GetxController {
   final _config = Get.find<Config>();
@@ -19,6 +35,10 @@ class AppStatusOverlayController extends GetxController {
   final successIcon = false.obs;
   final dismissed = false.obs;
 
+  final downloadProgress = 0.0.obs;
+  final downloadedBytes = 0.obs;
+  final totalBytes = 0.obs;
+
   Timer? _timer;
   Timer? _successBannerTimer;
   Timer? _successIconTimer;
@@ -29,7 +49,6 @@ class AppStatusOverlayController extends GetxController {
   static const _requestTimeout = Duration(seconds: 5);
   static const _successFullDuration = Duration(milliseconds: 1200);
   static const _successIconDuration = Duration(milliseconds: 800);
-  static const _tag = 'ConnectionCheckerController';
   static const _internetProbe = 'https://www.gstatic.com/generate_204';
 
   static final _random = Random();
@@ -37,16 +56,12 @@ class AppStatusOverlayController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    Logger.d(
-      'Запуск проверки, база ${_baseInterval.inSeconds}s, макс ${_maxInterval.inSeconds}s',
-      tag: _tag,
-    );
     check();
+    checkUpgrade();
   }
 
   @override
   void onClose() {
-    Logger.d('Остановка проверки', tag: _tag);
     _timer?.cancel();
     _successBannerTimer?.cancel();
     _successIconTimer?.cancel();
@@ -65,25 +80,12 @@ class AppStatusOverlayController extends GetxController {
   Future<bool> _ping(String url) async {
     final client = HttpClient();
     client.connectionTimeout = _requestTimeout;
-    final sw = Stopwatch()..start();
     try {
-      Logger.d('HEAD: $url', tag: _tag);
       final req = await client.headUrl(Uri.parse(url));
       final res = await req.close();
       await res.drain<void>();
-      sw.stop();
-      final ok = res.statusCode < 500;
-      Logger.d(
-        'Ответ $url: ${res.statusCode} (${sw.elapsedMilliseconds}ms) ok=$ok',
-        tag: _tag,
-      );
-      return ok;
-    } catch (e, s) {
-      sw.stop();
-      Logger.d(
-        'Ошибка $url (${sw.elapsedMilliseconds}ms): ${e.runtimeType}: $e\n$s',
-        tag: _tag,
-      );
+      return res.statusCode < 500;
+    } catch (e) {
       return false;
     } finally {
       client.close();
@@ -110,11 +112,10 @@ class AppStatusOverlayController extends GetxController {
         isServerConnected.value = server;
         state.value = server ? AppOverlayStatus.done : AppOverlayStatus.error;
       }
-    } catch (e, s) {
+    } catch (e) {
       hasInternet.value = false;
       isServerConnected.value = false;
       state.value = AppOverlayStatus.error;
-      Logger.d('Неожиданная ошибка: ${e.runtimeType}: $e\n$s', tag: _tag);
     } finally {
       final nowConnected = hasInternet.value && isServerConnected.value;
 
@@ -155,18 +156,11 @@ class AppStatusOverlayController extends GetxController {
   }
 
   void _applyBackoff() {
-    final prev = _currentInterval;
     if (state.value == AppOverlayStatus.done) {
       _currentInterval = _baseInterval;
     } else {
       final next = _currentInterval * 2;
       _currentInterval = next > _maxInterval ? _maxInterval : next;
-    }
-    if (prev != _currentInterval) {
-      Logger.d(
-        'Интервал: ${prev.inSeconds}s → ${_currentInterval.inSeconds}s',
-        tag: _tag,
-      );
     }
   }
 
@@ -175,5 +169,54 @@ class AppStatusOverlayController extends GetxController {
     final jitterFactor = 0.85 + _random.nextDouble() * 0.30;
     final delayMs = (_currentInterval.inMilliseconds * jitterFactor).round();
     _timer = Timer(Duration(milliseconds: delayMs), check);
+  }
+
+  Future<void> checkUpgrade() async {
+    if (kIsWeb) {
+      state.value = AppOverlayStatus.webVersion;
+      return;
+    }
+
+    try {
+      final updater = Get.find<UpdaterUnplatform>();
+      await updater.checkNewVersion();
+    } on UpdateCheckFailedException catch (_) {
+      state.value = AppOverlayStatus.failedUpdate;
+    } on NewVersionException catch (_) {
+      state.value = AppOverlayStatus.updateAvailable;
+      dismissed.value = false;
+    } on NoUpdateRequiredException catch (_) {
+      state.value = AppOverlayStatus.noUpdate;
+      dismissed.value = false;
+    } catch (e) {
+      state.value = AppOverlayStatus.failedUpdate;
+    }
+  }
+
+  Future<void> startUpdate() async {
+    if (kIsWeb) return;
+
+    state.value = AppOverlayStatus.downloadingUpdate;
+    downloadProgress.value = 0.0;
+    downloadedBytes.value = 0;
+    totalBytes.value = 0;
+    dismissed.value = false;
+
+    try {
+      final updater = Get.find<UpdaterUnplatform>();
+      await updater.downloadAndApply(
+        onProgress: (done, total) {
+          downloadedBytes.value = done;
+          totalBytes.value = total;
+          if (total > 0) {
+            downloadProgress.value = done / total;
+          }
+        },
+      );
+    } on UpdateCheckFailedException catch (_) {
+      state.value = AppOverlayStatus.failedUpdate;
+    } catch (e) {
+      state.value = AppOverlayStatus.failedUpdate;
+    }
   }
 }

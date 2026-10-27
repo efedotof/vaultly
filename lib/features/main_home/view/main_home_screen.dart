@@ -129,7 +129,7 @@ class _MainHomeScreenState extends State<MainHomeScreen>
                       shape: BoxShape.circle,
                       color: Colors.grey.shade200,
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withAlpha(5),
                         width: 1.5,
                       ),
                     ),
@@ -140,7 +140,7 @@ class _MainHomeScreenState extends State<MainHomeScreen>
                             ? Image.network(
                                 avatarUrl,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Icon(
+                                errorBuilder: (_, _, _) => const Icon(
                                   Icons.person,
                                   size: 22,
                                   color: _navBg,
