@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:vaulth_app/config.dart';
+import 'package:vaulth_app/features/main_home/controller/main_nav_controller.dart';
 import 'package:vaulth_app/server/api_client.dart';
 import 'package:vaulth_app/server/repository/auth/auth_interface.dart';
 import 'package:vaulth_app/server/repository/auth/auth_repository.dart';
@@ -22,6 +23,8 @@ import 'package:vaulth_app/storage/auth_local_storage.dart';
 class AppBinding extends Bindings {
   @override
   void dependencies() {
+    Get.put(MainNavController(), permanent: true);
+
     //инициализация api
     Get.put(ApiClient(config: Get.find<Config>()), permanent: true);
 

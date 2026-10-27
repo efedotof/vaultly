@@ -6,7 +6,7 @@ import 'package:get/get.dart';
 import 'package:vaulth_app/config.dart';
 import 'package:vaulth_app/server/service/logger/logger.dart';
 
-enum AppOverlayStatus { none, checking, done, error }
+enum AppOverlayStatus { none, checking, done, error, fileDecrypt, fileEnctypt}
 
 class AppStatusOverlayController extends GetxController {
   final _config = Get.find<Config>();
