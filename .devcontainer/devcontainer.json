@@ -1,47 +1,43 @@
 {
-  "name": "Flutter FFI (Android + Linux)",
-  "image": "ghcr.io/thephaseless/devcontainers/flutter:latest",
+  "name": "Flutter FFI Plugin (vaultly)",
+  "image": "ghcr.io/cirruslabs/flutter:stable",
   "overrideCommand": true,
-  "postCreateCommand": "bash -lc 'yes | sdkmanager --licenses && sdkmanager \"ndk;27.2.12479018\" \"cmake;3.22.1\" \"platforms;android-35\" \"build-tools;35.0.0\" \"platform-tools\" && sudo apt-get update && sudo apt-get install -y ninja-build cmake clang pkg-config libgtk-3-dev libglu1-mesa libstdc++-12-dev libssl-dev && cd /workspaces/vaultly && flutter pub get --no-example && cd example && flutter pub get'",
+  "postCreateCommand": "bash -lc 'yes | /opt/android-sdk-linux/cmdline-tools/latest/bin/sdkmanager --licenses && /opt/android-sdk-linux/cmdline-tools/latest/bin/sdkmanager \"ndk;27.2.12479018\" \"cmake;3.22.1\" \"platforms;android-35\" \"build-tools;35.0.0\" \"platform-tools\" && sudo apt-get update && sudo apt-get install -y ninja-build cmake clang pkg-config libgtk-3-dev libglu1-mesa libstdc++-12-dev libssl-dev scrcpy && cd /workspaces/vaultly && flutter pub get --no-example && cd example && flutter pub get'",
   "containerEnv": {
-    "ANDROID_HOME": "/opt/android-sdk",
-    "ANDROID_SDK_ROOT": "/opt/android-sdk",
-    "ANDROID_NDK_HOME": "/opt/android-sdk/ndk/27.2.12479018",
+    "ANDROID_HOME": "/opt/android-sdk-linux",
+    "ANDROID_SDK_ROOT": "/opt/android-sdk-linux",
+    "ANDROID_NDK_HOME": "/opt/android-sdk-linux/ndk/27.2.12479018",
+    "FLUTTER_ROOT": "/sdks/flutter",
     "XDG_RUNTIME_DIR": "/tmp",
     "DISPLAY": "${localEnv:DISPLAY}",
     "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}"
   },
+
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {
       "installDirectlyFromGitHubRelease": true,
       "version": "latest"
-    },
-    "ghcr.io/devcontainers-extra/features/kotlin-sdkman:2": {
-      "version": "latest",
-      "jdkVersion": "latest",
-      "jdkDistro": "ms"
     }
   },
+
   "runArgs": [
     "--network=host",
     "--privileged",
-    "-v",
-    "/dev/bus/usb:/dev/bus/usb",
-    "-v",
-    "/tmp/.X11-unix:/tmp/.X11-unix",
-    "-e",
-    "DISPLAY=${localEnv:DISPLAY}",
-    "-e",
-    "WAYLAND_DISPLAY=${localEnv:WAYLAND_DISPLAY}",
-    "-v",
-    "/run/user/1000/wayland-0:/tmp/wayland-0"
+    "-v", "/dev/bus/usb:/dev/bus/usb",
+    "-v", "/tmp/.X11-unix:/tmp/.X11-unix",
+    "-e", "DISPLAY=${localEnv:DISPLAY}",
+    "-e", "WAYLAND_DISPLAY=${localEnv:WAYLAND_DISPLAY}",
+    "-v", "/run/user/1000/wayland-0:/tmp/wayland-0"
   ],
+
   "customizations": {
     "vscode": {
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
+        "dart.flutterSdkPath": "/sdks/flutter",
+        "dart.sdkPath": "/sdks/flutter/bin/cache/dart-sdk",
         "scrcpy.path": "/usr/bin/scrcpy",
-        "scrcpy.adbPath": "/opt/android-sdk/platform-tools/adb"
+        "scrcpy.adbPath": "/opt/android-sdk-linux/platform-tools/adb"
       },
       "extensions": [
         "Dart-Code.dart-code",
