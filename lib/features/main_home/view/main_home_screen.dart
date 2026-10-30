@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:vaulth_app/features/global_widget/add_files/view/add_files.dart';
 import 'package:vaulth_app/features/home/home.dart';
 import 'package:vaulth_app/features/main_home/controller/main_home_controller.dart';
 import 'package:vaulth_app/features/main_home/controller/main_nav_controller.dart';
@@ -115,6 +116,9 @@ class _MainHomeScreenState extends State<MainHomeScreen>
                 ),
               ),
             ),
+
+            AddFiles(),
+
             Positioned(
               right: 20,
               bottom: 20,
