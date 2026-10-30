@@ -25,6 +25,7 @@ target_compile_definitions(shirm_crypto PUBLIC DART_SHARED_LIB)
 target_include_directories(shirm_crypto PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/sqlite
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party  
 )
 
 if(ANDROID)
