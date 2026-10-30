@@ -14,9 +14,9 @@
 #include <openssl/err.h>
 #include <zlib.h>
 #ifdef _WIN32
-  #include <winsock2.h>   
+  #include <winsock2.h>
 #else
-  #include <arpa/inet.h>  
+  #include <arpa/inet.h>
 #endif
 
 void current_iso8601(char *buffer, size_t buffer_size);
@@ -26,6 +26,17 @@ int generate_random_bytes(unsigned char *buf, size_t len);
 
 EVP_PKEY *load_public_key_from_pem(const char *pem);
 EVP_PKEY *load_private_key_from_pem(const char *pem);
+
+/* --- Кэшированные варианты (thread-safe) ---
+ * Возвращают EVP_PKEY с увеличенным refcount; вызывающая сторона
+ * должна сделать EVP_PKEY_free(), как обычно.
+ * При повторном вызове с тем же PEM парсинг не выполняется. */
+EVP_PKEY *load_public_key_from_pem_cached(const char *pem);
+EVP_PKEY *load_private_key_from_pem_cached(const char *pem);
+
+/* Явно сбросить глобальный кэш (ротация ключей / shutdown). */
+void shirm_crypto_clear_key_cache(void);
+
 int rsa_oaep_encrypt(const unsigned char *plaintext, size_t plaintext_len,
                      EVP_PKEY *pubkey, unsigned char **out, size_t *out_len);
 int rsa_oaep_decrypt_sha1(const unsigned char *ciphertext, size_t ciphertext_len,

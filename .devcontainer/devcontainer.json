@@ -1,13 +1,63 @@
-// For format details, see https://aka.ms/devcontainer.json.
 {
-  "name": "Flutter",
-  "image": "ghcr.io/thephaseless/devcontainers/flutter:latest"
-  // Features to add to the dev container. More info: https://containers.dev/features.
-  // "features": {},
-  // Use 'forwardPorts' to make a list of ports inside the container available locally.
-  // "forwardPorts": [],
-  // Configure tool-specific properties.
-  // "customizations": {},
-  // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-  // "remoteUser": "root"
+  "name": "Flutter FFI (Android + Linux)",
+  "image": "ghcr.io/thephaseless/devcontainers/flutter:latest",
+  "overrideCommand": true,
+  "postCreateCommand": "bash -lc 'yes | sdkmanager --licenses && sdkmanager \"ndk;27.2.12479018\" \"cmake;3.22.1\" \"platforms;android-35\" \"build-tools;35.0.0\" \"platform-tools\" && sudo apt-get update && sudo apt-get install -y ninja-build cmake clang pkg-config libgtk-3-dev libglu1-mesa libstdc++-12-dev libssl-dev && cd /workspaces/vaultly && flutter pub get --no-example && cd example && flutter pub get'",
+  "containerEnv": {
+    "ANDROID_HOME": "/opt/android-sdk",
+    "ANDROID_SDK_ROOT": "/opt/android-sdk",
+    "ANDROID_NDK_HOME": "/opt/android-sdk/ndk/27.2.12479018",
+    "XDG_RUNTIME_DIR": "/tmp",
+    "DISPLAY": "${localEnv:DISPLAY}",
+    "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "installDirectlyFromGitHubRelease": true,
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers-extra/features/kotlin-sdkman:2": {
+      "version": "latest",
+      "jdkVersion": "latest",
+      "jdkDistro": "ms"
+    }
+  },
+  "runArgs": [
+    "--network=host",
+    "--privileged",
+    "-v",
+    "/dev/bus/usb:/dev/bus/usb",
+    "-v",
+    "/tmp/.X11-unix:/tmp/.X11-unix",
+    "-e",
+    "DISPLAY=${localEnv:DISPLAY}",
+    "-e",
+    "WAYLAND_DISPLAY=${localEnv:WAYLAND_DISPLAY}",
+    "-v",
+    "/run/user/1000/wayland-0:/tmp/wayland-0"
+  ],
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "scrcpy.path": "/usr/bin/scrcpy",
+        "scrcpy.adbPath": "/opt/android-sdk/platform-tools/adb"
+      },
+      "extensions": [
+        "Dart-Code.dart-code",
+        "Dart-Code.flutter",
+        "eamodio.gitlens",
+        "mhutchie.git-graph",
+        "streetsidesoftware.code-spell-checker",
+        "streetsidesoftware.code-spell-checker-russian",
+        "PKief.material-icon-theme",
+        "alexisvt.flutter-snippets",
+        "felixangelov.bloc",
+        "nash.awesome-flutter-snippets",
+        "pflannery.vscode-versionlens",
+        "GitHub.vscode-github-actions",
+        "izantech.scrcpy-vscode"
+      ]
+    }
+  }
 }

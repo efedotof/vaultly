@@ -273,7 +273,7 @@ DecryptResult *shirm_decrypt_data(const unsigned char *shpsData,
         return result;
     }
 
-    EVP_PKEY *privKey = load_private_key_from_pem(privateKeyPem);
+    EVP_PKEY *privKey = load_private_key_from_pem_cached(privateKeyPem);
     if (!privKey) {
         free(encryptedKey); free(iv); shps_free_header(&hdr);
         result->error = strdup("Failed to load private key");
@@ -389,7 +389,7 @@ EncryptResult *shirm_encrypt_file(const char *inputPath,
         return result;
     }
 
-    EVP_PKEY *pubKey = load_public_key_from_pem(publicKeyPem);
+    EVP_PKEY *pubKey = load_public_key_from_pem_cached(publicKeyPem);
     if (!pubKey) {
         free(dataToEncrypt);
         result->error = strdup("Failed to load public key");
@@ -409,7 +409,7 @@ EncryptResult *shirm_encrypt_file(const char *inputPath,
     unsigned char *signature = NULL;
     size_t signature_len = 0;
     if (privateKeyPem && *privateKeyPem) {
-        EVP_PKEY *privKey = load_private_key_from_pem(privateKeyPem);
+        EVP_PKEY *privKey = load_private_key_from_pem_cached(privateKeyPem);
         if (privKey) {
             rsa_sign(dataToEncrypt, dataToEncrypt_len, privKey,
                      &signature, &signature_len);

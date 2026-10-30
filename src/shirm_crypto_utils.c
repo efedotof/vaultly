@@ -4,6 +4,96 @@
 #include <openssl/rand.h>
 #include <zlib.h>
 
+#ifdef _WIN32
+  #include <windows.h>
+  static CRITICAL_SECTION g_key_cache_lock;
+  static volatile LONG g_key_cache_lock_initialized = 0;
+  static void key_cache_lock_init(void) {
+      if (InterlockedCompareExchange(&g_key_cache_lock_initialized, 1, 0) == 0) {
+          InitializeCriticalSection(&g_key_cache_lock);
+      }
+  }
+  static void key_cache_lock(void)   { key_cache_lock_init(); EnterCriticalSection(&g_key_cache_lock); }
+  static void key_cache_unlock(void) { LeaveCriticalSection(&g_key_cache_lock); }
+#else
+  #include <pthread.h>
+  static pthread_mutex_t g_key_cache_lock = PTHREAD_MUTEX_INITIALIZER;
+  static void key_cache_lock(void)   { pthread_mutex_lock(&g_key_cache_lock); }
+  static void key_cache_unlock(void) { pthread_mutex_unlock(&g_key_cache_lock); }
+#endif
+
+static EVP_PKEY *g_cached_pub  = NULL;
+static EVP_PKEY *g_cached_priv = NULL;
+static unsigned char g_cached_pub_sha[32]  = {0};
+static unsigned char g_cached_priv_sha[32] = {0};
+
+static void sha256_pem(const char *pem, unsigned char out[32])
+{
+    unsigned int len = 32;
+    EVP_Digest(pem, strlen(pem), out, &len, EVP_sha256(), NULL);
+}
+
+EVP_PKEY *load_public_key_from_pem_cached(const char *pem)
+{
+    if (!pem) return NULL;
+
+    unsigned char hash[32];
+    sha256_pem(pem, hash);
+
+    key_cache_lock();
+    if (g_cached_pub && memcmp(g_cached_pub_sha, hash, 32) == 0) {
+        EVP_PKEY_up_ref(g_cached_pub);
+        EVP_PKEY *r = g_cached_pub;
+        key_cache_unlock();
+        return r;
+    }
+    EVP_PKEY *new_key = load_public_key_from_pem(pem);
+    if (new_key) {
+        if (g_cached_pub) EVP_PKEY_free(g_cached_pub);
+        g_cached_pub = new_key;
+        memcpy(g_cached_pub_sha, hash, 32);
+        EVP_PKEY_up_ref(new_key);  
+    }
+    key_cache_unlock();
+    return new_key;
+}
+
+EVP_PKEY *load_private_key_from_pem_cached(const char *pem)
+{
+    if (!pem) return NULL;
+
+    unsigned char hash[32];
+    sha256_pem(pem, hash);
+
+    key_cache_lock();
+    if (g_cached_priv && memcmp(g_cached_priv_sha, hash, 32) == 0) {
+        EVP_PKEY_up_ref(g_cached_priv);
+        EVP_PKEY *r = g_cached_priv;
+        key_cache_unlock();
+        return r;
+    }
+    EVP_PKEY *new_key = load_private_key_from_pem(pem);
+    if (new_key) {
+        if (g_cached_priv) EVP_PKEY_free(g_cached_priv);
+        g_cached_priv = new_key;
+        memcpy(g_cached_priv_sha, hash, 32);
+        EVP_PKEY_up_ref(new_key);
+    }
+    key_cache_unlock();
+    return new_key;
+}
+
+void shirm_crypto_clear_key_cache(void)
+{
+    key_cache_lock();
+    if (g_cached_pub)  { EVP_PKEY_free(g_cached_pub);  g_cached_pub  = NULL; }
+    if (g_cached_priv) { EVP_PKEY_free(g_cached_priv); g_cached_priv = NULL; }
+    memset(g_cached_pub_sha,  0, 32);
+    memset(g_cached_priv_sha, 0, 32);
+    key_cache_unlock();
+}
+
+
 void current_iso8601(char *buffer, size_t buffer_size)
 {
     time_t t = time(NULL);

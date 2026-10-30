@@ -25,8 +25,6 @@ class ShirmCache {
 
   ShirmCache._(this._cachePtr);
 
-  /// Читает C-строку ошибки, освобождает её через shirm_free().
-  /// Возвращает готовую Dart-строку.
   static String _takeError(Pointer<Pointer<Char>> errorPtr) {
     final cstr = errorPtr.value;
     if (cstr == nullptr) return 'Unknown error';
@@ -151,5 +149,98 @@ class ShirmCache {
 
   void close() {
     _bindings.shirm_cache_close(_cachePtr);
+  }
+
+  Future<void> saveStream(
+    String fileId,
+    Stream<Uint8List> source, {
+    String? originalName,
+  }) async {
+    final errorPtr = calloc<Pointer<Utf8>>();
+    final saveStreamPtr = _bindings.shirm_cache_save_stream_init(
+      _cachePtr,
+      fileId.toNativeUtf8().cast<Char>(),
+      (originalName ?? '').toNativeUtf8().cast<Char>(),
+      errorPtr.cast<Pointer<Char>>(),
+    );
+    if (saveStreamPtr == nullptr) {
+      throw Exception(_takeError(errorPtr.cast()));
+    }
+    try {
+      await for (final chunk in source) {
+        final arena = Arena();
+        try {
+          final chunkPtr = arena<Uint8>(chunk.length);
+          chunkPtr.asTypedList(chunk.length).setAll(0, chunk);
+          final r = _bindings.shirm_cache_save_stream_write(
+            saveStreamPtr,
+            chunkPtr,
+            chunk.length,
+            errorPtr.cast<Pointer<Char>>(),
+          );
+          if (r == 0) {
+            throw Exception(_takeError(errorPtr.cast()));
+          }
+        } finally {
+          arena.releaseAll();
+        }
+      }
+      final r = _bindings.shirm_cache_save_stream_finish(
+        saveStreamPtr,
+        errorPtr.cast<Pointer<Char>>(),
+      );
+      if (r == 0) {
+        throw Exception(_takeError(errorPtr.cast()));
+      }
+    } finally {
+      _bindings.shirm_cache_save_stream_free(saveStreamPtr);
+      calloc.free(errorPtr);
+    }
+  }
+
+  Stream<Uint8List> loadStream(String fileId) async* {
+    final errorPtr = calloc<Pointer<Utf8>>();
+    final loadStreamPtr = _bindings.shirm_cache_load_stream_init(
+      _cachePtr,
+      fileId.toNativeUtf8().cast<Char>(),
+      errorPtr.cast<Pointer<Char>>(),
+    );
+    if (loadStreamPtr == nullptr) {
+      calloc.free(errorPtr);
+      throw Exception(_takeError(errorPtr.cast()));
+    }
+    try {
+      while (true) {
+        final outChunkPtr = calloc<Pointer<Uint8>>();
+        final outSizePtr = calloc<Size>();
+        try {
+          final r = _bindings.shirm_cache_load_stream_read(
+            loadStreamPtr,
+            outChunkPtr,
+            outSizePtr,
+            errorPtr.cast<Pointer<Char>>(),
+          );
+          if (r == 0) break;
+          if (r < 0) {
+            throw Exception(_takeError(errorPtr.cast()));
+          }
+          final chunkPtr = outChunkPtr.value;
+          final chunkSize = outSizePtr.value;
+          if (chunkPtr != nullptr && chunkSize > 0) {
+            final data = Uint8List.fromList(
+              chunkPtr.asTypedList(chunkSize),
+            );
+            _bindings.shirm_free(chunkPtr.cast<Void>());
+            yield data;
+          }
+        } finally {
+          calloc.free(outChunkPtr);
+          calloc.free(outSizePtr);
+        }
+      }
+    } finally {
+      _bindings.shirm_cache_load_stream_free(loadStreamPtr);
+      calloc.free(errorPtr);
+    }
   }
 }

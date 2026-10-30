@@ -276,3 +276,43 @@ Android), что ломалось при сборке без интернета.
 - `shirm_crypto_utils.c`
 - `shirm_crypto_cache.c`
 - `shirm_crypto_bindings_generated.dart` (регенерация не нужна)
+
+
+#### 2.10. Отсутствие кэша `EVP_PKEY*` между вызовами
+
+Каждый `encryptFile`/`decryptData` (в т.ч. stream-init) вызывал
+`load_public_key_from_pem` / `load_private_key_from_pem`, которые парсили
+PEM с нуля (`PEM_read_bio_*` ~50 µs для RSA-2048). Для сценария кэша, где
+сохраняются десятки мелких файлов одним ключом, это складывается в
+ощутимое время.
+
+**Исправлено.** Добавлен потокобезопасный (pthread / CRITICAL_SECTION)
+кэш `EVP_PKEY*` с инвалидацией по SHA-256 от PEM. Горячие пути
+(`shirm_encrypt_file`, `shirm_decrypt_data`, `shirm_encrypt_stream_init`,
+`shirm_decrypt_stream_init`) переведены на `load_*_from_pem_cached`.
+Возвращается PKEY с увеличенным `refcount` — вызывающая сторона делает
+`EVP_PKEY_free` как обычно. Для явного сброса —
+`shirm_crypto_clear_key_cache()` (экспортирована в Dart).
+
+#### 2.11. `ShirmCache.save/load` грузили файл целиком в RAM
+
+Non-stream `ShirmCache.save` / `load` работают с `Uint8List` — для
+больших файлов это означает дополнительную нагрузку на память.
+
+**Исправлено.** Добавлены методы `saveStream(Stream<Uint8List>)` и
+`loadStream()` в Dart-обёртку, использующие существующие C-функции
+`shirm_cache_save_stream_*` / `shirm_cache_load_stream_*`. Для маленьких
+буферов `save`/`load` остаются без изменений.
+
+#### 2.12. Пул воркеров для non-stream операций
+
+Каждый `encryptFile` / `decryptData` спавнил новый изолят
+(`Isolate.spawn` ~50–100 ms). Для сценария «много мелких операций» это
+давало заметный overhead.
+
+**Исправлено.** Добавлен `CryptoWorkerPool` (по умолчанию 4 воркера),
+который переиспользует долгоживущие изоляты. `encryptFile` /
+`decryptData` из `ShirmCryptoImpl` теперь идут через пул. Метод
+`clearKeyCache()` обнуляет кэш PKEY (см. 2.10) во всех воркерах.
+Stream-операции по-прежнему спавнят одноразовый изолят — startup cost
+амортизируется длиной стрима.

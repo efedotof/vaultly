@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'shirm_crypto_native.dart'
-    if (dart.library.html) 'shirm_crypto_web.dart'
+import 'shirm_crypto_native.dart' if (dart.library.html) 'shirm_crypto_web.dart'
     as impl;
+
+export 'shirm_cache.dart';
+export 'src/shirm_crypto_worker_pool.dart' show CryptoWorkerPool;
 
 class ShirmCrypto {
   static Future<Uint8List> encryptFile({

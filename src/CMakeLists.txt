@@ -37,6 +37,8 @@ target_compile_definitions(shirm_crypto PRIVATE
     SQLITE_DQS=0
 )
 
+find_package(Threads REQUIRED)
+
 target_include_directories(shirm_crypto PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/sqlite
@@ -52,7 +54,7 @@ if(ANDROID)
         IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/../android/src/main/jniLibs/${ANDROID_ABI}/libcrypto.so)
     target_include_directories(shirm_crypto PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../android/src/main/jniLibs/${ANDROID_ABI}/include)
-    target_link_libraries(shirm_crypto PRIVATE ssl crypto z log)
+    target_link_libraries(shirm_crypto PRIVATE ssl crypto z log Threads::Threads)
     target_link_options(shirm_crypto PRIVATE "-Wl,-z,max-page-size=16384")
 
 elseif(APPLE AND NOT IOS)
@@ -71,7 +73,7 @@ elseif(APPLE AND NOT IOS)
     set_target_properties(crypto PROPERTIES IMPORTED_LOCATION ${OPENSSL_DIR}/libcrypto.a)
     target_include_directories(shirm_crypto PRIVATE ${OPENSSL_DIR}/include)
     find_library(SECURITY Security REQUIRED)
-    target_link_libraries(shirm_crypto PRIVATE ssl crypto ${SHIRM_ZLIB_LIB} ${SECURITY})
+    target_link_libraries(shirm_crypto PRIVATE ssl crypto ${SHIRM_ZLIB_LIB} ${SECURITY} Threads::Threads)
 
 elseif(IOS)
     if(CMAKE_SYSROOT MATCHES "iphonesimulator")
@@ -84,7 +86,7 @@ elseif(IOS)
     add_library(crypto STATIC IMPORTED)
     set_target_properties(crypto PROPERTIES IMPORTED_LOCATION ${IOS_PREBUILD}/libcrypto.a)
     target_include_directories(shirm_crypto PRIVATE ${IOS_PREBUILD}/include)
-    target_link_libraries(shirm_crypto PRIVATE ssl crypto ${SHIRM_ZLIB_LIB})
+    target_link_libraries(shirm_crypto PRIVATE ssl crypto ${SHIRM_ZLIB_LIB} Threads::Threads)
 
 elseif(UNIX AND NOT APPLE)
     set(LINUX_PREBUILD ${CMAKE_CURRENT_SOURCE_DIR}/../linux/openssl_prebuild/x86_64)
@@ -93,7 +95,7 @@ elseif(UNIX AND NOT APPLE)
     add_library(crypto STATIC IMPORTED)
     set_target_properties(crypto PROPERTIES IMPORTED_LOCATION ${LINUX_PREBUILD}/libcrypto.a)
     target_include_directories(shirm_crypto PRIVATE ${LINUX_PREBUILD}/include)
-    target_link_libraries(shirm_crypto PRIVATE ssl crypto ${SHIRM_ZLIB_LIB})
+    target_link_libraries(shirm_crypto PRIVATE ssl crypto ${SHIRM_ZLIB_LIB} Threads::Threads)
 
 elseif(WIN32)
     if(MSVC)
@@ -121,5 +123,5 @@ elseif(WIN32)
     set_property(TARGET shirm_crypto PROPERTY
         MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     target_compile_options(shirm_crypto PRIVATE /MT)
-    target_link_libraries(shirm_crypto PRIVATE ssl crypto z ws2_32 crypt32 secur32 advapi32 user32)
+    target_link_libraries(shirm_crypto PRIVATE ssl crypto z ws2_32 crypt32 secur32 advapi32 user32 Threads::Threads)
 endif()

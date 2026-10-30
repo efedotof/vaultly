@@ -73,12 +73,13 @@ ShirmEncryptStream *shirm_encrypt_stream_init(
         return NULL;
     }
 
-    EVP_PKEY *pubKey = load_public_key_from_pem(publicKeyPem);
+    EVP_PKEY *pubKey = load_public_key_from_pem_cached(publicKeyPem);
     if (!pubKey) {
         fclose(stream->inputFile); free(stream);
         if (error) *error = strdup("Failed to load public key");
         return NULL;
     }
+
     unsigned char *encKey = NULL;
     size_t encKey_len = 0;
     if (!rsa_oaep_encrypt(stream->aesKey, 32, pubKey, &encKey, &encKey_len)) {
@@ -402,12 +403,13 @@ ShirmDecryptStream *shirm_decrypt_stream_init(
         return NULL;
     }
 
-    EVP_PKEY *priv = load_private_key_from_pem(privateKeyPem);
+    EVP_PKEY *priv = load_private_key_from_pem_cached(privateKeyPem);
     if (!priv) {
         free(encKey); free(iv); shps_free_header(&hdr); free(s);
         if (error) *error = strdup("Failed to load private key");
         return NULL;
     }
+
     unsigned char *aesKey = NULL;
     size_t aesKey_len = 0;
     int ok = rsa_oaep_decrypt(encKey, encKey_len, priv, &aesKey, &aesKey_len);

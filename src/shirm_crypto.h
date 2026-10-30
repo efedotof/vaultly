@@ -113,6 +113,8 @@ extern "C"
         ShirmCacheLoadStream *stream, uint8_t **out_chunk, size_t *out_chunkSize, char **error);
     FFI_PLUGIN_EXPORT void shirm_cache_load_stream_free(ShirmCacheLoadStream *stream);
 
+    FFI_PLUGIN_EXPORT void shirm_crypto_clear_key_cache(void);
+
 #ifdef __cplusplus
 }
 #endif
