@@ -103,6 +103,8 @@ class ShirmCryptoImpl {
   }) {
     final controller = StreamController<Uint8List>();
     final receivePort = ReceivePort();
+    SendPort? isolateControlPort;
+    var cancelled = false;
 
     final request = worker.EncryptStreamRequest(
       inputPath: inputPath,
@@ -114,17 +116,28 @@ class ShirmCryptoImpl {
       compress: compress,
     );
 
+    controller.onCancel = () {
+      cancelled = true;
+      isolateControlPort?.send('cancel');
+    };
+
     Isolate.spawn(worker.encryptStreamIsolate, [request, receivePort.sendPort]);
 
     receivePort.listen((message) {
-      if (message == null) {
-        controller.close();
+      if (message is Map && message.containsKey('controlPort')) {
+        isolateControlPort = message['controlPort'] as SendPort;
+      } else if (message == null) {
+        if (!cancelled) {
+          controller.close();
+        }
         receivePort.close();
       } else if (message is Uint8List) {
-        controller.add(message);
+        if (!cancelled) controller.add(message);
       } else if (message is Map && message.containsKey('error')) {
-        controller.addError(Exception(message['error']));
-        controller.close();
+        if (!cancelled) {
+          controller.addError(Exception(message['error']));
+          controller.close();
+        }
         receivePort.close();
       }
     });
@@ -138,23 +151,36 @@ class ShirmCryptoImpl {
   }) {
     final controller = StreamController<Uint8List>();
     final receivePort = ReceivePort();
+    SendPort? isolateControlPort;
+    var cancelled = false;
 
     final request = worker.DecryptStreamRequest(
       shpsData: shpsData,
       privateKeyPem: privateKeyPem,
     );
 
+    controller.onCancel = () {
+      cancelled = true;
+      isolateControlPort?.send('cancel');
+    };
+
     Isolate.spawn(worker.decryptStreamIsolate, [request, receivePort.sendPort]);
 
     receivePort.listen((message) {
-      if (message == null) {
-        controller.close();
+      if (message is Map && message.containsKey('controlPort')) {
+        isolateControlPort = message['controlPort'] as SendPort;
+      } else if (message == null) {
+        if (!cancelled) {
+          controller.close();
+        }
         receivePort.close();
       } else if (message is Uint8List) {
-        controller.add(message);
+        if (!cancelled) controller.add(message);
       } else if (message is Map && message.containsKey('error')) {
-        controller.addError(Exception(message['error']));
-        controller.close();
+        if (!cancelled) {
+          controller.addError(Exception(message['error']));
+          controller.close();
+        }
         receivePort.close();
       }
     });

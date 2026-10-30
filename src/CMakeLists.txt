@@ -2,12 +2,20 @@ cmake_minimum_required(VERSION 3.14)
 project(shirm_crypto_library VERSION 0.0.1 LANGUAGES C)
 
 if(NOT WIN32 AND NOT ANDROID)
-  include(FetchContent)
-  FetchContent_Declare(
-      zlib
-      URL https://github.com/madler/zlib/archive/refs/tags/v1.3.2.tar.gz
-  )
-  FetchContent_MakeAvailable(zlib)
+  find_package(ZLIB QUIET)
+  if(ZLIB_FOUND)
+    message(STATUS "Using system zlib")
+    set(SHIRM_ZLIB_LIB ZLIB::ZLIB)
+  else()
+    message(STATUS "System zlib not found, fetching…")
+    include(FetchContent)
+    FetchContent_Declare(
+        zlib
+        URL https://github.com/madler/zlib/archive/refs/tags/v1.3.2.tar.gz
+    )
+    FetchContent_MakeAvailable(zlib)
+    set(SHIRM_ZLIB_LIB zlib)
+  endif()
 endif()
 
 add_library(shirm_crypto SHARED
@@ -22,24 +30,28 @@ set_target_properties(shirm_crypto PROPERTIES
 
 target_compile_definitions(shirm_crypto PUBLIC DART_SHARED_LIB)
 
+target_compile_definitions(shirm_crypto PRIVATE
+    SQLITE_THREADSAFE=0
+    SQLITE_OMIT_LOAD_EXTENSION
+    SQLITE_DEFAULT_MEMSTATUS=0
+    SQLITE_DQS=0
+)
+
 target_include_directories(shirm_crypto PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/sqlite
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party  
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party
 )
 
 if(ANDROID)
     add_library(ssl SHARED IMPORTED)
     set_target_properties(ssl PROPERTIES
         IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/../android/src/main/jniLibs/${ANDROID_ABI}/libssl.so)
-
     add_library(crypto SHARED IMPORTED)
     set_target_properties(crypto PROPERTIES
         IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/../android/src/main/jniLibs/${ANDROID_ABI}/libcrypto.so)
-
     target_include_directories(shirm_crypto PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../android/src/main/jniLibs/${ANDROID_ABI}/include)
-
     target_link_libraries(shirm_crypto PRIVATE ssl crypto z log)
     target_link_options(shirm_crypto PRIVATE "-Wl,-z,max-page-size=16384")
 
@@ -53,14 +65,13 @@ elseif(APPLE AND NOT IOS)
     else()
         set(OPENSSL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../macos/openssl_prebuild/macos-arm/13.0)
     endif()
-
     add_library(ssl STATIC IMPORTED)
     set_target_properties(ssl PROPERTIES IMPORTED_LOCATION ${OPENSSL_DIR}/libssl.a)
     add_library(crypto STATIC IMPORTED)
     set_target_properties(crypto PROPERTIES IMPORTED_LOCATION ${OPENSSL_DIR}/libcrypto.a)
     target_include_directories(shirm_crypto PRIVATE ${OPENSSL_DIR}/include)
     find_library(SECURITY Security REQUIRED)
-    target_link_libraries(shirm_crypto PRIVATE ssl crypto zlib ${SECURITY})
+    target_link_libraries(shirm_crypto PRIVATE ssl crypto ${SHIRM_ZLIB_LIB} ${SECURITY})
 
 elseif(IOS)
     if(CMAKE_SYSROOT MATCHES "iphonesimulator")
@@ -73,7 +84,7 @@ elseif(IOS)
     add_library(crypto STATIC IMPORTED)
     set_target_properties(crypto PROPERTIES IMPORTED_LOCATION ${IOS_PREBUILD}/libcrypto.a)
     target_include_directories(shirm_crypto PRIVATE ${IOS_PREBUILD}/include)
-    target_link_libraries(shirm_crypto PRIVATE ssl crypto zlib)
+    target_link_libraries(shirm_crypto PRIVATE ssl crypto ${SHIRM_ZLIB_LIB})
 
 elseif(UNIX AND NOT APPLE)
     set(LINUX_PREBUILD ${CMAKE_CURRENT_SOURCE_DIR}/../linux/openssl_prebuild/x86_64)
@@ -82,7 +93,7 @@ elseif(UNIX AND NOT APPLE)
     add_library(crypto STATIC IMPORTED)
     set_target_properties(crypto PROPERTIES IMPORTED_LOCATION ${LINUX_PREBUILD}/libcrypto.a)
     target_include_directories(shirm_crypto PRIVATE ${LINUX_PREBUILD}/include)
-    target_link_libraries(shirm_crypto PRIVATE ssl crypto zlib)
+    target_link_libraries(shirm_crypto PRIVATE ssl crypto ${SHIRM_ZLIB_LIB})
 
 elseif(WIN32)
     if(MSVC)
@@ -110,6 +121,5 @@ elseif(WIN32)
     set_property(TARGET shirm_crypto PROPERTY
         MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     target_compile_options(shirm_crypto PRIVATE /MT)
-
     target_link_libraries(shirm_crypto PRIVATE ssl crypto z ws2_32 crypt32 secur32 advapi32 user32)
 endif()

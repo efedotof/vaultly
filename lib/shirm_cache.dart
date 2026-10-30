@@ -25,6 +25,17 @@ class ShirmCache {
 
   ShirmCache._(this._cachePtr);
 
+  /// Читает C-строку ошибки, освобождает её через shirm_free().
+  /// Возвращает готовую Dart-строку.
+  static String _takeError(Pointer<Pointer<Char>> errorPtr) {
+    final cstr = errorPtr.value;
+    if (cstr == nullptr) return 'Unknown error';
+    final msg = cstr.cast<Utf8>().toDartString();
+    _bindings.shirm_free(cstr.cast<Void>());
+    errorPtr.value = nullptr;
+    return msg;
+  }
+
   static Future<ShirmCache> init(String cacheDir) async {
     return using((arena) {
       final errorPtr = arena<Pointer<Utf8>>();
@@ -33,8 +44,7 @@ class ShirmCache {
         errorPtr.cast<Pointer<Char>>(),
       );
       if (ptr == nullptr) {
-        final error = errorPtr.value.toDartString();
-        throw Exception('Cache init failed: $error');
+        throw Exception('Cache init failed: ${_takeError(errorPtr.cast())}');
       }
       return ShirmCache._(ptr);
     });
@@ -58,8 +68,7 @@ class ShirmCache {
         errorPtr.cast<Pointer<Char>>(),
       );
       if (result == 0) {
-        final error = errorPtr.value.toDartString();
-        throw Exception(error);
+        throw Exception(_takeError(errorPtr.cast()));
       }
     });
   }
@@ -75,8 +84,7 @@ class ShirmCache {
         errorPtr.cast<Pointer<Char>>(),
       );
       if (dataPtr == nullptr) {
-        final error = errorPtr.value.toDartString();
-        throw Exception(error);
+        throw Exception(_takeError(errorPtr.cast()));
       }
       final size = outSize.value;
       final bytes = dataPtr.asTypedList(size);
@@ -105,8 +113,7 @@ class ShirmCache {
         errorPtr.cast<Pointer<Char>>(),
       );
       if (result == 0) {
-        final error = errorPtr.value.toDartString();
-        throw Exception(error);
+        throw Exception(_takeError(errorPtr.cast()));
       }
     });
   }
@@ -119,8 +126,7 @@ class ShirmCache {
         errorPtr.cast<Pointer<Char>>(),
       );
       if (result == 0) {
-        final error = errorPtr.value.toDartString();
-        throw Exception(error);
+        throw Exception(_takeError(errorPtr.cast()));
       }
     });
   }
@@ -133,8 +139,7 @@ class ShirmCache {
         errorPtr.cast<Pointer<Char>>(),
       );
       if (jsonPtr == nullptr) {
-        final error = errorPtr.value.toDartString();
-        throw Exception(error);
+        throw Exception(_takeError(errorPtr.cast()));
       }
       final jsonStr = jsonPtr.cast<Utf8>().toDartString();
       _bindings.shirm_free(jsonPtr.cast<Void>());

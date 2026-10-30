@@ -31,6 +31,24 @@ class DecryptStreamRequest {
   DecryptStreamRequest({required this.shpsData, required this.privateKeyPem});
 }
 
+/// Общий каркас изолята: спавнит control-port, слушает 'cancel',
+/// возвращает true между чанками, если пользователь отменил.
+class _IsolateControl {
+  final ReceivePort _port = ReceivePort();
+  bool cancelled = false;
+  late final SendPort _sendPort;
+
+  _IsolateControl(SendPort out) {
+    _sendPort = _port.sendPort;
+    out.send({'controlPort': _sendPort});
+    _port.listen((msg) {
+      if (msg == 'cancel') cancelled = true;
+    });
+  }
+
+  void close() => _port.close();
+}
+
 void encryptStreamIsolate(List<Object> args) {
   final request = args[0] as EncryptStreamRequest;
   final sendPort = args[1] as SendPort;
@@ -38,10 +56,8 @@ void encryptStreamIsolate(List<Object> args) {
   final dylib = _loadLibrary();
   final bindings = ShirmCryptoBindings(dylib);
 
-  // Одноразовые строки — в Arena, освободятся все разом в finally.
   final arena = Arena();
-  // Per-iteration скрэтч и errorPtrPtr — через calloc, чтобы можно было
-  // освободить по ходу и не раздувать Arena в цикле.
+  final ctrl = _IsolateControl(sendPort);
   final errorPtrPtr = calloc<Pointer<Char>>();
   Pointer<ShirmEncryptStream>? stream;
 
@@ -81,6 +97,11 @@ void encryptStreamIsolate(List<Object> args) {
 
     try {
       while (true) {
+        if (ctrl.cancelled) {
+          sendPort.send({'error': 'Operation cancelled'});
+          return;
+        }
+
         final outChunkPtr = calloc<Pointer<Uint8>>();
         final outChunkSizePtr = calloc<Size>();
         final result = bindings.shirm_encrypt_stream_process(
@@ -112,7 +133,6 @@ void encryptStreamIsolate(List<Object> args) {
         if (chunkPtr != nullptr && chunkSize > 0) {
           final data = chunkPtr.asTypedList(chunkSize);
           sendPort.send(Uint8List.fromList(data));
-          // chunkPtr выделен C-шным malloc → освобождаем через C free.
           calloc.free(chunkPtr);
         }
       }
@@ -125,6 +145,7 @@ void encryptStreamIsolate(List<Object> args) {
   } finally {
     calloc.free(errorPtrPtr);
     arena.releaseAll();
+    ctrl.close();
   }
 }
 
@@ -136,6 +157,7 @@ void decryptStreamIsolate(List<Object> args) {
   final bindings = ShirmCryptoBindings(dylib);
 
   final arena = Arena();
+  final ctrl = _IsolateControl(sendPort);
   final errorPtrPtr = calloc<Pointer<Char>>();
   Pointer<Uint8>? dataPtr;
   Pointer<ShirmDecryptStream>? stream;
@@ -144,7 +166,6 @@ void decryptStreamIsolate(List<Object> args) {
     final privateKeyPtr =
         request.privateKeyPem.toNativeUtf8(allocator: arena).cast<Char>();
 
-    // Входной буфер — не в Arena, чтобы освободить сразу после init.
     dataPtr = calloc<Uint8>(request.shpsData.length);
     dataPtr.asTypedList(request.shpsData.length).setAll(0, request.shpsData);
 
@@ -162,13 +183,16 @@ void decryptStreamIsolate(List<Object> args) {
       return;
     }
 
-    // init уже скопировал всё, что нужно (парсинг заголовка + EVP init).
-    // Дальше dataPtr не нужен — освобождаем.
     calloc.free(dataPtr);
     dataPtr = nullptr;
 
     try {
       while (true) {
+        if (ctrl.cancelled) {
+          sendPort.send({'error': 'Operation cancelled'});
+          return;
+        }
+
         final outChunkPtr = calloc<Pointer<Uint8>>();
         final outChunkSizePtr = calloc<Size>();
         final result = bindings.shirm_decrypt_stream_process(
@@ -213,11 +237,10 @@ void decryptStreamIsolate(List<Object> args) {
     if (dataPtr != null) calloc.free(dataPtr);
     calloc.free(errorPtrPtr);
     arena.releaseAll();
+    ctrl.close();
   }
 }
 
-/// Читает *errorPtrPtr, освобождает C-строку (её аллоцировал strdup в C),
-/// освобождает сам errorPtrPtr и отправляет ошибку в SendPort.
 void _sendErrorAndFree(
   Pointer<Pointer<Char>> errorPtrPtr,
   SendPort sendPort, {
@@ -229,7 +252,7 @@ void _sendErrorAndFree(
     return;
   }
   final msg = errorPtr.cast<Utf8>().toDartString();
-  calloc.free(errorPtr); // strdup() внутри C
+  calloc.free(errorPtr);
   sendPort.send({'error': msg});
 }
 

@@ -1,24 +1,24 @@
 # Changelog
 
 Все значимые изменения в проекте `shirm_crypto`.
-Формат — по мотивам [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
-версионирование — [SemVer](https://semver.org/lang/ru/).
+Формат - по мотивам [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
+версионирование - [SemVer](https://semver.org/lang/ru/).
 
-## [0.0.2] — 2026-10-30
+## [0.0.2] - 2026-10-30
 
 Критический релиз: устранены уязвимости, утечки памяти и баги потоковой
 обработки, из-за которых шифрование/расшифровка с `compress: true` не
 работали end-to-end.
 
-### 1 — Ошибки безопасности
+### 1 - Ошибки безопасности
 
 #### 1.1. Ручной парсинг JSON через `strstr`
 
 В файлах `shirm_crypto_stream.c` (`shirm_decrypt_stream_init`) и
 `shirm_crypto_shps.c` (`shirm_decrypt_data`) заголовок `.shps` разбирался
 через `strstr`. Любая кавычка в `originalFileName`, `keyOwner` или `userId`
-ломала разбор, что открывало путь к подделке заголовка, обходу проверок и —
-в связке с 1.2 — к переполнению буфера.
+ломала разбор, что открывало путь к подделке заголовка, обходу проверок и -
+в связке с 1.2 - к переполнению буфера.
 
 **Исправлено.** Добавлена вендорная копия `third_party/jsmn/jsmn.h`
 (single-header, public domain). Разбор вынесен в общую функцию
@@ -29,7 +29,7 @@
 
 `build_header()` аллоцировал `malloc(4096)` и писал через `sprintf`. Имя
 файла или `userId` длиннее ~2 KB гарантированно приводили к heap overflow.
-JSON не экранировался — кавычка или `\` в имени ломали заголовок.
+JSON не экранировался - кавычка или `\` в имени ломали заголовок.
 
 **Исправлено.**
 - Все строки проходят через `shps_json_escape()` (экранирует `"`, `\`, `\n`,
@@ -44,7 +44,7 @@ C-строку без последующего `free`. При каждом encry
 утекало ~200–500 байт на строку.
 
 **Исправлено.** Все `toNativeUtf8()` переведены на `Arena` (`package:ffi`),
-освобождение — единым `arena.releaseAll()` в `finally`. Дополнительно:
+освобождение - единым `arena.releaseAll()` в `finally`. Дополнительно:
 - `*errorPtrPtr` (`strdup` из C) теперь освобождается через
   `_sendErrorAndFree()`, раньше указатель терялся.
 - Per-iteration скрэтч (`outChunkPtr`, `outChunkSizePtr`) освобождается сразу
@@ -55,16 +55,16 @@ C-строку без последующего `free`. При каждом encry
 
 `shirm_decrypt_stream_process()` при `updateSize == 0` (файл из одного
 16-байтного GCM-тега) делал рекурсивный вызов
-`return shirm_decrypt_stream_process(...)` — риск stack overflow на
+`return shirm_decrypt_stream_process(...)` - риск stack overflow на
 специально сконструированном входе.
 
-**Исправлено.** Рекурсия заменена на `while (1)` цикл с `continue` — тот же
+**Исправлено.** Рекурсия заменена на `while (1)` цикл с `continue` - тот же
 сценарий теперь просто переходит на следующую итерацию.
 
 #### 1.5. Отсутствие распаковки в стриме
 
 Encrypt-стрим сжимал данные через `deflate(Z_SYNC_FLUSH)`, но decrypt-стрим
-их не распаковывал — возвращал gzip-байты. Пользователь с `compress: true`
+их не распаковывал - возвращал gzip-байты. Пользователь с `compress: true`
 получал сжатый файл после «успешной» расшифровки.
 
 **Исправлено.**
@@ -76,7 +76,7 @@ Encrypt-стрим сжимал данные через `deflate(Z_SYNC_FLUSH)`,
 - На FINAL-стадии выполняется `inflate(Z_FINISH)`, флаг `inflateDone`
   защищает от повторного вызова после `Z_STREAM_END`.
 
-### 2 — Дополнительные исправления (обнаружены при имплементации)
+### 2 - Дополнительные исправления (обнаружены при имплементации)
 
 #### 2.1. GCM-тег не устанавливался в потоковой расшифровке
 
@@ -98,13 +98,13 @@ Encrypt-стрим использовал только `deflate(Z_SYNC_FLUSH)` �
 
 **Исправлено.** На EOF вызывается `deflate(Z_FINISH)`; результат шифруется
 отдельным чанком, `zFinishDone` защищает от повторного вызова.
-`deflateInit2` перенесён в `shirm_encrypt_stream_init` — теперь пустой файл
+`deflateInit2` перенесён в `shirm_encrypt_stream_init` - теперь пустой файл
 с `compress=1` тоже даёт валидный gzip-поток.
 
 #### 2.3. Отсутствие распаковки в `shirm_decrypt_data` (non-stream)
 
 `shirm_decrypt_data()` корректно парсил `compressed` из заголовка, но не
-вызывал `gzip_decompress()` — возвращал gzip-байты. Симметрично 1.5, но
+вызывал `gzip_decompress()` - возвращал gzip-байты. Симметрично 1.5, но
 для не-потокового пути.
 
 **Исправлено.** После `aes_gcm_decrypt()` при `hdr.compressed` вызывается
@@ -112,11 +112,11 @@ Encrypt-стрим использовал только `deflate(Z_SYNC_FLUSH)` �
 
 #### 2.4. Конфликт linkage в `jsmn.h`
 
-Объявления `jsmn_init` / `jsmn_parse` были extern, а определения — `static`
+Объявления `jsmn_init` / `jsmn_parse` были extern, а определения - `static`
 (`JSMN_API` определялся ниже объявлений). GCC/Clang падали с
 `error: static declaration of 'jsmn_init' follows non-static declaration`.
 
-**Исправлено.** `JSMN_API` убран полностью, везде `static` — объявления и
+**Исправлено.** `JSMN_API` убран полностью, везде `static` - объявления и
 определения консистентны. Поле `parent` в `jsmntok_t` сделано безусловным
 (без `#ifdef JSMN_PARENT_LINKS`), инициализируется в `-1` в
 `jsmn_alloc_token`.
@@ -126,13 +126,13 @@ Encrypt-стрим использовал только `deflate(Z_SYNC_FLUSH)` �
 `shirm_decrypt_stream_init()` присваивал
 `s->tagPtr = shpsData + shpsSize - 16` без проверки, что в буфере вообще
 есть место под GCM-тег. Если `shpsSize < 4 + hlen + 16` (например, обрезанный
-`.shps` или сконструированный `{"a":"b"}` — `hlen = 9`, `shpsSize = 13`),
+`.shps` или сконструированный `{"a":"b"}` - `hlen = 9`, `shpsSize = 13`),
 `s->tagPtr` уходил на `shpsData - 3`. При последующем
-`EVP_CTRL_GCM_SET_TAG` OpenSSL читал 16 байт по этому адресу — UB /
+`EVP_CTRL_GCM_SET_TAG` OpenSSL читал 16 байт по этому адресу - UB /
 segfault / аутентификация на мусоре.
 
 **Исправлено.** После проверки `shpsSize >= 4 + hlen` добавлена проверка
-`shpsSize >= 4 + hlen + 16`. При несоответствии —
+`shpsSize >= 4 + hlen + 16`. При несоответствии -
 `error = "Data too short (missing GCM tag)"`. Теперь `tagPtr` гарантированно
 указывает внутрь буфера, `SET_TAG` читает только валидные байты.
 
@@ -166,38 +166,110 @@ gzip-поток усечён (`avail_in == 0`, но `Z_STREAM_END` не наст
 Также `zret != Z_OK` при `produced > 0` теперь трактуется как реальная
 ошибка, а не как «нужно ещё раз».
 
-### 3 — Совместимость
+#### 2.8. Утечка `errorPtr.value` в `ShirmCache` (6 мест)
+
+В `shirm_crypto_cache.dart` каждый вызов `*_cache_*` с ошибкой (init, save,
+load, delete, clear, get_all_metadata) делал
+`errorPtr.value.toDartString()`, но не освобождал C-строку, выделенную
+`strdup()` внутри библиотеки. Утечка ~50–500 байт на каждую неудачную
+операцию с кэшем.
+
+**Исправлено.** Добавлен статический хелпер `_takeError(Pointer<Pointer<Char>>)`:
+читает строку, вызывает `shirm_free(cstr.cast<Void>())`, обнуляет
+`errorPtr.value`, возвращает готовую Dart-строку. Все 6 мест переведены на
+него. `jsonPtr` в `getAllMetadata()` по-прежнему освобождается через
+`shirm_free()` после `toDartString()`.
+
+#### 2.9. Отмена потока не останавливала изолят
+
+При `subscription.cancel()` в `encryptFileStream` / `decryptDataStream`
+`StreamController` закрывался, `ReceivePort.close()`, но изолят продолжал
+крутить `shirm_encrypt_stream_process` / `shirm_decrypt_stream_process` до
+полного EOF, сжигая CPU. На 1 GB файле отмена могла занимать секунды
+работы впустую.
+
+**Исправлено.** Добавлен control-channel между вызывающей стороной и
+изолятом:
+- Изолят сразу после старта отправляет `{'controlPort': SendPort}` в main
+  isolate через `_IsolateControl`.
+- `controller.onCancel` шлёт `'cancel'` в изолят и поднимает флаг
+  `cancelled` на стороне вызывающего, чтобы не писать в уже отменённый
+  `StreamController` (иначе `StateError`).
+- Между чанками (не чаще чем раз в ~1 MB) изолят проверяет
+  `ctrl.cancelled` и при отмене отправляет `{'error': 'Operation cancelled'}`
+  и выходит из цикла.
+- В `finally` по-прежнему вызывается `shirm_*_stream_free(stream)` -
+  C-ресурсы освобождаются корректно.
+
+**Ограничение**: если одна C-операция зависла внутри `EVP_EncryptUpdate` /
+`inflate`, отмена сработает только после её возврата. Для текущих размеров
+чанка (1 MB) это единицы миллисекунд - приемлемо.
+
+### 3 - Совместимость
 
 - Формат `.shps` не изменился: заголовок + шифротекст + 16-байтный GCM-тег.
 - C API не изменился: все функции из `shirm_crypto.h` сохранили сигнатуры.
-- Dart API не изменился: методы `ShirmCrypto.*` работают как раньше.
+- Dart API не изменился: методы `ShirmCrypto.*` и `ShirmCache.*` работают
+  как раньше.
 - Файлы, зашифрованные старой версией с `compress=true`, теперь
   **корректно расшифровываются** (раньше возвращали gzip-байты).
 - Старые зашифрованные файлы, сделанные **stream-путём**, могут не
-  расшифроваться — gzip-trailer в них отсутствовал (см. 2.2).
+  расшифроваться - gzip-trailer в них отсутствовал (см. 2.2).
 - Повреждённые/усечённые `.shps` теперь возвращают осмысленные ошибки
   (`"Data too short (missing GCM tag)"`, `"Data too short (truncated
   ciphertext)"`, `"inflate finish failed (truncated stream)"`) вместо
   segfault, `"malloc failed"` или зависания.
+- `subscription.cancel()` теперь реально останавливает работу изолята, а не
+  только закрывает поток на стороне Dart.
 
-### 4 — Изменённые файлы
+### 4 - Сборка
+
+#### 4.1. Системный zlib вместо FetchContent
+
+Раньше `FetchContent_Declare(zlib …)` вызывался всегда (кроме Windows и
+Android), что ломалось при сборке без интернета.
+
+**Исправлено.** Сначала `find_package(ZLIB QUIET)`; если системный zlib
+найден - используется `ZLIB::ZLIB`, иначе - `FetchContent` (как fallback).
+Единая переменная `SHIRM_ZLIB_LIB` подставляется в `target_link_libraries`
+для macOS / iOS / Linux.
+
+#### 4.2. Флаги SQLite
+
+`sqlite3.c` компилировался без оптимизаций под наш сценарий (локальный
+кэш, один handle на `ShirmCache`, без расширений).
+
+**Исправлено.** Добавлены `target_compile_definitions`:
+- `SQLITE_THREADSAFE=0` - без mutex'ов (каждый `ShirmCache` - свой handle,
+  между изолятами не делимся).
+- `SQLITE_OMIT_LOAD_EXTENSION` - не нужны `.so`-расширения.
+- `SQLITE_DEFAULT_MEMSTATUS=0` - отключает учёт памяти (микро-оптимизация).
+- `SQLITE_DQS=0` - отключает «двойные кавычки как идентификаторы» (best
+  practice, снижает вероятность SQL-инъекций через неаккуратные запросы).
+
+### 5 - Изменённые файлы
 
 **Добавлены:**
-- `third_party/jsmn/jsmn.h` — single-header JSON-парсер.
-- `internal/shirm_crypto_shps_internal.h` — общий разбор заголовка `.shps`.
+- `third_party/jsmn/jsmn.h` - single-header JSON-парсер.
+- `internal/shirm_crypto_shps_internal.h` - общий разбор заголовка `.shps`.
 
 **Изменены:**
-- `shirm_crypto_shps.c` — `shps_json_escape`, `shps_parse_header`,
+- `shirm_crypto_shps.c` - `shps_json_escape`, `shps_parse_header`,
   `shps_free_header`, `build_header`, `shirm_decrypt_data` (+распаковка).
-- `shirm_crypto_stream.c` — `ShirmEncryptStream` (+`eofReached`, `zFinishDone`),
+- `shirm_crypto_stream.c` - `ShirmEncryptStream` (+`eofReached`, `zFinishDone`),
   `ShirmDecryptStream` (+`inflateDone`, `tagPtr`, `authDone`, `outBuf*`),
   `decrypt_inflate_append`, переписанные `*_stream_process`, защитные
   проверки в `shirm_decrypt_stream_init` / `shirm_decrypt_stream_process`
   (см. 2.5–2.7).
-- `shirm_crypto_worker.dart` — Arena, `_sendErrorAndFree`, ручное
-  освобождение per-iteration скрэтча.
-- `CMakeLists.txt` — `${CMAKE_CURRENT_SOURCE_DIR}/third_party` в
-  `target_include_directories`.
+- `shirm_crypto_worker.dart` - Arena, `_sendErrorAndFree`, `_IsolateControl`,
+  проверка `cancelled` между чанками (см. 2.9).
+- `shirm_crypto_native.dart` - `onCancel` в `encryptFileStream` /
+  `decryptDataStream`, обработка `{'controlPort': …}` (см. 2.9).
+- `shirm_crypto_cache.dart` - `_takeError` helper, освобождение `errorPtr`
+  во всех 6 операциях (см. 2.8).
+- `CMakeLists.txt` - `find_package(ZLIB QUIET)` + fallback на `FetchContent`,
+  единая переменная `SHIRM_ZLIB_LIB`, SQLite compile definitions
+  (см. 4.1, 4.2).
 
 **Не изменены (API-совместимы):**
 - `shirm_crypto.h`
